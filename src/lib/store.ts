@@ -17,7 +17,7 @@ const CHECK_IN_DONE_KEY = "coachOS_checkInDone";
 const ACTIVE_SESSION_KEY = "coachOS_activeSession";
 const SEED_VERSION_KEY = "coachOS_seedVersion";
 // Bump this string whenever seed data changes to force a localStorage reset.
-const SEED_VERSION = "2026-05-29-v3";
+const SEED_VERSION = "2026-05-29-v4";
 
 const FOOD_SEED_VERSION_KEY = "coachOS_foodSeedVersion";
 // Bump when foodItems.ts seed data changes to clear custom/deactivated food state.

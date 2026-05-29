@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { DailyCheckIn, MealComplianceType, DailyCheckConfig, DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
+import { DailyCheckIn, MealPlan, NutritionStatusType, DailyCheckConfig, DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { SliderInput } from "@/components/ui/SliderInput";
 import { cn, todayISO } from "@/lib/utils";
 
@@ -10,17 +10,29 @@ interface DailyCheckInFormProps {
   existingToday?: DailyCheckIn;
   checkConfig?: DailyCheckConfig;
   date?: string; // defaults to todayISO()
+  mealPlans?: MealPlan[];
   onSubmit: (data: Omit<DailyCheckIn, "id" | "athleteId">) => void;
 }
 
-const mealComplianceOptions: { label: string; value: MealComplianceType }[] = [
-  { label: "Plan vollständig eingehalten", value: "fully_followed" },
-  { label: "Nicht nach Plan gegessen", value: "not_followed" },
-  { label: "Im Kalorientracker eingetragen", value: "tracked_in_calorie_tracker" },
+function deriveInitialNutritionStatus(ci?: DailyCheckIn): NutritionStatusType {
+  if (!ci) return "meal_plan_followed";
+  if (ci.nutritionStatus) return ci.nutritionStatus;
+  if (["tracked_in_calorie_tracker", "full_tracking", "calorie_tracker_used"].includes(ci.mealCompliance)) {
+    return "calorie_tracker_used";
+  }
+  if (["not_followed", "off_plan", "minor_deviation", "major_deviation", "no_exact_info"].includes(ci.mealCompliance)) {
+    return "no_exact_info";
+  }
+  return "meal_plan_followed";
+}
+
+const nutritionOptions: { value: NutritionStatusType; label: string; desc: string }[] = [
+  { value: "calorie_tracker_used",  label: "Kalorientracker genutzt",        desc: "Alle Mahlzeiten im Tracker eingetragen" },
+  { value: "meal_plan_followed",    label: "Ernährungsplan eingehalten",      desc: "Einen Plan vollständig umgesetzt" },
+  { value: "no_exact_info",         label: "Keine genaue Angabe möglich",     desc: "Mengen unklar oder Plan nicht eingehalten" },
 ];
 
-
-export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, onSubmit }: DailyCheckInFormProps) {
+export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, mealPlans, onSubmit }: DailyCheckInFormProps) {
   const cfg: DailyCheckConfig = { ...DEFAULT_DAILY_CHECK_CONFIG, ...checkConfig };
   const init = existingToday;
   const router = useRouter();
@@ -49,17 +61,27 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
   const [stressLevel, setStressLevel] = useState<1|2|3|4|5>(init?.stressLevel ?? 3);
   const [mood, setMood] = useState<1|2|3|4|5>(init?.mood ?? 3);
   const [note, setNote] = useState(init?.note ?? "");
-  const [mealCompliance, setMealCompliance] = useState<MealComplianceType>(
-    init?.mealCompliance ?? "fully_followed"
-  );
-  const [deviationReason, setDeviationReason] = useState(init?.deviationReason ?? "");
-  const [submitted, setSubmitted] = useState(false);
 
-  const needsDeviation = mealCompliance === "not_followed";
-  const isTrackerEntry = mealCompliance === "tracked_in_calorie_tracker";
+  const [nutritionStatus, setNutritionStatus] = useState<NutritionStatusType>(
+    () => deriveInitialNutritionStatus(init)
+  );
+  const [selectedMealPlanId, setSelectedMealPlanId] = useState<string>(
+    init?.selectedMealPlanId ?? mealPlans?.[0]?.id ?? ""
+  );
+  const [noExactNutritionReason, setNoExactNutritionReason] = useState(
+    init?.noExactNutritionReason ?? init?.deviationReason ?? ""
+  );
+
+  const [submitted, setSubmitted] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    const legacyCompliance =
+      nutritionStatus === "calorie_tracker_used" ? "tracked_in_calorie_tracker"
+      : nutritionStatus === "no_exact_info" ? "not_followed"
+      : "fully_followed";
+
     onSubmit({
       date: date ?? todayISO(),
       weight,
@@ -83,8 +105,11 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       stressLevel: cfg.stressLevel ? stressLevel : 3,
       mood: cfg.mood ? mood : 3,
       note: cfg.notes ? note : "",
-      mealCompliance: cfg.nutritionCompliance ? mealCompliance : "fully_followed",
-      deviationReason: needsDeviation ? deviationReason : undefined,
+      mealCompliance: cfg.nutritionCompliance ? legacyCompliance : "fully_followed",
+      nutritionStatus: cfg.nutritionCompliance ? nutritionStatus : undefined,
+      selectedMealPlanId: cfg.nutritionCompliance && nutritionStatus === "meal_plan_followed" && selectedMealPlanId ? selectedMealPlanId : undefined,
+      noExactNutritionReason: cfg.nutritionCompliance && nutritionStatus === "no_exact_info" ? noExactNutritionReason : undefined,
+      deviationReason: cfg.nutritionCompliance && nutritionStatus === "no_exact_info" ? noExactNutritionReason : undefined,
     });
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 3000);
@@ -228,34 +253,57 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
         </div>
       )}
 
-      {/* Meal Compliance */}
+      {/* Nutrition Status */}
       {cfg.nutritionCompliance && (
         <div className="flex flex-col gap-3">
           <label className="text-sm font-medium text-[#8fa3c0]">Ernährung heute</label>
           <div className="flex flex-col gap-2">
-            {mealComplianceOptions.map((o) => (
-              <button key={o.value} type="button" onClick={() => setMealCompliance(o.value)}
-                className={cn("text-left px-4 py-2.5 rounded-xl border text-sm transition-all",
-                  mealCompliance === o.value
+            {nutritionOptions.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => setNutritionStatus(o.value)}
+                className={cn(
+                  "text-left px-4 py-3 rounded-xl border text-sm transition-all",
+                  nutritionStatus === o.value
                     ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]"
                     : "bg-[#0f1624] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/30"
                 )}
               >
-                {o.label}
+                <span className="font-medium">{o.label}</span>
+                <span className={cn("block text-xs mt-0.5", nutritionStatus === o.value ? "text-[#60a5fa]/70" : "text-[#5a7090]")}>
+                  {o.desc}
+                </span>
               </button>
             ))}
           </div>
 
-          {needsDeviation && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-[#8fa3c0]">Grund / kurze Anmerkung</label>
-              <textarea value={deviationReason} onChange={(e) => setDeviationReason(e.target.value)} rows={2}
-                placeholder="Kurze Anmerkung..."
-                className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none" />
+          {/* Plan selector when meal_plan_followed */}
+          {nutritionStatus === "meal_plan_followed" && mealPlans && mealPlans.length > 0 && (
+            <div className="flex flex-col gap-2 pl-1">
+              <label className="text-xs font-medium text-[#8fa3c0]">Welchen Plan hast du eingehalten?</label>
+              <div className="flex flex-col gap-1.5">
+                {mealPlans.map((plan) => (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => setSelectedMealPlanId(plan.id)}
+                    className={cn(
+                      "text-left px-3 py-2 rounded-xl border text-sm transition-all",
+                      selectedMealPlanId === plan.id
+                        ? "bg-[#10b981]/10 border-[#10b981]/40 text-[#34d399]"
+                        : "bg-[#0f1624] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/30"
+                    )}
+                  >
+                    {plan.title}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {isTrackerEntry && (
+          {/* Link to calorie tracker when calorie_tracker_used */}
+          {nutritionStatus === "calorie_tracker_used" && (
             <button
               type="button"
               onClick={() => router.push("/athlete/calorie-tracker")}
@@ -263,6 +311,24 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
             >
               → Zum Kalorientracker
             </button>
+          )}
+
+          {/* Reason field when no_exact_info */}
+          {nutritionStatus === "no_exact_info" && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-[#8fa3c0]">
+                Warum ist keine genaue Angabe möglich?{" "}
+                <span className="text-[#ef4444]">*</span>
+              </label>
+              <textarea
+                value={noExactNutritionReason}
+                onChange={(e) => setNoExactNutritionReason(e.target.value)}
+                rows={2}
+                required
+                placeholder="z. B. Essen außer Haus, keine Kontrolle über die Mengen..."
+                className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none"
+              />
+            </div>
           )}
         </div>
       )}

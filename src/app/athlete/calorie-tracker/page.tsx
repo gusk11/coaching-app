@@ -77,7 +77,7 @@ export default function CalorieTrackerPage() {
         <CalorieTracker
           key={date}
           initialDay={existing}
-          mealPlan={athlete.mealPlan}
+          mealPlan={athlete.mealPlans?.[0] ?? athlete.mealPlan}
           date={date}
           athleteId={athlete.id}
           onSave={handleSave}

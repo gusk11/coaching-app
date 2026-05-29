@@ -31,8 +31,10 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
     <div
       className={cn(
         "w-full rounded-2xl border p-5 shadow-[0_4px_24px_rgba(0,0,0,0.4)] transition-all",
-        isCheckInToday
+        isCheckInToday && !isDone
           ? "bg-[#1a1300] border-[#f59e0b]/25"
+          : isCheckInToday && isDone
+          ? "bg-[#0d1a14] border-[#10b981]/25"
           : "bg-[#141d2e] border-[#1e2d42]"
       )}
     >
@@ -46,7 +48,11 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
           <div className="flex items-center gap-3">
             <div className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold",
-              isCheckInToday ? "bg-[#f59e0b]/15 text-[#f59e0b]" : "bg-[#1d4ed8]/20 text-[#60a5fa]"
+              isCheckInToday && !isDone
+                ? "bg-[#f59e0b]/15 text-[#f59e0b]"
+                : isCheckInToday && isDone
+                ? "bg-[#10b981]/15 text-[#10b981]"
+                : "bg-[#1d4ed8]/20 text-[#60a5fa]"
             )}>
               {athlete.avatarInitials}
             </div>
@@ -59,7 +65,12 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
           </div>
           <div className="flex items-center gap-2">
             {isCheckInToday && (
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20">
+              <span className={cn(
+                "text-[10px] font-medium px-2 py-0.5 rounded-full border",
+                isDone
+                  ? "bg-[#10b981]/10 text-[#10b981] border-[#10b981]/20"
+                  : "bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/20"
+              )}>
                 Check-in heute
               </span>
             )}
@@ -103,19 +114,22 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
 
       {/* Coach check-in done toggle — only shown on check-in day */}
       {isCheckInToday && onToggleDone && (
-        <div className="mt-3 pt-3 border-t border-[#f59e0b]/10 flex items-center justify-end">
+        <div className={cn(
+          "mt-3 pt-3 border-t flex items-center justify-end",
+          isDone ? "border-[#10b981]/15" : "border-[#f59e0b]/10"
+        )}>
           <button
             onClick={(e) => { e.stopPropagation(); onToggleDone(); }}
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
               isDone
-                ? "bg-[#f59e0b]/10 border-[#f59e0b]/30 text-[#f59e0b]"
+                ? "bg-[#10b981]/10 border-[#10b981]/30 text-[#10b981]"
                 : "bg-transparent border-[#f59e0b]/15 text-[#8fa3c0] hover:border-[#f59e0b]/30 hover:text-[#f59e0b]"
             )}
           >
             <span className={cn(
               "w-4 h-4 rounded flex items-center justify-center border transition-all",
-              isDone ? "bg-[#f59e0b] border-[#f59e0b]" : "border-[#5a7090]"
+              isDone ? "bg-[#10b981] border-[#10b981]" : "border-[#5a7090]"
             )}>
               {isDone && <Check size={10} strokeWidth={3} className="text-black" />}
             </span>

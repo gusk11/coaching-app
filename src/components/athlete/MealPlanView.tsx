@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { MealPlan } from "@/types";
 import { calculateMealMacros, calculateDayMacros, roundMacro, roundSalt } from "@/lib/utils";
 
@@ -6,14 +7,12 @@ function MacroRow({ label, value, unit = "g", color, fmt = Math.round }: { label
   return (
     <div className="flex items-center justify-between text-xs">
       <span className="text-[#5a7090]">{label}</span>
-      <span className={color ?? "text-[#8fa3c0]"}>
-        {fmt(value)}{unit}
-      </span>
+      <span className={color ?? "text-[#8fa3c0]"}>{fmt(value)}{unit}</span>
     </div>
   );
 }
 
-export function MealPlanView({ plan }: { plan: MealPlan }) {
+function SinglePlanView({ plan }: { plan: MealPlan }) {
   const dayMacros = calculateDayMacros(plan.meals);
 
   return (
@@ -25,7 +24,6 @@ export function MealPlanView({ plan }: { plan: MealPlan }) {
         </div>
       )}
 
-      {/* Day totals */}
       <div className="p-4 rounded-2xl bg-[#3b82f6]/5 border border-[#3b82f6]/20">
         <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-3">Tagessumme</p>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
@@ -38,7 +36,6 @@ export function MealPlanView({ plan }: { plan: MealPlan }) {
         </div>
       </div>
 
-      {/* Meals */}
       {plan.meals.map((meal) => {
         const macros = calculateMealMacros(meal.entries);
         return (
@@ -96,6 +93,48 @@ export function MealPlanView({ plan }: { plan: MealPlan }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+export function MealPlanView({ plans }: { plans: MealPlan[] }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  if (plans.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <p className="text-4xl mb-4">🍽</p>
+        <p className="text-[#8fa3c0] font-medium">Noch kein Ernährungsplan</p>
+        <p className="text-sm text-[#5a7090] mt-1">Dein Coach arbeitet gerade daran.</p>
+      </div>
+    );
+  }
+
+  const activePlan = plans[Math.min(activeIdx, plans.length - 1)];
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Plan selector (only shown if multiple plans) */}
+      {plans.length > 1 && (
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          {plans.map((plan, idx) => (
+            <button
+              key={plan.id}
+              type="button"
+              onClick={() => setActiveIdx(idx)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                activeIdx === idx
+                  ? "bg-[#3b82f6] text-white"
+                  : "bg-[#141d2e] text-[#8fa3c0] hover:text-[#f0f4ff] border border-[#1e2d42]"
+              }`}
+            >
+              {plan.title}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <SinglePlanView plan={activePlan} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import {
   Athlete, FoodItem, DailyCheckIn, WeeklyCheckIn, CalorieTrackerDay,
   CalorieTrackerEntry, TrainingLog, TrainingExerciseLog, TrainingSetLog,
-  MealComplianceType, DailyCheckConfig,
+  MealComplianceType, DailyCheckConfig, MealPlan,
 } from "@/types";
 
 // ─── Last 7 days (today = 2026-05-29) ────────────────────────────────────────
@@ -98,20 +98,20 @@ function exLog(exId: string, exName: string, sets: [number, number, (number | un
 // ─── MAX MUSTERMANN ───────────────────────────────────────────────────────────
 
 const maxDailyChecks: DailyCheckIn[] = [
-  // 2026-05-23 (Fri) Training A
-  { id:"dc-athlete-max-0", athleteId:"athlete-max", date:"2026-05-23", weight:90.1, measurementTime:"07:00", appetite:4, digestion:4, caffeine:200, steps:10000, cardio:false, training:true, trainingQuality:4, sleepHours:7.0, sleepQuality:4, restingHeartRate:62, hrv:67, spO2:98, bloodPressure:{systolic:122,diastolic:76}, energyLevel:4, stressLevel:3, mood:4, note:"Push-Einheit gut. Bankdrücken leicht gestiegen.", mealCompliance:"full" },
-  // 2026-05-24 (Sat) Rest + Cardio
-  { id:"dc-athlete-max-1", athleteId:"athlete-max", date:"2026-05-24", weight:90.0, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:8500, cardio:true, cardioDuration:30, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:60, hrv:72, spO2:98, bloodPressure:{systolic:120,diastolic:74}, energyLevel:3, stressLevel:2, mood:4, note:"Lockerer Spaziergang, gute Erholung.", mealCompliance:"full" },
-  // 2026-05-25 (Sun) Training B
-  { id:"dc-athlete-max-2", athleteId:"athlete-max", date:"2026-05-25", weight:89.8, measurementTime:"07:00", appetite:4, digestion:4, caffeine:200, steps:9000, cardio:false, training:true, trainingQuality:4, sleepHours:7.5, sleepQuality:5, restingHeartRate:61, hrv:70, spO2:97, bloodPressure:{systolic:121,diastolic:75}, energyLevel:4, stressLevel:2, mood:4, note:"Pull-Einheit stark, Latzug gut.", mealCompliance:"full" },
-  // 2026-05-26 (Mon) Rest – deviation day
-  { id:"dc-athlete-max-3", athleteId:"athlete-max", date:"2026-05-26", weight:89.9, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:11000, cardio:false, training:false, trainingQuality:3, sleepHours:6.5, sleepQuality:3, restingHeartRate:64, hrv:60, spO2:98, bloodPressure:{systolic:126,diastolic:80}, energyLevel:3, stressLevel:4, mood:3, note:"Abends mit Familie gegessen, Plan leicht überschritten.", mealCompliance:"minor_deviation", deviationReason:"Abendessen außer Haus" },
-  // 2026-05-27 (Tue) Training A
-  { id:"dc-athlete-max-4", athleteId:"athlete-max", date:"2026-05-27", weight:89.6, measurementTime:"07:00", appetite:4, digestion:4, caffeine:200, steps:8000, cardio:false, training:true, trainingQuality:4, sleepHours:7.0, sleepQuality:4, restingHeartRate:62, hrv:65, spO2:98, bloodPressure:{systolic:122,diastolic:77}, energyLevel:4, stressLevel:3, mood:4, note:"Push-Einheit wieder gut, leichte Steigerung.", mealCompliance:"full" },
-  // 2026-05-28 (Wed) Rest + Cardio
-  { id:"dc-athlete-max-5", athleteId:"athlete-max", date:"2026-05-28", weight:89.5, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:9500, cardio:true, cardioDuration:30, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:60, hrv:73, spO2:98, bloodPressure:{systolic:120,diastolic:74}, energyLevel:3, stressLevel:2, mood:4, note:"Erholung, 30 min spazieren.", mealCompliance:"full" },
-  // 2026-05-29 (Thu) Rest
-  { id:"dc-athlete-max-6", athleteId:"athlete-max", date:"2026-05-29", weight:89.4, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:10500, cardio:false, training:false, trainingQuality:3, sleepHours:7.0, sleepQuality:4, restingHeartRate:61, hrv:68, spO2:98, bloodPressure:{systolic:121,diastolic:76}, energyLevel:4, stressLevel:3, mood:4, note:"", mealCompliance:"full" },
+  // 2026-05-23 (Fri) Training A – Ernährungsplan Trainingstag
+  { id:"dc-athlete-max-0", athleteId:"athlete-max", date:"2026-05-23", weight:90.1, measurementTime:"07:00", appetite:4, digestion:4, caffeine:200, steps:10000, cardio:false, training:true, trainingQuality:4, sleepHours:7.0, sleepQuality:4, restingHeartRate:62, hrv:67, spO2:98, bloodPressure:{systolic:122,diastolic:76}, energyLevel:4, stressLevel:3, mood:4, note:"Push-Einheit gut. Bankdrücken leicht gestiegen.", mealCompliance:"fully_followed", nutritionStatus:"meal_plan_followed", selectedMealPlanId:"mp-athlete-max-training" },
+  // 2026-05-24 (Sat) Rest + Cardio – Ernährungsplan Ruhetag
+  { id:"dc-athlete-max-1", athleteId:"athlete-max", date:"2026-05-24", weight:90.0, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:8500, cardio:true, cardioDuration:30, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:60, hrv:72, spO2:98, bloodPressure:{systolic:120,diastolic:74}, energyLevel:3, stressLevel:2, mood:4, note:"Lockerer Spaziergang, gute Erholung.", mealCompliance:"fully_followed", nutritionStatus:"meal_plan_followed", selectedMealPlanId:"mp-athlete-max-rest" },
+  // 2026-05-25 (Sun) Training B – Kalorientracker genutzt
+  { id:"dc-athlete-max-2", athleteId:"athlete-max", date:"2026-05-25", weight:89.8, measurementTime:"07:00", appetite:4, digestion:4, caffeine:200, steps:9000, cardio:false, training:true, trainingQuality:4, sleepHours:7.5, sleepQuality:5, restingHeartRate:61, hrv:70, spO2:97, bloodPressure:{systolic:121,diastolic:75}, energyLevel:4, stressLevel:2, mood:4, note:"Pull-Einheit stark, Latzug gut.", mealCompliance:"tracked_in_calorie_tracker", nutritionStatus:"calorie_tracker_used" },
+  // 2026-05-26 (Mon) Rest – keine genaue Angabe
+  { id:"dc-athlete-max-3", athleteId:"athlete-max", date:"2026-05-26", weight:89.9, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:11000, cardio:false, training:false, trainingQuality:3, sleepHours:6.5, sleepQuality:3, restingHeartRate:64, hrv:60, spO2:98, bloodPressure:{systolic:126,diastolic:80}, energyLevel:3, stressLevel:4, mood:3, note:"Abends mit Familie gegessen, Plan leicht überschritten.", mealCompliance:"not_followed", nutritionStatus:"no_exact_info", noExactNutritionReason:"Abendessen außer Haus – kein Überblick über die genauen Mengen möglich.", deviationReason:"Abendessen außer Haus" },
+  // 2026-05-27 (Tue) Training A – Ernährungsplan Trainingstag
+  { id:"dc-athlete-max-4", athleteId:"athlete-max", date:"2026-05-27", weight:89.6, measurementTime:"07:00", appetite:4, digestion:4, caffeine:200, steps:8000, cardio:false, training:true, trainingQuality:4, sleepHours:7.0, sleepQuality:4, restingHeartRate:62, hrv:65, spO2:98, bloodPressure:{systolic:122,diastolic:77}, energyLevel:4, stressLevel:3, mood:4, note:"Push-Einheit wieder gut, leichte Steigerung.", mealCompliance:"fully_followed", nutritionStatus:"meal_plan_followed", selectedMealPlanId:"mp-athlete-max-training" },
+  // 2026-05-28 (Wed) Rest + Cardio – Kalorientracker genutzt
+  { id:"dc-athlete-max-5", athleteId:"athlete-max", date:"2026-05-28", weight:89.5, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:9500, cardio:true, cardioDuration:30, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:60, hrv:73, spO2:98, bloodPressure:{systolic:120,diastolic:74}, energyLevel:3, stressLevel:2, mood:4, note:"Erholung, 30 min spazieren.", mealCompliance:"tracked_in_calorie_tracker", nutritionStatus:"calorie_tracker_used" },
+  // 2026-05-29 (Thu) Rest – Kalorientracker genutzt
+  { id:"dc-athlete-max-6", athleteId:"athlete-max", date:"2026-05-29", weight:89.4, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:10500, cardio:false, training:false, trainingQuality:3, sleepHours:7.0, sleepQuality:4, restingHeartRate:61, hrv:68, spO2:98, bloodPressure:{systolic:121,diastolic:76}, energyLevel:4, stressLevel:3, mood:4, note:"", mealCompliance:"tracked_in_calorie_tracker", nutritionStatus:"calorie_tracker_used" },
 ];
 
 const maxWeeklyChecks: WeeklyCheckIn[] = [
@@ -198,20 +198,20 @@ const maxTrainingLogs: TrainingLog[] = [
 // ─── LENA WEBER ───────────────────────────────────────────────────────────────
 
 const lenaDailyChecks: DailyCheckIn[] = [
-  // 2026-05-23 (Fri) Training A
-  { id:"dc-athlete-lena-0", athleteId:"athlete-lena", date:"2026-05-23", weight:67.8, measurementTime:"07:00", appetite:3, digestion:4, caffeine:150, steps:11000, cardio:false, training:true, trainingQuality:4, sleepHours:7.5, sleepQuality:4, restingHeartRate:64, hrv:65, spO2:99, bloodPressure:{systolic:112,diastolic:70}, energyLevel:4, stressLevel:3, mood:4, note:"Beine stark, Latzug gut umgesetzt.", mealCompliance:"full" },
-  // 2026-05-24 (Sat) Cardio
-  { id:"dc-athlete-lena-1", athleteId:"athlete-lena", date:"2026-05-24", weight:67.6, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:9000, cardio:true, cardioDuration:25, training:false, trainingQuality:3, sleepHours:8.0, sleepQuality:5, restingHeartRate:62, hrv:72, spO2:99, bloodPressure:{systolic:110,diastolic:68}, energyLevel:5, stressLevel:2, mood:5, note:"Cardio lockerer Lauf, gute Erholung.", mealCompliance:"full" },
-  // 2026-05-25 (Sun) Training B
-  { id:"dc-athlete-lena-2", athleteId:"athlete-lena", date:"2026-05-25", weight:67.5, measurementTime:"07:00", appetite:4, digestion:4, caffeine:150, steps:13000, cardio:false, training:true, trainingQuality:4, sleepHours:7.0, sleepQuality:4, restingHeartRate:63, hrv:68, spO2:98, bloodPressure:{systolic:112,diastolic:70}, energyLevel:3, stressLevel:2, mood:4, note:"Starkes Push-Training, Energie gut.", mealCompliance:"full" },
-  // 2026-05-26 (Mon) Cardio
-  { id:"dc-athlete-lena-3", athleteId:"athlete-lena", date:"2026-05-26", weight:67.3, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:10000, cardio:true, cardioDuration:30, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:62, hrv:70, spO2:99, bloodPressure:{systolic:111,diastolic:69}, energyLevel:4, stressLevel:3, mood:4, note:"Cardio morgens, dann entspannter Tag.", mealCompliance:"full" },
-  // 2026-05-27 (Tue) Training A
-  { id:"dc-athlete-lena-4", athleteId:"athlete-lena", date:"2026-05-27", weight:67.2, measurementTime:"07:00", appetite:4, digestion:5, caffeine:150, steps:12000, cardio:false, training:true, trainingQuality:5, sleepHours:8.0, sleepQuality:5, restingHeartRate:61, hrv:75, spO2:99, bloodPressure:{systolic:110,diastolic:68}, energyLevel:5, stressLevel:2, mood:5, note:"Beste Trainingseinheit diese Woche!", mealCompliance:"full" },
-  // 2026-05-28 (Wed) Rest – deviation day
-  { id:"dc-athlete-lena-5", athleteId:"athlete-lena", date:"2026-05-28", weight:67.0, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:9500, cardio:false, training:false, trainingQuality:3, sleepHours:7.0, sleepQuality:4, restingHeartRate:63, hrv:67, spO2:98, bloodPressure:{systolic:112,diastolic:70}, energyLevel:3, stressLevel:2, mood:4, note:"Abends weniger Reis, Hunger okay.", mealCompliance:"minor_deviation", deviationReason:"Abends weniger gegessen als geplant" },
-  // 2026-05-29 (Thu) Rest
-  { id:"dc-athlete-lena-6", athleteId:"athlete-lena", date:"2026-05-29", weight:66.9, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:11500, cardio:false, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:62, hrv:69, spO2:99, bloodPressure:{systolic:111,diastolic:69}, energyLevel:4, stressLevel:3, mood:4, note:"", mealCompliance:"full" },
+  // 2026-05-23 (Fri) Training A – Ernährungsplan Trainingstag
+  { id:"dc-athlete-lena-0", athleteId:"athlete-lena", date:"2026-05-23", weight:67.8, measurementTime:"07:00", appetite:3, digestion:4, caffeine:150, steps:11000, cardio:false, training:true, trainingQuality:4, sleepHours:7.5, sleepQuality:4, restingHeartRate:64, hrv:65, spO2:99, bloodPressure:{systolic:112,diastolic:70}, energyLevel:4, stressLevel:3, mood:4, note:"Beine stark, Latzug gut umgesetzt.", mealCompliance:"fully_followed", nutritionStatus:"meal_plan_followed", selectedMealPlanId:"mp-athlete-lena-training" },
+  // 2026-05-24 (Sat) Cardio – Kalorientracker genutzt
+  { id:"dc-athlete-lena-1", athleteId:"athlete-lena", date:"2026-05-24", weight:67.6, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:9000, cardio:true, cardioDuration:25, training:false, trainingQuality:3, sleepHours:8.0, sleepQuality:5, restingHeartRate:62, hrv:72, spO2:99, bloodPressure:{systolic:110,diastolic:68}, energyLevel:5, stressLevel:2, mood:5, note:"Cardio lockerer Lauf, gute Erholung.", mealCompliance:"tracked_in_calorie_tracker", nutritionStatus:"calorie_tracker_used" },
+  // 2026-05-25 (Sun) Training B – Ernährungsplan Trainingstag
+  { id:"dc-athlete-lena-2", athleteId:"athlete-lena", date:"2026-05-25", weight:67.5, measurementTime:"07:00", appetite:4, digestion:4, caffeine:150, steps:13000, cardio:false, training:true, trainingQuality:4, sleepHours:7.0, sleepQuality:4, restingHeartRate:63, hrv:68, spO2:98, bloodPressure:{systolic:112,diastolic:70}, energyLevel:3, stressLevel:2, mood:4, note:"Starkes Push-Training, Energie gut.", mealCompliance:"fully_followed", nutritionStatus:"meal_plan_followed", selectedMealPlanId:"mp-athlete-lena-training" },
+  // 2026-05-26 (Mon) Cardio – Ernährungsplan Ruhetag
+  { id:"dc-athlete-lena-3", athleteId:"athlete-lena", date:"2026-05-26", weight:67.3, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:10000, cardio:true, cardioDuration:30, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:62, hrv:70, spO2:99, bloodPressure:{systolic:111,diastolic:69}, energyLevel:4, stressLevel:3, mood:4, note:"Cardio morgens, dann entspannter Tag.", mealCompliance:"fully_followed", nutritionStatus:"meal_plan_followed", selectedMealPlanId:"mp-athlete-lena-rest" },
+  // 2026-05-27 (Tue) Training A – Kalorientracker genutzt
+  { id:"dc-athlete-lena-4", athleteId:"athlete-lena", date:"2026-05-27", weight:67.2, measurementTime:"07:00", appetite:4, digestion:5, caffeine:150, steps:12000, cardio:false, training:true, trainingQuality:5, sleepHours:8.0, sleepQuality:5, restingHeartRate:61, hrv:75, spO2:99, bloodPressure:{systolic:110,diastolic:68}, energyLevel:5, stressLevel:2, mood:5, note:"Beste Trainingseinheit diese Woche!", mealCompliance:"tracked_in_calorie_tracker", nutritionStatus:"calorie_tracker_used" },
+  // 2026-05-28 (Wed) Rest – keine genaue Angabe
+  { id:"dc-athlete-lena-5", athleteId:"athlete-lena", date:"2026-05-28", weight:67.0, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:9500, cardio:false, training:false, trainingQuality:3, sleepHours:7.0, sleepQuality:4, restingHeartRate:63, hrv:67, spO2:98, bloodPressure:{systolic:112,diastolic:70}, energyLevel:3, stressLevel:2, mood:4, note:"Abends weniger Reis, Hunger okay.", mealCompliance:"not_followed", nutritionStatus:"no_exact_info", noExactNutritionReason:"Abends spontan weniger gegessen – keine genauen Mengen bekannt.", deviationReason:"Abends weniger gegessen als geplant" },
+  // 2026-05-29 (Thu) Rest – Kalorientracker genutzt
+  { id:"dc-athlete-lena-6", athleteId:"athlete-lena", date:"2026-05-29", weight:66.9, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:11500, cardio:false, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:62, hrv:69, spO2:99, bloodPressure:{systolic:111,diastolic:69}, energyLevel:4, stressLevel:3, mood:4, note:"", mealCompliance:"tracked_in_calorie_tracker", nutritionStatus:"calorie_tracker_used" },
 ];
 
 const lenaWeeklyChecks: WeeklyCheckIn[] = [
@@ -298,20 +298,20 @@ const lenaTrainingLogs: TrainingLog[] = [
 // ─── TOM SCHNEIDER ────────────────────────────────────────────────────────────
 
 const tomDailyChecks: DailyCheckIn[] = [
-  // 2026-05-23 (Fri) Training A
-  { id:"dc-athlete-tom-0", athleteId:"athlete-tom", date:"2026-05-23", weight:78.0, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:8000, cardio:false, training:true, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:66, hrv:58, spO2:98, bloodPressure:{systolic:125,diastolic:78}, energyLevel:3, stressLevel:2, mood:3, note:"Erste Einheit diese Woche, Technik Fokus.", mealCompliance:"full" },
-  // 2026-05-24 (Sat) Rest – deviation day
-  { id:"dc-athlete-tom-1", athleteId:"athlete-tom", date:"2026-05-24", weight:78.1, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:6500, cardio:false, training:false, trainingQuality:3, sleepHours:8.0, sleepQuality:5, restingHeartRate:64, hrv:65, spO2:98, bloodPressure:{systolic:124,diastolic:76}, energyLevel:4, stressLevel:1, mood:4, note:"", mealCompliance:"minor_deviation", deviationReason:"Zusätzliches Frühstück" },
-  // 2026-05-25 (Sun) Training B
-  { id:"dc-athlete-tom-2", athleteId:"athlete-tom", date:"2026-05-25", weight:78.2, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:9000, cardio:false, training:true, trainingQuality:3, sleepHours:7.0, sleepQuality:4, restingHeartRate:65, hrv:60, spO2:98, bloodPressure:{systolic:126,diastolic:79}, energyLevel:3, stressLevel:2, mood:3, note:"Latzug und Kniebeuge, Kniebeuge noch holprig.", mealCompliance:"full" },
-  // 2026-05-26 (Mon) Light Cardio
-  { id:"dc-athlete-tom-3", athleteId:"athlete-tom", date:"2026-05-26", weight:78.1, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:7000, cardio:true, cardioDuration:20, training:false, trainingQuality:3, sleepHours:8.5, sleepQuality:5, restingHeartRate:63, hrv:68, spO2:98, bloodPressure:{systolic:124,diastolic:77}, energyLevel:4, stressLevel:3, mood:4, note:"Kurzes Cardio gemacht.", mealCompliance:"full" },
-  // 2026-05-27 (Tue) Training A
-  { id:"dc-athlete-tom-4", athleteId:"athlete-tom", date:"2026-05-27", weight:78.3, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:8500, cardio:false, training:true, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:65, hrv:61, spO2:98, bloodPressure:{systolic:125,diastolic:78}, energyLevel:3, stressLevel:2, mood:3, note:"Push wieder! Bankdrücken Fortschritt.", mealCompliance:"full" },
-  // 2026-05-28 (Thu) Rest
-  { id:"dc-athlete-tom-5", athleteId:"athlete-tom", date:"2026-05-28", weight:78.4, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:6000, cardio:false, training:false, trainingQuality:3, sleepHours:8.0, sleepQuality:5, restingHeartRate:63, hrv:66, spO2:99, bloodPressure:{systolic:123,diastolic:76}, energyLevel:4, stressLevel:1, mood:4, note:"", mealCompliance:"full" },
-  // 2026-05-29 (Thu) Rest
-  { id:"dc-athlete-tom-6", athleteId:"athlete-tom", date:"2026-05-29", weight:78.5, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:8000, cardio:false, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:64, hrv:62, spO2:98, bloodPressure:{systolic:124,diastolic:77}, energyLevel:4, stressLevel:2, mood:4, note:"Gute Woche, Motivation hoch.", mealCompliance:"full" },
+  // 2026-05-23 (Fri) Training A – Ernährungsplan Trainingstag
+  { id:"dc-athlete-tom-0", athleteId:"athlete-tom", date:"2026-05-23", weight:78.0, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:8000, cardio:false, training:true, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:66, hrv:58, spO2:98, bloodPressure:{systolic:125,diastolic:78}, energyLevel:3, stressLevel:2, mood:3, note:"Erste Einheit diese Woche, Technik Fokus.", mealCompliance:"fully_followed", nutritionStatus:"meal_plan_followed", selectedMealPlanId:"mp-athlete-tom-training" },
+  // 2026-05-24 (Sat) Rest – keine genaue Angabe
+  { id:"dc-athlete-tom-1", athleteId:"athlete-tom", date:"2026-05-24", weight:78.1, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:6500, cardio:false, training:false, trainingQuality:3, sleepHours:8.0, sleepQuality:5, restingHeartRate:64, hrv:65, spO2:98, bloodPressure:{systolic:124,diastolic:76}, energyLevel:4, stressLevel:1, mood:4, note:"", mealCompliance:"not_followed", nutritionStatus:"no_exact_info", noExactNutritionReason:"Spontanes Familientreffen – Mengen nicht erfasst.", deviationReason:"Zusätzliches Frühstück" },
+  // 2026-05-25 (Sun) Training B – Kalorientracker genutzt
+  { id:"dc-athlete-tom-2", athleteId:"athlete-tom", date:"2026-05-25", weight:78.2, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:9000, cardio:false, training:true, trainingQuality:3, sleepHours:7.0, sleepQuality:4, restingHeartRate:65, hrv:60, spO2:98, bloodPressure:{systolic:126,diastolic:79}, energyLevel:3, stressLevel:2, mood:3, note:"Latzug und Kniebeuge, Kniebeuge noch holprig.", mealCompliance:"tracked_in_calorie_tracker", nutritionStatus:"calorie_tracker_used" },
+  // 2026-05-26 (Mon) Light Cardio – Ernährungsplan Ruhetag
+  { id:"dc-athlete-tom-3", athleteId:"athlete-tom", date:"2026-05-26", weight:78.1, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:7000, cardio:true, cardioDuration:20, training:false, trainingQuality:3, sleepHours:8.5, sleepQuality:5, restingHeartRate:63, hrv:68, spO2:98, bloodPressure:{systolic:124,diastolic:77}, energyLevel:4, stressLevel:3, mood:4, note:"Kurzes Cardio gemacht.", mealCompliance:"fully_followed", nutritionStatus:"meal_plan_followed", selectedMealPlanId:"mp-athlete-tom-rest" },
+  // 2026-05-27 (Tue) Training A – Kalorientracker genutzt
+  { id:"dc-athlete-tom-4", athleteId:"athlete-tom", date:"2026-05-27", weight:78.3, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:8500, cardio:false, training:true, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:65, hrv:61, spO2:98, bloodPressure:{systolic:125,diastolic:78}, energyLevel:3, stressLevel:2, mood:3, note:"Push wieder! Bankdrücken Fortschritt.", mealCompliance:"tracked_in_calorie_tracker", nutritionStatus:"calorie_tracker_used" },
+  // 2026-05-28 (Thu) Rest – Ernährungsplan Ruhetag
+  { id:"dc-athlete-tom-5", athleteId:"athlete-tom", date:"2026-05-28", weight:78.4, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:6000, cardio:false, training:false, trainingQuality:3, sleepHours:8.0, sleepQuality:5, restingHeartRate:63, hrv:66, spO2:99, bloodPressure:{systolic:123,diastolic:76}, energyLevel:4, stressLevel:1, mood:4, note:"", mealCompliance:"fully_followed", nutritionStatus:"meal_plan_followed", selectedMealPlanId:"mp-athlete-tom-rest" },
+  // 2026-05-29 (Thu) Rest – Kalorientracker genutzt
+  { id:"dc-athlete-tom-6", athleteId:"athlete-tom", date:"2026-05-29", weight:78.5, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:8000, cardio:false, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:64, hrv:62, spO2:98, bloodPressure:{systolic:124,diastolic:77}, energyLevel:4, stressLevel:2, mood:4, note:"Gute Woche, Motivation hoch.", mealCompliance:"tracked_in_calorie_tracker", nutritionStatus:"calorie_tracker_used" },
 ];
 
 const tomWeeklyChecks: WeeklyCheckIn[] = [
@@ -395,6 +395,179 @@ const tomTrainingLogs: TrainingLog[] = [
   },
 ];
 
+// ─── Meal Plans ───────────────────────────────────────────────────────────────
+
+const maxMealPlans: MealPlan[] = [
+  {
+    id: "mp-athlete-max-training",
+    athleteId: "athlete-max",
+    title: "Trainingstag",
+    coachNote: "Protein mind. 170 g. Kohlenhydrate um Training herum konzentrieren.",
+    createdAt: "2026-05-01",
+    meals: [
+      {
+        id: "m-max-t-fs",
+        name: "Frühstück",
+        time: "07:30",
+        entries: [
+          { foodItemId: "food-banane", foodItem: fB, amountG: 100 },
+          { foodItemId: "food-ei",     foodItem: fE, amountG: 200 },
+        ],
+      },
+      {
+        id: "m-max-t-hm",
+        name: "Hauptmahlzeit",
+        time: "12:30",
+        entries: [
+          { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 180 },
+          { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 250 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "mp-athlete-max-rest",
+    athleteId: "athlete-max",
+    title: "Ruhetag",
+    coachNote: "Etwas weniger Kohlenhydrate an Ruhetagen, Protein gleich hoch halten.",
+    createdAt: "2026-05-01",
+    meals: [
+      {
+        id: "m-max-r-fs",
+        name: "Frühstück",
+        time: "08:00",
+        entries: [
+          { foodItemId: "food-banane", foodItem: fB, amountG: 100 },
+          { foodItemId: "food-ei",     foodItem: fE, amountG: 200 },
+        ],
+      },
+      {
+        id: "m-max-r-hm",
+        name: "Hauptmahlzeit",
+        time: "12:30",
+        entries: [
+          { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 180 },
+          { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 150 },
+        ],
+      },
+    ],
+  },
+];
+
+const lenaMealPlans: MealPlan[] = [
+  {
+    id: "mp-athlete-lena-training",
+    athleteId: "athlete-lena",
+    title: "Trainingstag",
+    coachNote: "Kaloriendefizit beibehalten, Protein hoch halten.",
+    createdAt: "2026-05-08",
+    meals: [
+      {
+        id: "m-lena-t-fs",
+        name: "Frühstück",
+        time: "08:00",
+        entries: [
+          { foodItemId: "food-banane", foodItem: fB, amountG: 100 },
+          { foodItemId: "food-ei",     foodItem: fE, amountG: 100 },
+        ],
+      },
+      {
+        id: "m-lena-t-hm",
+        name: "Hauptmahlzeit",
+        time: "12:30",
+        entries: [
+          { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 150 },
+          { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 180 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "mp-athlete-lena-rest",
+    athleteId: "athlete-lena",
+    title: "Ruhetag",
+    coachNote: "Noch leicht reduzierte Kohlenhydrate, Defizit aufrechterhalten.",
+    createdAt: "2026-05-08",
+    meals: [
+      {
+        id: "m-lena-r-fs",
+        name: "Frühstück",
+        time: "08:00",
+        entries: [
+          { foodItemId: "food-banane", foodItem: fB, amountG: 100 },
+          { foodItemId: "food-ei",     foodItem: fE, amountG: 100 },
+        ],
+      },
+      {
+        id: "m-lena-r-hm",
+        name: "Hauptmahlzeit",
+        time: "12:30",
+        entries: [
+          { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 150 },
+          { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 120 },
+        ],
+      },
+    ],
+  },
+];
+
+const tomMealPlans: MealPlan[] = [
+  {
+    id: "mp-athlete-tom-training",
+    athleteId: "athlete-tom",
+    title: "Trainingstag",
+    coachNote: "Kalorienüberschuss halten, ausreichend Protein sicherstellen.",
+    createdAt: "2026-05-10",
+    meals: [
+      {
+        id: "m-tom-t-fs",
+        name: "Frühstück",
+        time: "07:00",
+        entries: [
+          { foodItemId: "food-banane", foodItem: fB, amountG: 200 },
+          { foodItemId: "food-ei",     foodItem: fE, amountG: 300 },
+        ],
+      },
+      {
+        id: "m-tom-t-hm",
+        name: "Hauptmahlzeit",
+        time: "12:00",
+        entries: [
+          { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 200 },
+          { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 300 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "mp-athlete-tom-rest",
+    athleteId: "athlete-tom",
+    title: "Ruhetag",
+    coachNote: "Leicht reduzierte Kalorien an Ruhetagen, Protein gleich halten.",
+    createdAt: "2026-05-10",
+    meals: [
+      {
+        id: "m-tom-r-fs",
+        name: "Frühstück",
+        time: "07:00",
+        entries: [
+          { foodItemId: "food-banane", foodItem: fB, amountG: 200 },
+          { foodItemId: "food-ei",     foodItem: fE, amountG: 300 },
+        ],
+      },
+      {
+        id: "m-tom-r-hm",
+        name: "Hauptmahlzeit",
+        time: "12:00",
+        entries: [
+          { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 200 },
+          { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 200 },
+        ],
+      },
+    ],
+  },
+];
+
 // ─── Athletes export ──────────────────────────────────────────────────────────
 export const athletes: Athlete[] = [
   // ── Max Mustermann ──────────────────────────────────────────────────────────
@@ -421,33 +594,7 @@ export const athletes: Athlete[] = [
     weeklyAdjustments: [],
     trainingLogs: maxTrainingLogs,
     calorieTrackerDays: maxCTDays,
-    mealPlan: {
-      id: "mp-athlete-max-1",
-      athleteId: "athlete-max",
-      title: "Recomp-Ernährungsplan",
-      coachNote: "Protein mind. 170 g täglich. Kohlenhydrate um Training herum konzentrieren.",
-      createdAt: "2026-05-01",
-      meals: [
-        {
-          id: "m-max-fs",
-          name: "Frühstück",
-          time: "07:30",
-          entries: [
-            { foodItemId: "food-banane", foodItem: fB, amountG: 100 },
-            { foodItemId: "food-ei",     foodItem: fE, amountG: 200 },
-          ],
-        },
-        {
-          id: "m-max-hm",
-          name: "Hauptmahlzeit",
-          time: "12:30",
-          entries: [
-            { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 180 },
-            { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 250 },
-          ],
-        },
-      ],
-    },
+    mealPlans: maxMealPlans,
     trainingPlan: {
       id: "tp-athlete-max-1",
       athleteId: "athlete-max",
@@ -516,33 +663,7 @@ export const athletes: Athlete[] = [
     weeklyAdjustments: [],
     trainingLogs: lenaTrainingLogs,
     calorieTrackerDays: lenaCTDays,
-    mealPlan: {
-      id: "mp-athlete-lena-1",
-      athleteId: "athlete-lena",
-      title: "Cut-Ernährungsplan",
-      coachNote: "Kaloriendefizit beibehalten, Protein hoch halten.",
-      createdAt: "2026-05-08",
-      meals: [
-        {
-          id: "m-lena-fs",
-          name: "Frühstück",
-          time: "08:00",
-          entries: [
-            { foodItemId: "food-banane", foodItem: fB, amountG: 100 },
-            { foodItemId: "food-ei",     foodItem: fE, amountG: 100 },
-          ],
-        },
-        {
-          id: "m-lena-hm",
-          name: "Hauptmahlzeit",
-          time: "12:30",
-          entries: [
-            { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 150 },
-            { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 180 },
-          ],
-        },
-      ],
-    },
+    mealPlans: lenaMealPlans,
     trainingPlan: {
       id: "tp-athlete-lena-1",
       athleteId: "athlete-lena",
@@ -611,33 +732,7 @@ export const athletes: Athlete[] = [
     weeklyAdjustments: [],
     trainingLogs: tomTrainingLogs,
     calorieTrackerDays: tomCTDays,
-    mealPlan: {
-      id: "mp-athlete-tom-1",
-      athleteId: "athlete-tom",
-      title: "Aufbau-Ernährungsplan",
-      coachNote: "Kalorienüberschuss halten, ausreichend Protein sicherstellen.",
-      createdAt: "2026-05-10",
-      meals: [
-        {
-          id: "m-tom-fs",
-          name: "Frühstück",
-          time: "07:00",
-          entries: [
-            { foodItemId: "food-banane", foodItem: fB, amountG: 200 },
-            { foodItemId: "food-ei",     foodItem: fE, amountG: 300 },
-          ],
-        },
-        {
-          id: "m-tom-hm",
-          name: "Hauptmahlzeit",
-          time: "12:00",
-          entries: [
-            { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 200 },
-            { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 300 },
-          ],
-        },
-      ],
-    },
+    mealPlans: tomMealPlans,
     trainingPlan: {
       id: "tp-athlete-tom-1",
       athleteId: "athlete-tom",

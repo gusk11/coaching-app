@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 
 interface StatCardProps {
   label: string;
-  value: string | number;
+  value: string | number | ReactNode;
   unit?: string;
   sub?: string;
   accent?: boolean;

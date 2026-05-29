@@ -52,6 +52,10 @@ export default function CoachAthletePage() {
   const [editCoachNote, setEditCoachNote] = useState("");
   const [editVisibleNote, setEditVisibleNote] = useState("");
 
+  // Trend target editing
+  const [editingTrendTarget, setEditingTrendTarget] = useState(false);
+  const [editTrendTargetInput, setEditTrendTargetInput] = useState("");
+
   // Plan editing
   const [editingNutrition, setEditingNutrition] = useState(false);
   const [editingTraining, setEditingTraining] = useState(false);
@@ -75,6 +79,10 @@ export default function CoachAthletePage() {
   const dist = calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight);
   const progress = calculateGoalProgressPercent(athlete.startWeight, athlete.currentWeight, athlete.targetWeight);
   const trendColor = getTrendColor(analysis.trend, athlete.goalType);
+  const trendPercent =
+    analysis.currentWeekAvg > 0 && analysis.previousWeekAvg > 0 && athlete.currentWeight > 0
+      ? Math.round((analysis.changeKg / athlete.currentWeight) * 10000) / 100
+      : null;
 
   function saveGoalEdit() {
     const updated = updateAthlete(athlete!.id, {
@@ -88,10 +96,30 @@ export default function CoachAthletePage() {
     setEditingGoal(false);
   }
 
-  function saveMealPlan(plan: MealPlan) {
-    const updated = updateAthlete(athlete!.id, { mealPlan: plan });
+  function saveTrendTarget() {
+    const parsed = parseFloat(editTrendTargetInput);
+    const updated = updateAthlete(athlete!.id, {
+      weeklyTrendTargetPercent: isNaN(parsed) ? undefined : parsed,
+    });
     setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    setEditingNutrition(false);
+    setEditingTrendTarget(false);
+  }
+
+  function saveMealPlan(plan: MealPlan) {
+    const currentPlans = athlete!.mealPlans ?? (athlete!.mealPlan ? [athlete!.mealPlan] : []);
+    const exists = currentPlans.some(p => p.id === plan.id);
+    const newPlans = exists
+      ? currentPlans.map(p => p.id === plan.id ? plan : p)
+      : [...currentPlans, plan];
+    const updated = updateAthlete(athlete!.id, { mealPlans: newPlans });
+    setAthlete(updated.find((a) => a.id === athlete!.id)!);
+  }
+
+  function deleteMealPlan(planId: string) {
+    const currentPlans = athlete!.mealPlans ?? (athlete!.mealPlan ? [athlete!.mealPlan] : []);
+    const newPlans = currentPlans.filter(p => p.id !== planId);
+    const updated = updateAthlete(athlete!.id, { mealPlans: newPlans });
+    setAthlete(updated.find((a) => a.id === athlete!.id)!);
   }
 
   function saveTrainingPlan(plan: TrainingPlan) {
@@ -163,12 +191,72 @@ export default function CoachAthletePage() {
                 unit="kg"
                 color={Math.abs(dist) < 0.5 ? "text-[#10b981]" : "text-[#f0f4ff]"}
               />
-              <StatCard
-                label="Wochentrend"
-                value={`${getTrendIcon(analysis.trend)} ${analysis.changeKg > 0 ? "+" : ""}${analysis.changeKg}`}
-                unit="kg"
-                color={trendColor}
-              />
+              {/* Wochentrend — kg + Prozent */}
+              <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 flex flex-col gap-1 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+                <span className="text-xs font-medium text-[#5a7090] uppercase tracking-widest">Wochentrend</span>
+                <div className={cn("flex items-baseline gap-1 mt-1 flex-wrap", trendColor)}>
+                  <span className="text-xl font-bold leading-none">
+                    {getTrendIcon(analysis.trend)} {analysis.changeKg > 0 ? "+" : ""}{analysis.changeKg} kg
+                  </span>
+                  {trendPercent !== null && (
+                    <span className="text-sm font-semibold">
+                      ({trendPercent > 0 ? "+" : ""}{trendPercent.toFixed(2)} %)
+                    </span>
+                  )}
+                  {trendPercent === null && (
+                    <span className="text-sm text-[#5a7090]">–</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Wochentrendziel — bearbeitbares Prozentziel */}
+              <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 flex flex-col gap-1 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-[#5a7090] uppercase tracking-widest">Wochentrendziel</span>
+                  {!editingTrendTarget ? (
+                    <button
+                      onClick={() => {
+                        setEditTrendTargetInput(athlete.weeklyTrendTargetPercent != null ? String(athlete.weeklyTrendTargetPercent) : "");
+                        setEditingTrendTarget(true);
+                      }}
+                      className="text-[#5a7090] hover:text-[#60a5fa] transition-colors"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button onClick={saveTrendTarget} className="text-[#10b981] hover:text-[#34d399] transition-colors">
+                        <Check size={12} />
+                      </button>
+                      <button onClick={() => setEditingTrendTarget(false)} className="text-[#5a7090] hover:text-[#f0f4ff] transition-colors">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {!editingTrendTarget ? (
+                  <div className="flex items-baseline gap-1 mt-1 text-[#f0f4ff]">
+                    <span className="text-2xl font-bold leading-none">
+                      {athlete.weeklyTrendTargetPercent != null
+                        ? `${athlete.weeklyTrendTargetPercent > 0 ? "+" : ""}${athlete.weeklyTrendTargetPercent.toFixed(2)} %`
+                        : "– %"}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 mt-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editTrendTargetInput}
+                      onChange={(e) => setEditTrendTargetInput(e.target.value)}
+                      placeholder="z. B. -0.5"
+                      className="w-full bg-[#0f1624] border border-[#3b82f6]/40 rounded-lg px-2 py-1 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                      autoFocus
+                    />
+                    <span className="text-sm text-[#8fa3c0] shrink-0">%</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
@@ -386,22 +474,21 @@ export default function CoachAthletePage() {
                             {ci.cardio ? `✓${ci.cardioDuration ? ` ${ci.cardioDuration} min` : ""}` : "–"}
                           </span>
                         </div>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-[#5a7090]">Compliance</span>
-                          <Badge
-                            variant={
-                              ["full", "fully_followed"].includes(ci.mealCompliance) ? "success"
-                              : ["full_tracking", "tracked_in_calorie_tracker"].includes(ci.mealCompliance) ? "accent"
-                              : ci.mealCompliance === "minor_deviation" ? "warning"
-                              : "danger"
-                            }
-                          >
-                            {["full", "fully_followed"].includes(ci.mealCompliance) ? "✓ Plan"
-                              : ["full_tracking", "tracked_in_calorie_tracker"].includes(ci.mealCompliance) ? "◎ Tracker"
-                              : ci.mealCompliance === "minor_deviation" ? "~"
-                              : "✗"}
-                          </Badge>
-                        </div>
+                        {(() => {
+                          const ns = ci.nutritionStatus;
+                          const mc = ci.mealCompliance;
+                          const isTracker = ns === "calorie_tracker_used" || (!ns && ["full_tracking", "tracked_in_calorie_tracker"].includes(mc));
+                          const isPlan    = ns === "meal_plan_followed"   || (!ns && ["full", "fully_followed"].includes(mc));
+                          const isNoInfo  = ns === "no_exact_info"        || (!ns && ["not_followed", "minor_deviation", "major_deviation", "off_plan"].includes(mc));
+                          const variant: "accent"|"success"|"warning"|"danger" = isTracker ? "accent" : isPlan ? "success" : isNoInfo ? "warning" : "danger";
+                          const label = isTracker ? "◎ Tracker" : isPlan ? "✓ Plan" : isNoInfo ? "K.A." : "✗";
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[#5a7090]">Ernährung</span>
+                              <Badge variant={variant}>{label}</Badge>
+                            </div>
+                          );
+                        })()}
                       </div>
                       {ci.note && (
                         <p className="text-xs text-[#8fa3c0] mt-2 italic border-t border-[#1e2d42] pt-2 line-clamp-2">
@@ -512,42 +599,38 @@ export default function CoachAthletePage() {
         {/* ── ERNÄHRUNG ── */}
         {tab === "Ernährung" && (
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[#f0f4ff]">
-                {athlete.mealPlan ? athlete.mealPlan.title : "Ernährungsplan"}
-              </p>
-              <button
-                onClick={() => setEditingNutrition(!editingNutrition)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
-                  editingNutrition
-                    ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
-                    : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
-                )}
-              >
-                {editingNutrition ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
-              </button>
-            </div>
+            {(() => {
+              const plans = athlete.mealPlans ?? (athlete.mealPlan ? [athlete.mealPlan] : []);
+              return (
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-[#f0f4ff]">Ernährungspläne</p>
+                    <button
+                      onClick={() => setEditingNutrition(!editingNutrition)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                        editingNutrition
+                          ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
+                          : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
+                      )}
+                    >
+                      {editingNutrition ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
+                    </button>
+                  </div>
 
-            {editingNutrition ? (
-              <MealPlanEditor
-                plan={athlete.mealPlan}
-                athleteId={athlete.id}
-                onSave={saveMealPlan}
-              />
-            ) : athlete.mealPlan ? (
-              <MealPlanView plan={athlete.mealPlan} />
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-[#5a7090] mb-4">Noch kein Ernährungsplan zugewiesen.</p>
-                <button
-                  onClick={() => setEditingNutrition(true)}
-                  className="px-4 py-2 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#60a5fa] text-sm hover:bg-[#3b82f6]/20 transition-colors"
-                >
-                  Plan erstellen
-                </button>
-              </div>
-            )}
+                  {editingNutrition ? (
+                    <MealPlanEditor
+                      plans={plans}
+                      athleteId={athlete.id}
+                      onSavePlan={saveMealPlan}
+                      onDeletePlan={deleteMealPlan}
+                    />
+                  ) : (
+                    <MealPlanView plans={plans} />
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
 
@@ -647,7 +730,7 @@ export default function CoachAthletePage() {
 
       {/* Daily Check detail modal */}
       {selectedDailyCI && (
-        <DailyCheckDetailModal ci={selectedDailyCI} onClose={() => setSelectedDailyCI(null)} />
+        <DailyCheckDetailModal ci={selectedDailyCI} athlete={athlete} onClose={() => setSelectedDailyCI(null)} />
       )}
 
       {/* Weekly Check detail modal */}

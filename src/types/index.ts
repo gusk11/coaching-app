@@ -1,6 +1,6 @@
 export type GoalType = "cut" | "bulk" | "recomp" | "maintenance";
 
-/** Old values kept for backward-compat with localStorage; new form uses the latter four */
+/** Old values kept for backward-compat with localStorage; new form uses the latter three */
 export type MealComplianceType =
   | "full"
   | "minor_deviation"
@@ -9,7 +9,12 @@ export type MealComplianceType =
   | "full_tracking"
   | "fully_followed"
   | "not_followed"
-  | "tracked_in_calorie_tracker";
+  | "tracked_in_calorie_tracker"
+  | "calorie_tracker_used"
+  | "meal_plan_followed"
+  | "no_exact_info";
+
+export type NutritionStatusType = "calorie_tracker_used" | "meal_plan_followed" | "no_exact_info";
 
 // ─── Calorie Tracker ─────────────────────────────────────────────────────────
 
@@ -135,7 +140,11 @@ export interface DailyCheckIn {
   note: string;
   mealCompliance: MealComplianceType;
   deviationReason?: string;
-  // only for full_tracking
+  /** New nutrition status — takes precedence over mealCompliance when present */
+  nutritionStatus?: NutritionStatusType;
+  selectedMealPlanId?: string;
+  noExactNutritionReason?: string;
+  // only for full_tracking (legacy)
   calories?: number;
   protein?: number;
   carbs?: number;
@@ -364,10 +373,12 @@ export interface Athlete {
   trainingLogs?: TrainingLog[];
   calorieTrackerDays?: CalorieTrackerDay[];
   mealPlan?: MealPlan;
+  mealPlans?: MealPlan[];
   trainingPlan?: TrainingPlan;
   supplementPlan?: SupplementPlan;
   notes: Note[];
   joinedAt: string;
+  weeklyTrendTargetPercent?: number;
 }
 
 export interface CoachCredentials {

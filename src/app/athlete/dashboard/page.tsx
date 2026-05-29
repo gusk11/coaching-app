@@ -138,6 +138,7 @@ export default function AthleteDashboard() {
                 existingToday={alreadyCheckedIn ? lastCI : undefined}
                 onSubmit={handleCheckInSubmit}
                 checkConfig={{ ...DEFAULT_DAILY_CHECK_CONFIG, ...athlete.dailyCheckConfig }}
+                mealPlans={athlete.mealPlans ?? (athlete.mealPlan ? [athlete.mealPlan] : [])}
               />
             </div>
           )}
@@ -186,6 +187,7 @@ export default function AthleteDashboard() {
                     date={backfillDate}
                     onSubmit={handleBackfillSubmit}
                     checkConfig={{ ...DEFAULT_DAILY_CHECK_CONFIG, ...athlete.dailyCheckConfig }}
+                    mealPlans={athlete.mealPlans ?? (athlete.mealPlan ? [athlete.mealPlan] : [])}
                   />
                 )}
               </div>
@@ -226,8 +228,16 @@ export default function AthleteDashboard() {
           />
           <StatCard
             label="Wochentrend"
-            value={`${getTrendIcon(analysis.trend)} ${analysis.changeKg > 0 ? "+" : ""}${analysis.changeKg}`}
-            unit="kg"
+            value={
+              analysis.changeKg != null && athlete.currentWeight
+                ? (
+                  <span className="flex items-baseline gap-1.5 flex-wrap">
+                    <span>{getTrendIcon(analysis.trend)} {analysis.changeKg > 0 ? "+" : ""}{analysis.changeKg} kg</span>
+                    <span className="text-base font-medium opacity-70">({analysis.changeKg > 0 ? "+" : ""}{((analysis.changeKg / athlete.currentWeight) * 100).toFixed(2)} %)</span>
+                  </span>
+                )
+                : "–"
+            }
             color={trendColor}
           />
         </div>
