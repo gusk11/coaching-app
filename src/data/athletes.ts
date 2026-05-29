@@ -1,670 +1,684 @@
-import { Athlete, DailyCheckIn, MealComplianceType, DailyCheckConfig, TrainingLog, TrainingExerciseLog, TrainingSetLog } from "@/types";
-import { foodItems } from "./foodItems";
+import {
+  Athlete, FoodItem, DailyCheckIn, WeeklyCheckIn, CalorieTrackerDay,
+  CalorieTrackerEntry, TrainingLog, TrainingExerciseLog, TrainingSetLog,
+  MealComplianceType, DailyCheckConfig,
+} from "@/types";
 
-const f = (id: string) => foodItems.find((item) => item.id === id)!;
+// ─── Last 7 days (today = 2026-05-29) ────────────────────────────────────────
+const DAYS = [
+  "2026-05-23", "2026-05-24", "2026-05-25", "2026-05-26",
+  "2026-05-27", "2026-05-28", "2026-05-29",
+];
+const WEEK_START = "2026-05-25"; // ISO Monday
 
-// ─── Helpers for deterministic test data generation ──────────────────────────
+// ─── DailyCheckConfig ─────────────────────────────────────────────────────────
+const fullConfig: DailyCheckConfig = {
+  bodyweight: true, sleepDuration: true, sleepQuality: true, sleepScore: false,
+  steps: true, restingHeartRate: true, hrv: true, spO2: true, bloodPressure: true,
+  stressLevel: true, energyLevel: true, mood: true, appetite: true, digestion: true,
+  trainingQuality: true, cardioCompleted: true, trainingCompleted: true,
+  nutritionCompliance: true, calorieTracking: true, notes: true,
+};
 
-function clamp(val: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, val));
-}
+// ─── Food snapshots (matching seedCustomFoods.ts IDs) ─────────────────────────
+const fH: FoodItem = {
+  id: "food-haehnchenbrust", name: "Hähnchenbrust", category: "Protein",
+  servingLabel: "100 g", kcalPer100g: 110, proteinPer100g: 23, carbsPer100g: 0,
+  fatPer100g: 1.5, fiberPer100g: 0, saltPer100g: 0.2,
+  defaultAmount: 150, isCustomFood: true, isActive: true,
+};
+const fR: FoodItem = {
+  id: "food-reis-gekocht", name: "Reis gekocht", category: "Kohlenhydrate",
+  servingLabel: "100 g", kcalPer100g: 130, proteinPer100g: 2.7, carbsPer100g: 28,
+  fatPer100g: 0.3, fiberPer100g: 0.4, saltPer100g: 0,
+  isCustomFood: true, isActive: true,
+};
+const fE: FoodItem = {
+  id: "food-ei", name: "Ei", category: "Protein",
+  servingLabel: "1 Stück", kcalPer100g: 80, proteinPer100g: 7, carbsPer100g: 0.5,
+  fatPer100g: 5.5, fiberPer100g: 0, saltPer100g: 0.2,
+  defaultAmount: 1, isCustomFood: true, isActive: true,
+};
+const fB: FoodItem = {
+  id: "food-banane", name: "Banane", category: "Obst",
+  servingLabel: "1 Stück", kcalPer100g: 105, proteinPer100g: 1.3, carbsPer100g: 24,
+  fatPer100g: 0.3, fiberPer100g: 2.6, saltPer100g: 0,
+  defaultAmount: 1, isCustomFood: true, isActive: true,
+};
 
-function toScale(val: number): 1 | 2 | 3 | 4 | 5 {
-  return clamp(Math.round(val), 1, 5) as 1 | 2 | 3 | 4 | 5;
-}
-
-function isoDateOffset(year: number, month: number, day: number, offset: number): string {
-  const d = new Date(year, month - 1, day + offset);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function weekdayOf(dateStr: string): number {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).getDay(); // 0=Sun … 6=Sat
-}
-
-// 60 daily check-ins from 2026-03-29 to 2026-05-27
-function generateDailyCheckIns(athleteId: string): DailyCheckIn[] {
-  const result: DailyCheckIn[] = [];
-
-  for (let i = 0; i < 60; i++) {
-    const date = isoDateOffset(2026, 3, 29, i);
-    const wd = weekdayOf(date);
-
-    const isTraining = [1, 2, 4, 5].includes(wd); // Mon Tue Thu Fri
-    const weekNum = Math.floor(i / 7);
-    const isCardio = [1, 4].includes(wd) && weekNum % 2 === 0; // alternate weeks
-    const isWeekend = wd === 0 || wd === 6;
-
-    // Weight: starts 90.2, slight downtrend, realistic wave
-    const w = 90.2 - i * 0.013 + 0.4 * Math.sin(i * 0.8) + 0.15 * Math.cos(i * 1.7);
-    const weight = Math.round(clamp(w, 89.0, 91.5) * 10) / 10;
-
-    // Sleep
-    const sh = (isWeekend ? 7.8 : 7.1) + 0.5 * Math.sin(i * 0.9 + 1);
-    const sleepHours = Math.round(clamp(sh, 6.0, 9.0) * 2) / 2;
-    const sleepQuality = toScale(
-      sleepHours >= 8 ? 4.5 : sleepHours >= 7 ? 3.8 : sleepHours >= 6.5 ? 3.0 : 2.0
-    );
-
-    // Stress (higher mid-week)
-    const stressBase = isWeekend ? 1.5 : [2, 3, 4].includes(wd) ? 3.0 : 2.5;
-    const stressLevel = toScale(stressBase + 0.6 * Math.sin(i * 1.1));
-
-    // Energy & mood derived from sleep and stress
-    const energyLevel = toScale(sleepQuality - stressLevel + 4 + 0.3 * Math.sin(i * 0.7));
-    const mood = toScale(
-      energyLevel + (isWeekend ? 0.5 : 0) - (stressLevel >= 4 ? 0.5 : 0) + 0.2 * Math.sin(i * 1.5)
-    );
-
-    const appetite = toScale(3 + (isTraining ? 0.5 : 0) + 0.4 * Math.sin(i * 0.6));
-    const digestion = toScale(4 - 0.3 * Math.cos(i * 1.2));
-    const trainingQuality = isTraining
-      ? toScale(
-          3.5 +
-            (energyLevel >= 4 ? 0.5 : 0) -
-            (stressLevel >= 4 ? 0.5 : 0) +
-            0.3 * Math.sin(i * 0.8)
-        )
-      : (3 as 1 | 2 | 3 | 4 | 5);
-
-    const stepsRaw = (isTraining ? 9500 : isWeekend ? 7000 : 7500) + 1500 * Math.sin(i * 0.9);
-    const steps = clamp(Math.round(stepsRaw), 5000, 14000);
-
-    const hrv = clamp(
-      Math.round(65 + 12 * Math.sin(i * 0.7) - (stressLevel >= 4 ? 8 : 0)),
-      45,
-      85
-    );
-    const restingHeartRate = clamp(
-      Math.round(62 - 2 * Math.sin(i * 0.5) + (stressLevel >= 4 ? 3 : 0)),
-      55,
-      70
-    );
-    const spO2 = clamp(Math.round(97.5 + 0.8 * Math.sin(i * 0.4)), 96, 99);
-    const bpSys = clamp(Math.round(121 + 5 * Math.sin(i * 0.6)), 115, 130);
-    const bpDia = clamp(Math.round(76 + 4 * Math.cos(i * 0.5)), 70, 85);
-
-    // Meal compliance – majority full, some deviations
-    const cr = (Math.sin(i * 13.7) + 1) / 2;
-    const mealCompliance: MealComplianceType =
-      cr > 0.95 ? "major_deviation" : cr > 0.75 ? "minor_deviation" : "full";
-
-    const noteMap: Record<number, string> = {
-      10: "Starkes Training heute! Neue Bestleistung auf Bankdrücken.",
-      25: "Wenig Schlaf, trotzdem gutes Training durchgezogen.",
-      38: "Stressige Woche – Erholung priorisieren.",
-      45: "Fühle mich sehr gut, Gewicht geht langsam runter.",
-      55: "Top Regenerationswoche.",
-    };
-
-    result.push({
-      id: `dc-${athleteId}-${i}`,
-      athleteId,
-      date,
-      weight,
-      measurementTime: "07:15",
-      appetite,
-      digestion,
-      trackingAccuracy: toScale(3.5 + 1.5 * Math.sin(i * 0.9 + 2)),
-      caffeine: isTraining ? 200 : 150,
-      steps,
-      cardio: isCardio,
-      cardioDuration: isCardio ? 30 : undefined,
-      training: isTraining,
-      trainingQuality,
-      sleepHours,
-      sleepQuality,
-      restingHeartRate,
-      hrv,
-      spO2,
-      bloodPressure: { systolic: bpSys, diastolic: bpDia },
-      energyLevel,
-      stressLevel,
-      mood,
-      note: noteMap[i] ?? "",
-      mealCompliance,
-      deviationReason: mealCompliance !== "full" ? "Essen auswärts, grob getrackt." : undefined,
-    });
-  }
-
-  return result;
-}
-
-// ─── Training Log seed data ───────────────────────────────────────────────────
-
-function makeExLog(id: string, name: string, weight: number, repsPerSet: number[]): TrainingExerciseLog {
+// ─── CT entry helper ──────────────────────────────────────────────────────────
+function cte(pfx: string, food: FoodItem, amountG: number): CalorieTrackerEntry {
+  const r = amountG / 100;
+  const rnd = (n: number) => Math.round(n * 100) / 100;
   return {
-    exerciseId: id,
-    exerciseName: name,
-    sets: repsPerSet.map((reps, i): TrainingSetLog => ({
+    id: `ce-${pfx}-${food.id}`,
+    name: food.name,
+    amountG,
+    kcal: rnd(food.kcalPer100g * r),
+    protein: rnd(food.proteinPer100g * r),
+    carbs: rnd(food.carbsPer100g * r),
+    fat: rnd(food.fatPer100g * r),
+    fiber: rnd(food.fiberPer100g * r),
+    salt: rnd(food.saltPer100g * r),
+    foodItemId: food.id,
+    servingLabel: food.servingLabel,
+  };
+}
+
+function ctDay(
+  aid: string, date: string,
+  frEntries: CalorieTrackerEntry[], hauEntries: CalorieTrackerEntry[],
+): CalorieTrackerDay {
+  const pfx = `${aid}-${date}`;
+  return {
+    id: `ct-${pfx}`,
+    athleteId: aid,
+    date,
+    meals: [
+      { id: `cm-${pfx}-fs`, name: "Frühstück", entries: frEntries },
+      { id: `cm-${pfx}-hm`, name: "Hauptmahlzeit", entries: hauEntries },
+    ],
+  };
+}
+
+// ─── Training log helper ──────────────────────────────────────────────────────
+function exLog(exId: string, exName: string, sets: [number, number, (number | undefined)?][]): TrainingExerciseLog {
+  return {
+    exerciseId: exId,
+    exerciseName: exName,
+    sets: sets.map(([weight, reps, rir], i): TrainingSetLog => ({
       setNumber: i + 1,
       weight,
       reps,
-      rir: i === repsPerSet.length - 1 ? 1 : 2,
+      rir: rir !== undefined ? rir : (i === sets.length - 1 ? 1 : 2),
     })),
   };
 }
 
-function makePushExercises(s: number): TrainingExerciseLog[] {
-  // s = session index 0-7
-  const bankW = s < 3 ? 70 : s < 6 ? 72.5 : 75;
-  const bankR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [7,6,5],[8,7,6],[8,8,7],[6,6,5],[7,7,6],[8,8,7],[7,6,5],[8,7,6]
-  ];
-  const schrW = s < 3 ? 22 : s < 6 ? 24 : 26;
-  const schrR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [10,9,8],[11,10,9],[12,11,10],[10,9,8],[11,10,9],[12,11,10],[10,9,8],[11,10,9]
-  ];
-  const sdW = [60,60,62,62,64,64,66,66][s];
-  const sdR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [10,9,8],[11,10,9],[10,9,8],[11,10,9],[10,9,8],[11,10,9],[10,9,8],[11,10,9]
-  ];
-  const shW = s < 3 ? 8 : s < 6 ? 9 : 10;
-  const shR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [16,15,14],[17,16,15],[18,17,16],[15,14,13],[16,15,14],[17,16,15],[15,14,13],[16,15,14]
-  ];
-  const triW = s < 3 ? 27.5 : s < 6 ? 30 : 32.5;
-  const triR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [13,12,11],[14,13,12],[15,14,12],[12,11,10],[13,12,11],[14,13,12],[12,11,10],[13,12,11]
-  ];
-  return [
-    makeExLog("ex-max-1", "Bankdrücken (Langhantel)", bankW, bankR[s]),
-    makeExLog("ex-max-2", "Schrägbank Kurzhantel", schrW, schrR[s]),
-    makeExLog("ex-max-3", "Schulterdrücken (Maschine)", sdW, sdR[s]),
-    makeExLog("ex-max-4", "Seitheben (Kabel)", shW, shR[s]),
-    makeExLog("ex-max-5", "Trizepsdrücken (Kabel)", triW, triR[s]),
-  ];
-}
+// ─── MAX MUSTERMANN ───────────────────────────────────────────────────────────
 
-function makePullExercises(s: number): TrainingExerciseLog[] {
-  const lzW = s < 2 ? 75 : s < 4 ? 77.5 : s < 6 ? 80 : 82.5;
-  const lzR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [9,8,7],[10,9,8],[8,7,7],[9,8,7],[8,7,7],[9,8,7],[8,7,6],[9,8,7]
-  ];
-  const ruW = s < 3 ? 80 : s < 6 ? 82.5 : 85;
-  const ruR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [9,8,7],[9,9,8],[8,7,7],[9,8,7],[9,9,8],[8,7,7],[9,8,7],[9,9,8]
-  ];
-  const krW = s < 2 ? 55 : s < 4 ? 57.5 : s < 6 ? 60 : 62.5;
-  const krR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [13,12,11],[14,13,12],[12,11,10],[13,12,11],[12,11,10],[13,12,11],[12,11,10],[13,12,11]
-  ];
-  const bzW = s < 3 ? 14 : s < 7 ? 16 : 18;
-  const bzR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [10,9,8],[11,10,9],[12,11,10],[10,9,8],[11,10,9],[12,11,10],[12,11,10],[10,9,8]
-  ];
-  const fpW = s < 3 ? 15 : s < 6 ? 17.5 : 20;
-  const fpR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [17,16,15],[18,17,16],[19,18,16],[15,14,13],[16,15,14],[17,16,15],[15,14,13],[16,15,14]
-  ];
-  return [
-    makeExLog("ex-max-6", "Latzug (Maschine)", lzW, lzR[s]),
-    makeExLog("ex-max-7", "Rudern (Langhantel)", ruW, ruR[s]),
-    makeExLog("ex-max-8", "Kabelrudern", krW, krR[s]),
-    makeExLog("ex-max-9", "Bizepscurls (Kurzhantel)", bzW, bzR[s]),
-    makeExLog("ex-max-10", "Face Pulls", fpW, fpR[s]),
-  ];
-}
+const maxDailyChecks: DailyCheckIn[] = [
+  // 2026-05-23 (Fri) Training A
+  { id:"dc-athlete-max-0", athleteId:"athlete-max", date:"2026-05-23", weight:90.1, measurementTime:"07:00", appetite:4, digestion:4, caffeine:200, steps:10000, cardio:false, training:true, trainingQuality:4, sleepHours:7.0, sleepQuality:4, restingHeartRate:62, hrv:67, spO2:98, bloodPressure:{systolic:122,diastolic:76}, energyLevel:4, stressLevel:3, mood:4, note:"Push-Einheit gut. Bankdrücken leicht gestiegen.", mealCompliance:"full" },
+  // 2026-05-24 (Sat) Rest + Cardio
+  { id:"dc-athlete-max-1", athleteId:"athlete-max", date:"2026-05-24", weight:90.0, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:8500, cardio:true, cardioDuration:30, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:60, hrv:72, spO2:98, bloodPressure:{systolic:120,diastolic:74}, energyLevel:3, stressLevel:2, mood:4, note:"Lockerer Spaziergang, gute Erholung.", mealCompliance:"full" },
+  // 2026-05-25 (Sun) Training B
+  { id:"dc-athlete-max-2", athleteId:"athlete-max", date:"2026-05-25", weight:89.8, measurementTime:"07:00", appetite:4, digestion:4, caffeine:200, steps:9000, cardio:false, training:true, trainingQuality:4, sleepHours:7.5, sleepQuality:5, restingHeartRate:61, hrv:70, spO2:97, bloodPressure:{systolic:121,diastolic:75}, energyLevel:4, stressLevel:2, mood:4, note:"Pull-Einheit stark, Latzug gut.", mealCompliance:"full" },
+  // 2026-05-26 (Mon) Rest – deviation day
+  { id:"dc-athlete-max-3", athleteId:"athlete-max", date:"2026-05-26", weight:89.9, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:11000, cardio:false, training:false, trainingQuality:3, sleepHours:6.5, sleepQuality:3, restingHeartRate:64, hrv:60, spO2:98, bloodPressure:{systolic:126,diastolic:80}, energyLevel:3, stressLevel:4, mood:3, note:"Abends mit Familie gegessen, Plan leicht überschritten.", mealCompliance:"minor_deviation", deviationReason:"Abendessen außer Haus" },
+  // 2026-05-27 (Tue) Training A
+  { id:"dc-athlete-max-4", athleteId:"athlete-max", date:"2026-05-27", weight:89.6, measurementTime:"07:00", appetite:4, digestion:4, caffeine:200, steps:8000, cardio:false, training:true, trainingQuality:4, sleepHours:7.0, sleepQuality:4, restingHeartRate:62, hrv:65, spO2:98, bloodPressure:{systolic:122,diastolic:77}, energyLevel:4, stressLevel:3, mood:4, note:"Push-Einheit wieder gut, leichte Steigerung.", mealCompliance:"full" },
+  // 2026-05-28 (Wed) Rest + Cardio
+  { id:"dc-athlete-max-5", athleteId:"athlete-max", date:"2026-05-28", weight:89.5, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:9500, cardio:true, cardioDuration:30, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:60, hrv:73, spO2:98, bloodPressure:{systolic:120,diastolic:74}, energyLevel:3, stressLevel:2, mood:4, note:"Erholung, 30 min spazieren.", mealCompliance:"full" },
+  // 2026-05-29 (Thu) Rest
+  { id:"dc-athlete-max-6", athleteId:"athlete-max", date:"2026-05-29", weight:89.4, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:10500, cardio:false, training:false, trainingQuality:3, sleepHours:7.0, sleepQuality:4, restingHeartRate:61, hrv:68, spO2:98, bloodPressure:{systolic:121,diastolic:76}, energyLevel:4, stressLevel:3, mood:4, note:"", mealCompliance:"full" },
+];
 
-function makeLegsExercises(s: number): TrainingExerciseLog[] {
-  const kbW = s < 2 ? 80 : s < 4 ? 82.5 : s < 6 ? 85 : 87.5;
-  const kbR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [8,7,6,5],[8,8,7,6],[7,6,6,5],[8,7,6,5],[7,6,5,5],[8,7,6,6],[7,6,5,5],[8,7,6,5]
-  ];
-  const bpW = [130,130,140,140,150,150,160,160][s];
-  const bpR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [11,10,9],[12,11,10],[10,9,8],[11,10,9],[10,9,8],[11,10,9],[10,9,8],[11,10,9]
-  ];
-  const bcW = s < 2 ? 40 : s < 4 ? 42.5 : s < 6 ? 45 : 47.5;
-  const bcR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [12,11,10],[13,12,11],[11,10,9],[12,11,10],[11,10,9],[12,11,10],[11,10,9],[12,11,10]
-  ];
-  const whW = s < 2 ? 60 : s < 4 ? 65 : s < 6 ? 70 : 75;
-  const whR: [number[], number[], number[], number[], number[], number[], number[], number[]] = [
-    [17,16,15,14],[18,17,16,15],[16,15,14,13],[17,16,15,14],[16,15,14,13],[17,16,15,14],[16,15,14,13],[17,16,15,14]
-  ];
-  return [
-    makeExLog("ex-max-11", "Kniebeugen (Langhantel)", kbW, kbR[s]),
-    makeExLog("ex-max-12", "Beinpresse", bpW, bpR[s]),
-    makeExLog("ex-max-13", "Beincurl (Maschine)", bcW, bcR[s]),
-    makeExLog("ex-max-14", "Wadenheben (Maschine)", whW, whR[s]),
-  ];
-}
-
-function generateTrainingLogs(athleteId: string): TrainingLog[] {
-  // 8 sessions each: Push (Mon), Pull (Tue), Legs (Thu)
-  // Weeks start 2026-03-30; skip week of May 18 for realism
-  const pushDates = ["2026-03-30","2026-04-06","2026-04-13","2026-04-20","2026-04-27","2026-05-04","2026-05-11","2026-05-25"];
-  const pullDates = ["2026-03-31","2026-04-07","2026-04-14","2026-04-21","2026-04-28","2026-05-05","2026-05-12","2026-05-26"];
-  const legsDates = ["2026-04-02","2026-04-09","2026-04-16","2026-04-23","2026-04-30","2026-05-07","2026-05-14","2026-05-28"];
-
-  const logs: TrainingLog[] = [];
-  for (let s = 0; s < 8; s++) {
-    logs.push({ id: `tl-${athleteId}-A-${s}`, athleteId, date: pushDates[s], trainingDayId: "td-max-1", trainingDayName: "Training A – Push", exercises: makePushExercises(s) });
-    logs.push({ id: `tl-${athleteId}-B-${s}`, athleteId, date: pullDates[s], trainingDayId: "td-max-2", trainingDayName: "Training B – Pull", exercises: makePullExercises(s) });
-    logs.push({ id: `tl-${athleteId}-C-${s}`, athleteId, date: legsDates[s], trainingDayId: "td-max-3", trainingDayName: "Training C – Legs", exercises: makeLegsExercises(s) });
-  }
-  return logs;
-}
-
-const MAX_DAILY_CHECK_CONFIG: DailyCheckConfig = {
-  bodyweight: true,
-  sleepDuration: true,
-  sleepQuality: true,
-  sleepScore: false,
-  steps: true,
-  restingHeartRate: true,
-  hrv: true,
-  spO2: true,
-  bloodPressure: true,
-  stressLevel: true,
-  energyLevel: true,
-  mood: true,
-  appetite: true,
-  digestion: true,
-  trainingQuality: true,
-  cardioCompleted: true,
-  trainingCompleted: true,
-  nutritionCompliance: true,
-  calorieTracking: true,
-  notes: true,
-};
-
-export const athletes: Athlete[] = [
+const maxWeeklyChecks: WeeklyCheckIn[] = [
   {
-    id: "max",
+    id: "wc-athlete-max-1",
+    athleteId: "athlete-max",
+    weekStart: WEEK_START,
+    date: "2026-05-29",
+    overallWeekRating: 4,
+    weekSatisfaction: 4,
+    selfSatisfaction: 3,
+    nutritionAdherence: 4,
+    hungerCravings: "Plan gut eingehalten, abends gelegentlich Hunger.",
+    trainingRating: 4,
+    recoveryRating: 4,
+    sleepAvg: 7.1,
+    stressAvg: 2.8,
+    energyAvg: 3.6,
+    specialEvents: "Essen außer Haus am Montag.",
+    coachNote: "",
+    freeNote: "Kraftwerte stabil, Push-Einheit gut. Verdauung gut, Hunger an Ruhetagen höher.",
+  },
+];
+
+const maxCTDays: CalorieTrackerDay[] = DAYS.map((date) => {
+  // Deviation 2026-05-26: 2 Bananen statt 1
+  const isBananaDev = date === "2026-05-26";
+  return ctDay(
+    "athlete-max",
+    date,
+    [
+      cte(`max-${date}-fs`, fB, isBananaDev ? 200 : 100),
+      cte(`max-${date}-fs2`, fE, 200),
+    ],
+    [
+      cte(`max-${date}-hm`, fH, 180),
+      cte(`max-${date}-hm2`, fR, 250),
+    ],
+  );
+});
+
+const maxTrainingLogs: TrainingLog[] = [
+  {
+    id: "tl-athlete-max-20260523-a",
+    athleteId: "athlete-max",
+    date: "2026-05-23",
+    trainingDayId: "td-max-a",
+    trainingDayName: "Training A – Push",
+    durationSeconds: 2700,
+    note: "Bankdrücken stabil.",
+    exercises: [
+      exLog("ep-max-bank", "Bankdrücken Langhantel", [[75,8,2],[75,7,2],[75,6,1]]),
+      exLog("ep-max-seit", "Seitheben", [[12,15,2],[12,14,2],[12,13,1]]),
+    ],
+  },
+  {
+    id: "tl-athlete-max-20260525-b",
+    athleteId: "athlete-max",
+    date: "2026-05-25",
+    trainingDayId: "td-max-b",
+    trainingDayName: "Training B – Pull/Legs",
+    durationSeconds: 3000,
+    note: "Latzug und Kniebeuge gut.",
+    exercises: [
+      exLog("ep-max-latz", "Latzug", [[65,10],[65,9],[65,8]]),
+      exLog("ep-max-knie", "Kniebeuge", [[100,8],[100,7],[100,6]]),
+    ],
+  },
+  {
+    id: "tl-athlete-max-20260527-a",
+    athleteId: "athlete-max",
+    date: "2026-05-27",
+    trainingDayId: "td-max-a",
+    trainingDayName: "Training A – Push",
+    durationSeconds: 2700,
+    note: "Steigerung auf 77.5 kg.",
+    exercises: [
+      exLog("ep-max-bank", "Bankdrücken Langhantel", [[77.5,8,2],[77.5,7,2],[77.5,6,1]]),
+      exLog("ep-max-seit", "Seitheben", [[12,16,2],[12,15,2],[12,14,1]]),
+    ],
+  },
+];
+
+// ─── LENA WEBER ───────────────────────────────────────────────────────────────
+
+const lenaDailyChecks: DailyCheckIn[] = [
+  // 2026-05-23 (Fri) Training A
+  { id:"dc-athlete-lena-0", athleteId:"athlete-lena", date:"2026-05-23", weight:67.8, measurementTime:"07:00", appetite:3, digestion:4, caffeine:150, steps:11000, cardio:false, training:true, trainingQuality:4, sleepHours:7.5, sleepQuality:4, restingHeartRate:64, hrv:65, spO2:99, bloodPressure:{systolic:112,diastolic:70}, energyLevel:4, stressLevel:3, mood:4, note:"Beine stark, Latzug gut umgesetzt.", mealCompliance:"full" },
+  // 2026-05-24 (Sat) Cardio
+  { id:"dc-athlete-lena-1", athleteId:"athlete-lena", date:"2026-05-24", weight:67.6, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:9000, cardio:true, cardioDuration:25, training:false, trainingQuality:3, sleepHours:8.0, sleepQuality:5, restingHeartRate:62, hrv:72, spO2:99, bloodPressure:{systolic:110,diastolic:68}, energyLevel:5, stressLevel:2, mood:5, note:"Cardio lockerer Lauf, gute Erholung.", mealCompliance:"full" },
+  // 2026-05-25 (Sun) Training B
+  { id:"dc-athlete-lena-2", athleteId:"athlete-lena", date:"2026-05-25", weight:67.5, measurementTime:"07:00", appetite:4, digestion:4, caffeine:150, steps:13000, cardio:false, training:true, trainingQuality:4, sleepHours:7.0, sleepQuality:4, restingHeartRate:63, hrv:68, spO2:98, bloodPressure:{systolic:112,diastolic:70}, energyLevel:3, stressLevel:2, mood:4, note:"Starkes Push-Training, Energie gut.", mealCompliance:"full" },
+  // 2026-05-26 (Mon) Cardio
+  { id:"dc-athlete-lena-3", athleteId:"athlete-lena", date:"2026-05-26", weight:67.3, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:10000, cardio:true, cardioDuration:30, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:62, hrv:70, spO2:99, bloodPressure:{systolic:111,diastolic:69}, energyLevel:4, stressLevel:3, mood:4, note:"Cardio morgens, dann entspannter Tag.", mealCompliance:"full" },
+  // 2026-05-27 (Tue) Training A
+  { id:"dc-athlete-lena-4", athleteId:"athlete-lena", date:"2026-05-27", weight:67.2, measurementTime:"07:00", appetite:4, digestion:5, caffeine:150, steps:12000, cardio:false, training:true, trainingQuality:5, sleepHours:8.0, sleepQuality:5, restingHeartRate:61, hrv:75, spO2:99, bloodPressure:{systolic:110,diastolic:68}, energyLevel:5, stressLevel:2, mood:5, note:"Beste Trainingseinheit diese Woche!", mealCompliance:"full" },
+  // 2026-05-28 (Wed) Rest – deviation day
+  { id:"dc-athlete-lena-5", athleteId:"athlete-lena", date:"2026-05-28", weight:67.0, measurementTime:"07:00", appetite:3, digestion:4, caffeine:100, steps:9500, cardio:false, training:false, trainingQuality:3, sleepHours:7.0, sleepQuality:4, restingHeartRate:63, hrv:67, spO2:98, bloodPressure:{systolic:112,diastolic:70}, energyLevel:3, stressLevel:2, mood:4, note:"Abends weniger Reis, Hunger okay.", mealCompliance:"minor_deviation", deviationReason:"Abends weniger gegessen als geplant" },
+  // 2026-05-29 (Thu) Rest
+  { id:"dc-athlete-lena-6", athleteId:"athlete-lena", date:"2026-05-29", weight:66.9, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:11500, cardio:false, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:62, hrv:69, spO2:99, bloodPressure:{systolic:111,diastolic:69}, energyLevel:4, stressLevel:3, mood:4, note:"", mealCompliance:"full" },
+];
+
+const lenaWeeklyChecks: WeeklyCheckIn[] = [
+  {
+    id: "wc-athlete-lena-1",
+    athleteId: "athlete-lena",
+    weekStart: WEEK_START,
+    date: "2026-05-29",
+    overallWeekRating: 4,
+    weekSatisfaction: 4,
+    selfSatisfaction: 4,
+    nutritionAdherence: 5,
+    hungerCravings: "Plan sehr gut eingehalten.",
+    trainingRating: 5,
+    recoveryRating: 4,
+    sleepAvg: 7.6,
+    stressAvg: 2.3,
+    energyAvg: 4.0,
+    specialEvents: "",
+    coachNote: "",
+    freeNote: "Unterkörpertraining stark, Cardio gut umgesetzt. Energie im Alltag besser.",
+  },
+];
+
+const lenaCTDays: CalorieTrackerDay[] = DAYS.map((date) => {
+  // Deviation 2026-05-28: Reis 150g statt 180g
+  const isReisDev = date === "2026-05-28";
+  return ctDay(
+    "athlete-lena",
+    date,
+    [
+      cte(`lena-${date}-fs`, fB, 100),
+      cte(`lena-${date}-fs2`, fE, 100),
+    ],
+    [
+      cte(`lena-${date}-hm`, fH, 150),
+      cte(`lena-${date}-hm2`, fR, isReisDev ? 150 : 180),
+    ],
+  );
+});
+
+const lenaTrainingLogs: TrainingLog[] = [
+  {
+    id: "tl-athlete-lena-20260523-a",
+    athleteId: "athlete-lena",
+    date: "2026-05-23",
+    trainingDayId: "td-lena-a",
+    trainingDayName: "Training A – Push",
+    durationSeconds: 2400,
+    note: "Gut durchgezogen.",
+    exercises: [
+      exLog("ep-lena-bank", "Bankdrücken Langhantel", [[42.5,9],[42.5,8],[42.5,7]]),
+      exLog("ep-lena-seit", "Seitheben", [[6,16],[6,15],[6,14]]),
+    ],
+  },
+  {
+    id: "tl-athlete-lena-20260525-b",
+    athleteId: "athlete-lena",
+    date: "2026-05-25",
+    trainingDayId: "td-lena-b",
+    trainingDayName: "Training B – Pull/Legs",
+    durationSeconds: 2700,
+    note: "Latzug sauber.",
+    exercises: [
+      exLog("ep-lena-latz", "Latzug", [[45,11],[45,10],[45,9]]),
+      exLog("ep-lena-knie", "Kniebeuge", [[65,8],[65,7],[65,6]]),
+    ],
+  },
+  {
+    id: "tl-athlete-lena-20260527-a",
+    athleteId: "athlete-lena",
+    date: "2026-05-27",
+    trainingDayId: "td-lena-a",
+    trainingDayName: "Training A – Push",
+    durationSeconds: 2400,
+    note: "Seitheben Gewicht erhöht.",
+    exercises: [
+      exLog("ep-lena-bank", "Bankdrücken Langhantel", [[42.5,10],[42.5,9],[42.5,8]]),
+      exLog("ep-lena-seit", "Seitheben", [[7,14],[7,13],[7,12]]),
+    ],
+  },
+];
+
+// ─── TOM SCHNEIDER ────────────────────────────────────────────────────────────
+
+const tomDailyChecks: DailyCheckIn[] = [
+  // 2026-05-23 (Fri) Training A
+  { id:"dc-athlete-tom-0", athleteId:"athlete-tom", date:"2026-05-23", weight:78.0, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:8000, cardio:false, training:true, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:66, hrv:58, spO2:98, bloodPressure:{systolic:125,diastolic:78}, energyLevel:3, stressLevel:2, mood:3, note:"Erste Einheit diese Woche, Technik Fokus.", mealCompliance:"full" },
+  // 2026-05-24 (Sat) Rest – deviation day
+  { id:"dc-athlete-tom-1", athleteId:"athlete-tom", date:"2026-05-24", weight:78.1, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:6500, cardio:false, training:false, trainingQuality:3, sleepHours:8.0, sleepQuality:5, restingHeartRate:64, hrv:65, spO2:98, bloodPressure:{systolic:124,diastolic:76}, energyLevel:4, stressLevel:1, mood:4, note:"", mealCompliance:"minor_deviation", deviationReason:"Zusätzliches Frühstück" },
+  // 2026-05-25 (Sun) Training B
+  { id:"dc-athlete-tom-2", athleteId:"athlete-tom", date:"2026-05-25", weight:78.2, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:9000, cardio:false, training:true, trainingQuality:3, sleepHours:7.0, sleepQuality:4, restingHeartRate:65, hrv:60, spO2:98, bloodPressure:{systolic:126,diastolic:79}, energyLevel:3, stressLevel:2, mood:3, note:"Latzug und Kniebeuge, Kniebeuge noch holprig.", mealCompliance:"full" },
+  // 2026-05-26 (Mon) Light Cardio
+  { id:"dc-athlete-tom-3", athleteId:"athlete-tom", date:"2026-05-26", weight:78.1, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:7000, cardio:true, cardioDuration:20, training:false, trainingQuality:3, sleepHours:8.5, sleepQuality:5, restingHeartRate:63, hrv:68, spO2:98, bloodPressure:{systolic:124,diastolic:77}, energyLevel:4, stressLevel:3, mood:4, note:"Kurzes Cardio gemacht.", mealCompliance:"full" },
+  // 2026-05-27 (Tue) Training A
+  { id:"dc-athlete-tom-4", athleteId:"athlete-tom", date:"2026-05-27", weight:78.3, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:8500, cardio:false, training:true, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:65, hrv:61, spO2:98, bloodPressure:{systolic:125,diastolic:78}, energyLevel:3, stressLevel:2, mood:3, note:"Push wieder! Bankdrücken Fortschritt.", mealCompliance:"full" },
+  // 2026-05-28 (Thu) Rest
+  { id:"dc-athlete-tom-5", athleteId:"athlete-tom", date:"2026-05-28", weight:78.4, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:6000, cardio:false, training:false, trainingQuality:3, sleepHours:8.0, sleepQuality:5, restingHeartRate:63, hrv:66, spO2:99, bloodPressure:{systolic:123,diastolic:76}, energyLevel:4, stressLevel:1, mood:4, note:"", mealCompliance:"full" },
+  // 2026-05-29 (Thu) Rest
+  { id:"dc-athlete-tom-6", athleteId:"athlete-tom", date:"2026-05-29", weight:78.5, measurementTime:"07:00", appetite:4, digestion:4, caffeine:100, steps:8000, cardio:false, training:false, trainingQuality:3, sleepHours:7.5, sleepQuality:4, restingHeartRate:64, hrv:62, spO2:98, bloodPressure:{systolic:124,diastolic:77}, energyLevel:4, stressLevel:2, mood:4, note:"Gute Woche, Motivation hoch.", mealCompliance:"full" },
+];
+
+const tomWeeklyChecks: WeeklyCheckIn[] = [
+  {
+    id: "wc-athlete-tom-1",
+    athleteId: "athlete-tom",
+    weekStart: WEEK_START,
+    date: "2026-05-29",
+    overallWeekRating: 3,
+    weekSatisfaction: 3,
+    selfSatisfaction: 3,
+    nutritionAdherence: 3,
+    hungerCravings: "Protein klappt, Mahlzeitenstruktur noch ausbaufähig.",
+    trainingRating: 3,
+    recoveryRating: 4,
+    sleepAvg: 7.8,
+    stressAvg: 1.8,
+    energyAvg: 3.5,
+    specialEvents: "",
+    coachNote: "",
+    freeNote: "Technik wird besser, noch unsicher bei Kniebeugen. Motivation hoch, braucht klare Trainingsroutine.",
+  },
+];
+
+const tomCTDays: CalorieTrackerDay[] = DAYS.map((date) => {
+  // Deviation 2026-05-24: 4 Eier statt 3
+  const isEiDev = date === "2026-05-24";
+  return ctDay(
+    "athlete-tom",
+    date,
+    [
+      cte(`tom-${date}-fs`, fB, 200),
+      cte(`tom-${date}-fs2`, fE, isEiDev ? 400 : 300),
+    ],
+    [
+      cte(`tom-${date}-hm`, fH, 200),
+      cte(`tom-${date}-hm2`, fR, 300),
+    ],
+  );
+});
+
+const tomTrainingLogs: TrainingLog[] = [
+  {
+    id: "tl-athlete-tom-20260523-a",
+    athleteId: "athlete-tom",
+    date: "2026-05-23",
+    trainingDayId: "td-tom-a",
+    trainingDayName: "Training A – Push",
+    durationSeconds: 2400,
+    note: "Technik Bankdrücken fokussiert.",
+    exercises: [
+      exLog("ep-tom-bank", "Bankdrücken Langhantel", [[50,8],[50,7],[50,6]]),
+      exLog("ep-tom-seit", "Seitheben", [[7,15],[7,14],[7,13]]),
+    ],
+  },
+  {
+    id: "tl-athlete-tom-20260525-b",
+    athleteId: "athlete-tom",
+    date: "2026-05-25",
+    trainingDayId: "td-tom-b",
+    trainingDayName: "Training B – Pull/Legs",
+    durationSeconds: 2700,
+    note: "Kniebeuge noch unsicher, Tiefe verbessern.",
+    exercises: [
+      exLog("ep-tom-latz", "Latzug", [[50,10],[50,9],[50,8]]),
+      exLog("ep-tom-knie", "Kniebeuge", [[70,8],[70,7],[70,6]]),
+    ],
+  },
+  {
+    id: "tl-athlete-tom-20260527-a",
+    athleteId: "athlete-tom",
+    date: "2026-05-27",
+    trainingDayId: "td-tom-a",
+    trainingDayName: "Training A – Push",
+    durationSeconds: 2400,
+    note: "Gewicht erhöht auf 52.5 kg.",
+    exercises: [
+      exLog("ep-tom-bank", "Bankdrücken Langhantel", [[52.5,8],[52.5,7],[52.5,6]]),
+      exLog("ep-tom-seit", "Seitheben", [[7,16],[7,15],[7,14]]),
+    ],
+  },
+];
+
+// ─── Athletes export ──────────────────────────────────────────────────────────
+export const athletes: Athlete[] = [
+  // ── Max Mustermann ──────────────────────────────────────────────────────────
+  {
+    id: "athlete-max",
     name: "Max Mustermann",
-    pin: "1234",
+    pin: "1111",
     avatarInitials: "MM",
-    startWeight: 90.0,
+    startWeight: 91,
     currentWeight: 89.4,
-    targetWeight: 85.0,
+    targetWeight: 85,
     goalType: "recomp",
     goalText: "Körperkomposition verbessern – Muskelaufbau bei gleichzeitigem Fettabbau",
-    checkInDay: 1, // Monday
+    checkInDay: 5,
     height: 180,
-    startDate: "2026-03-29",
-    experienceLevel: "intermediate",
-    trainingHistory: "3 Jahre Krafttraining (25 Jahre alt), Grundbewegungen solide erlernt, bereit für nächste Stufe",
-    injuries: "Keine aktuellen Verletzungen",
-    specialNotes: "Probeathlet – alle neuen Funktionen testbar",
+    startDate: "2026-05-01",
+    experienceLevel: "advanced",
     trackingDevice: "apple_watch",
-    dailyCheckConfig: MAX_DAILY_CHECK_CONFIG,
-    coachNote: "Max ist motiviert und diszipliniert. Fokus auf progressive Überlastung, Gewichtstrend beobachten.",
-    visibleNote: "Fokus diese Woche: progressive Überlastung und ausreichend Schlaf (mind. 7 h).",
-    dailyCheckIns: generateDailyCheckIns("max"),
-    weeklyCheckIns: [
-      {
-        id: "wc-max-1",
-        athleteId: "max",
-        weekStart: "2026-04-07",
-        date: "2026-04-07",
-        overallWeekRating: 4,
-        weekSatisfaction: 4,
-        selfSatisfaction: 3,
-        nutritionAdherence: 4,
-        hungerCravings: "Leichte Süßigkeiten-Cravings abends.",
-        trainingRating: 5,
-        recoveryRating: 4,
-        sleepAvg: 7.2,
-        stressAvg: 2.5,
-        energyAvg: 3.8,
-        specialEvents: "",
-        coachNote: "",
-        freeNote: "Gute erste Woche, fühle mich wohl im neuen Plan.",
-      },
-      {
-        id: "wc-max-2",
-        athleteId: "max",
-        weekStart: "2026-04-28",
-        date: "2026-04-28",
-        overallWeekRating: 3,
-        weekSatisfaction: 3,
-        selfSatisfaction: 3,
-        nutritionAdherence: 3,
-        hungerCravings: "Kaum Hunger, kein Craving.",
-        trainingRating: 4,
-        recoveryRating: 3,
-        sleepAvg: 7.0,
-        stressAvg: 3.2,
-        energyAvg: 3.2,
-        specialEvents: "Stressige Woche auf der Arbeit.",
-        coachNote: "",
-        freeNote: "Schwierige Woche, aber dran geblieben.",
-      },
-      {
-        id: "wc-max-3",
-        athleteId: "max",
-        weekStart: "2026-05-19",
-        date: "2026-05-19",
-        overallWeekRating: 5,
-        weekSatisfaction: 5,
-        selfSatisfaction: 4,
-        nutritionAdherence: 5,
-        hungerCravings: "Kein Hunger, kein Craving.",
-        trainingRating: 5,
-        recoveryRating: 5,
-        sleepAvg: 7.6,
-        stressAvg: 2.0,
-        energyAvg: 4.2,
-        specialEvents: "",
-        coachNote: "",
-        freeNote: "Beste Woche seit dem Start. Fortschritt ist spürbar!",
-      },
-    ],
+    dailyCheckConfig: fullConfig,
+    coachNote: "Fokus Recomp: progressive Überlastung, Kalorienbalance beachten.",
+    visibleNote: "Diese Woche Fokus auf Technik und ausreichend Schlaf.",
+    dailyCheckIns: maxDailyChecks,
+    weeklyCheckIns: maxWeeklyChecks,
     weeklyAdjustments: [],
-    trainingLogs: generateTrainingLogs("max"),
-    calorieTrackerDays: [],
+    trainingLogs: maxTrainingLogs,
+    calorieTrackerDays: maxCTDays,
     mealPlan: {
-      id: "mp-max-1",
-      athleteId: "max",
-      title: "Recomp-Phase – Ausgewogenes Makro-Setup",
-      coachNote:
-        "Kohlenhydrate um Training herum konzentrieren. Protein mind. 170 g/Tag. An Ruhetagen Carbs leicht reduzieren.",
-      createdAt: "2026-03-29",
+      id: "mp-athlete-max-1",
+      athleteId: "athlete-max",
+      title: "Recomp-Ernährungsplan",
+      coachNote: "Protein mind. 170 g täglich. Kohlenhydrate um Training herum konzentrieren.",
+      createdAt: "2026-05-01",
       meals: [
         {
-          id: "m-max-1",
+          id: "m-max-fs",
           name: "Frühstück",
           time: "07:30",
           entries: [
-            { foodItemId: "haferflocken", foodItem: f("haferflocken"), amountG: 80 },
-            { foodItemId: "magerquark", foodItem: f("magerquark"), amountG: 200 },
-            { foodItemId: "beerenmix", foodItem: f("beerenmix"), amountG: 100 },
-            { foodItemId: "chiasamen", foodItem: f("chiasamen"), amountG: 15 },
-          ],
-          note: "Nüchtern wiegen, dann essen.",
-        },
-        {
-          id: "m-max-2",
-          name: "Pre-Workout",
-          time: "12:00",
-          entries: [
-            { foodItemId: "reis_gekocht", foodItem: f("reis_gekocht"), amountG: 250 },
-            { foodItemId: "haehnchenbrust", foodItem: f("haehnchenbrust"), amountG: 150 },
-            { foodItemId: "brokkoli", foodItem: f("brokkoli"), amountG: 200 },
-            { foodItemId: "olivenoel", foodItem: f("olivenoel"), amountG: 10 },
+            { foodItemId: "food-banane", foodItem: fB, amountG: 100 },
+            { foodItemId: "food-ei",     foodItem: fE, amountG: 200 },
           ],
         },
         {
-          id: "m-max-3",
-          name: "Post-Workout Shake",
-          time: "15:00",
+          id: "m-max-hm",
+          name: "Hauptmahlzeit",
+          time: "12:30",
           entries: [
-            { foodItemId: "whey_protein", foodItem: f("whey_protein"), amountG: 30 },
-            { foodItemId: "banane", foodItem: f("banane"), amountG: 120 },
+            { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 180 },
+            { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 250 },
           ],
-        },
-        {
-          id: "m-max-4",
-          name: "Abendessen",
-          time: "19:00",
-          entries: [
-            { foodItemId: "haehnchenbrust", foodItem: f("haehnchenbrust"), amountG: 200 },
-            { foodItemId: "kartoffeln", foodItem: f("kartoffeln"), amountG: 300 },
-            { foodItemId: "spinat", foodItem: f("spinat"), amountG: 150 },
-            { foodItemId: "olivenoel", foodItem: f("olivenoel"), amountG: 10 },
-          ],
-          note: "An trainingsfreien Tagen Kartoffeln auf 200 g reduzieren.",
-        },
-        {
-          id: "m-max-5",
-          name: "Late Night",
-          time: "22:00",
-          entries: [
-            { foodItemId: "magerquark", foodItem: f("magerquark"), amountG: 250 },
-          ],
-          note: "Optional – nur bei Hunger.",
         },
       ],
     },
     trainingPlan: {
-      id: "tp-max-1",
-      athleteId: "max",
-      title: "Push / Pull / Legs – Flexibel (3–4 Tage)",
+      id: "tp-athlete-max-1",
+      athleteId: "athlete-max",
+      title: "Push / Pull-Legs – Flexibel",
       mode: "flexible",
-      coachNote:
-        "Fokus auf progressive Überlastung. RIR 2 als Richtlinie. Deload alle 6–8 Wochen.",
-      createdAt: "2026-03-29",
-      generalCardio:
-        "2× pro Woche 30 min LISS (Spazieren, Radfahren, Schwimmen), bevorzugt an Ruhetagen.",
+      coachNote: "Fokus auf progressive Überlastung. RIR 1–2 als Richtlinie.",
+      createdAt: "2026-05-01",
       days: [
         {
-          id: "td-max-1",
+          id: "td-max-a",
           dayName: "Training A",
           label: "Push",
           exercises: [
-            {
-              id: "ex-max-1",
-              name: "Bankdrücken (Langhantel)",
-              sets: 3,
-              reps: "6-8",
-              rir: 1,
-              note: "Schulterbreiter Griff, Ellbogen ca. 70°",
-              muscleGroup: "Brust",
-            },
-            {
-              id: "ex-max-2",
-              name: "Schrägbank Kurzhantel",
-              sets: 3,
-              reps: "10-12",
-              rir: 2,
-              muscleGroup: "Brust",
-            },
-            {
-              id: "ex-max-3",
-              name: "Schulterdrücken (Maschine)",
-              sets: 3,
-              reps: "10-12",
-              rir: 2,
-              muscleGroup: "Schulter",
-            },
-            {
-              id: "ex-max-4",
-              name: "Seitheben (Kabel)",
-              sets: 3,
-              reps: "15-20",
-              rir: 1,
-              muscleGroup: "Schulter",
-            },
-            {
-              id: "ex-max-5",
-              name: "Trizepsdrücken (Kabel)",
-              sets: 3,
-              reps: "12-15",
-              rir: 2,
-              muscleGroup: "Trizeps",
-            },
+            { id:"ep-max-bank", name:"Bankdrücken Langhantel", sets:3, reps:"6-10", rir:2, restSeconds:180, muscleGroup:"Brust", videoUrl:"https://example.com/bankdruecken", exerciseDbNote:"Saubere Schulterblattposition, kontrollierte Exzentrik.", exerciseDbId:"ex-bankdruecken" },
+            { id:"ep-max-seit", name:"Seitheben", sets:3, reps:"12-20", rir:2, restSeconds:90, muscleGroup:"Schulter", videoUrl:"https://example.com/seitheben", exerciseDbNote:"Kontrollierte Bewegung, nicht schwingen.", exerciseDbId:"ex-seitheben" },
           ],
         },
         {
-          id: "td-max-2",
+          id: "td-max-b",
           dayName: "Training B",
-          label: "Pull",
+          label: "Pull/Legs",
           exercises: [
-            {
-              id: "ex-max-6",
-              name: "Latzug (Maschine)",
-              sets: 3,
-              reps: "8-12",
-              rir: 1,
-              note: "Weiter Griff, Schulterblätter nach unten ziehen",
-              muscleGroup: "Rücken",
-            },
-            {
-              id: "ex-max-7",
-              name: "Rudern (Langhantel)",
-              sets: 3,
-              reps: "8-10",
-              rir: 2,
-              muscleGroup: "Rücken",
-            },
-            {
-              id: "ex-max-8",
-              name: "Kabelrudern",
-              sets: 3,
-              reps: "12-15",
-              rir: 2,
-              muscleGroup: "Rücken",
-            },
-            {
-              id: "ex-max-9",
-              name: "Bizepscurls (Kurzhantel)",
-              sets: 3,
-              reps: "10-12",
-              rir: 2,
-              muscleGroup: "Bizeps",
-            },
-            {
-              id: "ex-max-10",
-              name: "Face Pulls",
-              sets: 3,
-              reps: "15-20",
-              rir: 1,
-              muscleGroup: "Schulter / Rotatorenmanschette",
-            },
-          ],
-        },
-        {
-          id: "td-max-3",
-          dayName: "Training C",
-          label: "Legs",
-          exercises: [
-            {
-              id: "ex-max-11",
-              name: "Kniebeugen (Langhantel)",
-              sets: 4,
-              reps: "6-10",
-              rir: 2,
-              note: "Tief, Knie über Zehen, kontrolliert absenken",
-              muscleGroup: "Beine",
-            },
-            {
-              id: "ex-max-12",
-              name: "Beinpresse",
-              sets: 3,
-              reps: "10-12",
-              rir: 2,
-              muscleGroup: "Beine",
-            },
-            {
-              id: "ex-max-13",
-              name: "Beincurl (Maschine)",
-              sets: 3,
-              reps: "10-15",
-              rir: 1,
-              muscleGroup: "Beinbizeps",
-            },
-            {
-              id: "ex-max-14",
-              name: "Wadenheben (Maschine)",
-              sets: 4,
-              reps: "15-20",
-              rir: 1,
-              muscleGroup: "Waden",
-            },
-          ],
-        },
-        {
-          id: "td-max-4",
-          dayName: "Training D",
-          label: "Upper (Optional)",
-          note: "Optionaler 4. Tag – nur wenn Regeneration gut ist.",
-          exercises: [
-            {
-              id: "ex-max-15",
-              name: "Schulterdrücken (Langhantel)",
-              sets: 3,
-              reps: "8-10",
-              rir: 2,
-              muscleGroup: "Schulter",
-            },
-            {
-              id: "ex-max-16",
-              name: "Klimmzüge",
-              sets: 3,
-              reps: "6-10",
-              rir: 2,
-              muscleGroup: "Rücken",
-            },
-            {
-              id: "ex-max-17",
-              name: "Dips",
-              sets: 3,
-              reps: "10-12",
-              rir: 2,
-              muscleGroup: "Brust / Trizeps",
-            },
-            {
-              id: "ex-max-18",
-              name: "Hammercurls",
-              sets: 3,
-              reps: "12-15",
-              rir: 2,
-              muscleGroup: "Bizeps / Unterarm",
-            },
+            { id:"ep-max-latz", name:"Latzug", sets:3, reps:"8-12", rir:2, restSeconds:120, muscleGroup:"Rücken", videoUrl:"https://example.com/latzug", exerciseDbNote:"Ellbogen nach unten ziehen, nicht reißen.", exerciseDbId:"ex-latzug" },
+            { id:"ep-max-knie", name:"Kniebeuge", sets:3, reps:"6-10", rir:2, restSeconds:180, muscleGroup:"Beine", videoUrl:"https://example.com/kniebeuge", exerciseDbNote:"Tiefe kontrollieren, Rumpfspannung halten.", exerciseDbId:"ex-kniebeuge" },
           ],
         },
       ],
     },
     supplementPlan: {
-      id: "sp-max-1",
-      athleteId: "max",
-      coachNote:
-        "Basis-Supplements für Recomp. Kreatin täglich, auch an Ruhetagen. Alles optional, kein Ersatz für gute Ernährung.",
+      id: "sp-athlete-max-1",
+      athleteId: "athlete-max",
+      coachNote: "Basis-Supplements für Recomp. Kreatin täglich, Whey nur bei Bedarf.",
       supplements: [
-        {
-          id: "supp-max-1",
-          name: "Kreatin Monohydrat",
-          dosage: "5 g",
-          timing: "Post-Workout oder morgens",
-          instructions: "Mit Wasser oder Shake – täglich auch an Ruhetagen",
-          note: "Ladephase nicht notwendig.",
-          link: "https://examine.com/supplements/creatine/",
-        },
-        {
-          id: "supp-max-2",
-          name: "Omega-3 (Fischöl)",
-          dosage: "2 Kapseln",
-          timing: "Zum Mittagessen oder Abendessen",
-          instructions: "Zu einer fettreichen Mahlzeit für bessere Aufnahme",
-        },
-        {
-          id: "supp-max-3",
-          name: "Vitamin D3 + K2",
-          dosage: "2000 I.E. D3 / 100 µg K2",
-          timing: "Morgens zum Frühstück",
-          instructions: "Fettlöslich – zum Essen nehmen",
-          note: "Blutwert nach 3 Monaten prüfen lassen.",
-        },
-        {
-          id: "supp-max-4",
-          name: "Magnesium (Glycinat)",
-          dosage: "300 mg",
-          timing: "Abends ca. 30 min vor dem Schlafen",
-          instructions: "Hilft bei Schlafqualität und Muskelregeneration",
-        },
+        { id:"supp-max-kreatin", name:"Kreatin Monohydrat", dosage:"5 g", standardDosage:"5 g täglich", timing:"morgens oder nach dem Training", instructions:"Mit Wasser einnehmen, täglich auch an Ruhetagen.", link:"https://example.com/kreatin", supplementDBId:"supp-kreatin" },
+        { id:"supp-max-whey", name:"Whey Protein", dosage:"30 g bei Bedarf", standardDosage:"30 g nach Bedarf", timing:"flexibel", instructions:"Bei Bedarf zur Proteinabdeckung nutzen.", link:"https://example.com/whey", supplementDBId:"supp-whey" },
       ],
     },
     notes: [
-      {
-        id: "note-max-1",
-        athleteId: "max",
-        type: "coach_visible",
-        content:
-          "Max, dein Start ist sehr solide! Gewicht bewegt sich in die richtige Richtung. Weiter so konsequent.",
-        createdAt: "2026-04-14",
-      },
-      {
-        id: "note-max-2",
-        athleteId: "max",
-        type: "coach_internal",
-        content:
-          "Probeathlet für Systemtest – alle neuen Funktionen (Daily Checks, Analyse, Training, Supplements, Ernährung) geprüft.",
-        createdAt: "2026-03-29",
-      },
+      { id:"note-max-1", athleteId:"athlete-max", type:"coach_visible", content:"Sehr guter Start! Gewicht bewegt sich in die richtige Richtung.", createdAt:"2026-05-08" },
+      { id:"note-max-2", athleteId:"athlete-max", type:"coach_internal", content:"Testathlet für Recomp-Setup. Alle Funktionen testbar.", createdAt:"2026-05-01" },
     ],
-    joinedAt: "2026-03-29",
+    joinedAt: "2026-05-01",
+  },
+
+  // ── Lena Weber ──────────────────────────────────────────────────────────────
+  {
+    id: "athlete-lena",
+    name: "Lena Weber",
+    pin: "2222",
+    avatarInitials: "LW",
+    startWeight: 68,
+    currentWeight: 66.9,
+    targetWeight: 64,
+    goalType: "cut",
+    goalText: "Definierter werden und Trainingsleistung möglichst halten",
+    checkInDay: 3,
+    height: 168,
+    startDate: "2026-05-08",
+    experienceLevel: "intermediate",
+    trackingDevice: "garmin",
+    dailyCheckConfig: fullConfig,
+    coachNote: "Cut-Phase: Defizit halten, Trainingsleistung schützen.",
+    visibleNote: "Gut gemacht diese Woche! Kalorienplan weiter halten.",
+    dailyCheckIns: lenaDailyChecks,
+    weeklyCheckIns: lenaWeeklyChecks,
+    weeklyAdjustments: [],
+    trainingLogs: lenaTrainingLogs,
+    calorieTrackerDays: lenaCTDays,
+    mealPlan: {
+      id: "mp-athlete-lena-1",
+      athleteId: "athlete-lena",
+      title: "Cut-Ernährungsplan",
+      coachNote: "Kaloriendefizit beibehalten, Protein hoch halten.",
+      createdAt: "2026-05-08",
+      meals: [
+        {
+          id: "m-lena-fs",
+          name: "Frühstück",
+          time: "08:00",
+          entries: [
+            { foodItemId: "food-banane", foodItem: fB, amountG: 100 },
+            { foodItemId: "food-ei",     foodItem: fE, amountG: 100 },
+          ],
+        },
+        {
+          id: "m-lena-hm",
+          name: "Hauptmahlzeit",
+          time: "12:30",
+          entries: [
+            { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 150 },
+            { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 180 },
+          ],
+        },
+      ],
+    },
+    trainingPlan: {
+      id: "tp-athlete-lena-1",
+      athleteId: "athlete-lena",
+      title: "Push / Pull-Legs – Flexibel",
+      mode: "flexible",
+      coachNote: "Leistung erhalten im Cut. Volumen bei Bedarf leicht reduzieren.",
+      createdAt: "2026-05-08",
+      days: [
+        {
+          id: "td-lena-a",
+          dayName: "Training A",
+          label: "Push",
+          exercises: [
+            { id:"ep-lena-bank", name:"Bankdrücken Langhantel", sets:3, reps:"6-10", rir:2, restSeconds:180, muscleGroup:"Brust", videoUrl:"https://example.com/bankdruecken", exerciseDbNote:"Saubere Schulterblattposition, kontrollierte Exzentrik.", exerciseDbId:"ex-bankdruecken" },
+            { id:"ep-lena-seit", name:"Seitheben", sets:3, reps:"12-20", rir:2, restSeconds:90, muscleGroup:"Schulter", videoUrl:"https://example.com/seitheben", exerciseDbNote:"Kontrollierte Bewegung, nicht schwingen.", exerciseDbId:"ex-seitheben" },
+          ],
+        },
+        {
+          id: "td-lena-b",
+          dayName: "Training B",
+          label: "Pull/Legs",
+          exercises: [
+            { id:"ep-lena-latz", name:"Latzug", sets:3, reps:"8-12", rir:2, restSeconds:120, muscleGroup:"Rücken", videoUrl:"https://example.com/latzug", exerciseDbNote:"Ellbogen nach unten ziehen, nicht reißen.", exerciseDbId:"ex-latzug" },
+            { id:"ep-lena-knie", name:"Kniebeuge", sets:3, reps:"6-10", rir:2, restSeconds:180, muscleGroup:"Beine", videoUrl:"https://example.com/kniebeuge", exerciseDbNote:"Tiefe kontrollieren, Rumpfspannung halten.", exerciseDbId:"ex-kniebeuge" },
+          ],
+        },
+      ],
+    },
+    supplementPlan: {
+      id: "sp-athlete-lena-1",
+      athleteId: "athlete-lena",
+      coachNote: "Fokus auf einfache Supplementroutine. Omega-3 optional, Whey bei Proteinlücken.",
+      supplements: [
+        { id:"supp-lena-omega3", name:"Omega-3", dosage:"2 Kapseln", standardDosage:"2 Kapseln täglich", timing:"zu einer fetthaltigen Mahlzeit", instructions:"Mit einer Mahlzeit einnehmen.", link:"https://example.com/omega3", supplementDBId:"supp-omega3" },
+        { id:"supp-lena-whey", name:"Whey Protein", dosage:"25 g bei Bedarf", standardDosage:"30 g nach Bedarf", timing:"flexibel", instructions:"Bei Bedarf zur Proteinabdeckung nutzen.", link:"https://example.com/whey", supplementDBId:"supp-whey" },
+      ],
+    },
+    notes: [
+      { id:"note-lena-1", athleteId:"athlete-lena", type:"coach_visible", content:"Konstante Leistung im Cut. Weiter so!", createdAt:"2026-05-15" },
+      { id:"note-lena-2", athleteId:"athlete-lena", type:"coach_internal", content:"Fortschritt gut, Gewichtstrend positiv.", createdAt:"2026-05-08" },
+    ],
+    joinedAt: "2026-05-08",
+  },
+
+  // ── Tom Schneider ────────────────────────────────────────────────────────────
+  {
+    id: "athlete-tom",
+    name: "Tom Schneider",
+    pin: "3333",
+    avatarInitials: "TS",
+    startWeight: 78,
+    currentWeight: 78.5,
+    targetWeight: 83,
+    goalType: "bulk",
+    goalText: "Muskelaufbau mit kontrollierter Gewichtszunahme",
+    checkInDay: 1,
+    height: 183,
+    startDate: "2026-05-10",
+    experienceLevel: "beginner",
+    trackingDevice: "none",
+    dailyCheckConfig: fullConfig,
+    coachNote: "Anfänger – klare Struktur wichtig. Technik vor Gewicht.",
+    visibleNote: "Fokus auf regelmäßige Mahlzeiten und Trainingsroutine.",
+    dailyCheckIns: tomDailyChecks,
+    weeklyCheckIns: tomWeeklyChecks,
+    weeklyAdjustments: [],
+    trainingLogs: tomTrainingLogs,
+    calorieTrackerDays: tomCTDays,
+    mealPlan: {
+      id: "mp-athlete-tom-1",
+      athleteId: "athlete-tom",
+      title: "Aufbau-Ernährungsplan",
+      coachNote: "Kalorienüberschuss halten, ausreichend Protein sicherstellen.",
+      createdAt: "2026-05-10",
+      meals: [
+        {
+          id: "m-tom-fs",
+          name: "Frühstück",
+          time: "07:00",
+          entries: [
+            { foodItemId: "food-banane", foodItem: fB, amountG: 200 },
+            { foodItemId: "food-ei",     foodItem: fE, amountG: 300 },
+          ],
+        },
+        {
+          id: "m-tom-hm",
+          name: "Hauptmahlzeit",
+          time: "12:00",
+          entries: [
+            { foodItemId: "food-haehnchenbrust", foodItem: fH, amountG: 200 },
+            { foodItemId: "food-reis-gekocht",   foodItem: fR, amountG: 300 },
+          ],
+        },
+      ],
+    },
+    trainingPlan: {
+      id: "tp-athlete-tom-1",
+      athleteId: "athlete-tom",
+      title: "Push / Pull-Legs – Flexibel",
+      mode: "flexible",
+      coachNote: "Technik vor Gewicht. Regelmäßigkeit ist wichtiger als Intensität.",
+      createdAt: "2026-05-10",
+      days: [
+        {
+          id: "td-tom-a",
+          dayName: "Training A",
+          label: "Push",
+          exercises: [
+            { id:"ep-tom-bank", name:"Bankdrücken Langhantel", sets:3, reps:"6-10", rir:2, restSeconds:180, muscleGroup:"Brust", videoUrl:"https://example.com/bankdruecken", exerciseDbNote:"Saubere Schulterblattposition, kontrollierte Exzentrik.", exerciseDbId:"ex-bankdruecken" },
+            { id:"ep-tom-seit", name:"Seitheben", sets:3, reps:"12-20", rir:2, restSeconds:90, muscleGroup:"Schulter", videoUrl:"https://example.com/seitheben", exerciseDbNote:"Kontrollierte Bewegung, nicht schwingen.", exerciseDbId:"ex-seitheben" },
+          ],
+        },
+        {
+          id: "td-tom-b",
+          dayName: "Training B",
+          label: "Pull/Legs",
+          exercises: [
+            { id:"ep-tom-latz", name:"Latzug", sets:3, reps:"8-12", rir:2, restSeconds:120, muscleGroup:"Rücken", videoUrl:"https://example.com/latzug", exerciseDbNote:"Ellbogen nach unten ziehen, nicht reißen.", exerciseDbId:"ex-latzug" },
+            { id:"ep-tom-knie", name:"Kniebeuge", sets:3, reps:"6-10", rir:2, restSeconds:180, muscleGroup:"Beine", videoUrl:"https://example.com/kniebeuge", exerciseDbNote:"Tiefe kontrollieren, Rumpfspannung halten.", exerciseDbId:"ex-kniebeuge" },
+          ],
+        },
+      ],
+    },
+    supplementPlan: {
+      id: "sp-athlete-tom-1",
+      athleteId: "athlete-tom",
+      coachNote: "Minimal halten: Kreatin täglich, Whey nur wenn Protein nicht erreicht wird.",
+      supplements: [
+        { id:"supp-tom-kreatin", name:"Kreatin Monohydrat", dosage:"5 g", standardDosage:"5 g täglich", timing:"morgens oder nach dem Training", instructions:"Mit Wasser einnehmen, täglich auch an Ruhetagen.", link:"https://example.com/kreatin", supplementDBId:"supp-kreatin" },
+        { id:"supp-tom-whey", name:"Whey Protein", dosage:"30 g bei Bedarf", standardDosage:"30 g nach Bedarf", timing:"flexibel", instructions:"Bei Bedarf zur Proteinabdeckung nutzen.", link:"https://example.com/whey", supplementDBId:"supp-whey" },
+      ],
+    },
+    notes: [
+      { id:"note-tom-1", athleteId:"athlete-tom", type:"coach_visible", content:"Guter Start! Fokus auf Regelmäßigkeit.", createdAt:"2026-05-17" },
+      { id:"note-tom-2", athleteId:"athlete-tom", type:"coach_internal", content:"Anfänger, braucht klare Struktur und Technikfeedback.", createdAt:"2026-05-10" },
+    ],
+    joinedAt: "2026-05-10",
   },
 ];

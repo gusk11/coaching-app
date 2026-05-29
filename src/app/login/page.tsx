@@ -22,10 +22,10 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center p-4">
       <div className="w-full max-w-sm flex flex-col gap-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-[#f0f4ff]">
-            Coach<span className="text-[#3b82f6]">OS</span>
-          </h1>
-          <p className="text-sm text-[#5a7090] mt-2">Fitness Coaching Plattform</p>
+          <div className="flex justify-center mb-3">
+            <img src="/logo.png" alt="Logo" className="h-40 w-auto" />
+          </div>
+          <p className="text-sm text-[#5a7090] mt-2">Gustav Kaufmann Coaching</p>
         </div>
 
         <div className="bg-[#0f1624] border border-[#1e2d42] rounded-2xl p-5 flex flex-col gap-4">

@@ -450,12 +450,12 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
             <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-3">Tagesgesamtwerte</p>
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: "kcal", value: dayTotals.kcal, color: "text-[#f97316]" },
-                { label: "Protein", value: `${dayTotals.protein}g`, color: "text-[#60a5fa]" },
-                { label: "Kohlenhydrate", value: `${dayTotals.carbs}g`, color: "text-[#a78bfa]" },
-                { label: "Fett", value: `${dayTotals.fat}g`, color: "text-[#f59e0b]" },
-                { label: "Ballaststoffe", value: `${dayTotals.fiber}g`, color: "text-[#34d399]" },
-                { label: "Salz", value: `${dayTotals.salt}g`, color: "text-[#8fa3c0]" },
+                { label: "kcal", value: Math.round(dayTotals.kcal), color: "text-[#f97316]" },
+                { label: "Protein", value: `${Math.round(dayTotals.protein)}g`, color: "text-[#60a5fa]" },
+                { label: "Kohlenhydrate", value: `${Math.round(dayTotals.carbs)}g`, color: "text-[#a78bfa]" },
+                { label: "Fett", value: `${Math.round(dayTotals.fat)}g`, color: "text-[#f59e0b]" },
+                { label: "Ballaststoffe", value: `${Math.round(dayTotals.fiber)}g`, color: "text-[#34d399]" },
+                { label: "Salz", value: `${(Math.round(dayTotals.salt * 10) / 10).toFixed(1)}g`, color: "text-[#8fa3c0]" },
               ].map((s) => (
                 <div key={s.label} className="flex flex-col gap-0.5">
                   <span className="text-xs text-[#5a7090]">{s.label}</span>

@@ -1,6 +1,9 @@
 "use client";
 import { athletes as initialAthletes } from "@/data/athletes";
 import { foodItems as baseFoodItems } from "@/data/foodItems";
+import { seedCustomFoods } from "@/data/seedCustomFoods";
+import { seedSupplementDB } from "@/data/seedSupplements";
+import { seedExerciseDB } from "@/data/seedExercises";
 import { Athlete, DailyCheckIn, WeeklyCheckIn, WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay, FoodItem, SupplementDBItem, ExerciseDBItem } from "@/types";
 import { todayISO } from "./utils";
 
@@ -14,11 +17,17 @@ const CHECK_IN_DONE_KEY = "coachOS_checkInDone";
 const ACTIVE_SESSION_KEY = "coachOS_activeSession";
 const SEED_VERSION_KEY = "coachOS_seedVersion";
 // Bump this string whenever seed data changes to force a localStorage reset.
-const SEED_VERSION = "2026-05-29-v2";
+const SEED_VERSION = "2026-05-29-v3";
 
 const FOOD_SEED_VERSION_KEY = "coachOS_foodSeedVersion";
 // Bump when foodItems.ts seed data changes to clear custom/deactivated food state.
-const FOOD_SEED_VERSION = "2026-05-29-v2";
+const FOOD_SEED_VERSION = "2026-05-29-v3";
+
+const SUPPLEMENT_SEED_VERSION_KEY = "coachOS_supplementSeedVersion";
+const SUPPLEMENT_SEED_VERSION = "2026-05-29-v3";
+
+const EXERCISE_SEED_VERSION_KEY = "coachOS_exerciseSeedVersion";
+const EXERCISE_SEED_VERSION = "2026-05-29-v3";
 
 export function loadAthletes(): Athlete[] {
   if (typeof window === "undefined") return initialAthletes;
@@ -212,17 +221,17 @@ export function updateTrainingLog(athleteId: string, log: TrainingLog): Athlete[
 // ─── Food Database ────────────────────────────────────────────────────────────
 
 export function loadCustomFoods(): FoodItem[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return seedCustomFoods;
   try {
     if (localStorage.getItem(FOOD_SEED_VERSION_KEY) !== FOOD_SEED_VERSION) {
-      localStorage.removeItem(CUSTOM_FOODS_KEY);
+      localStorage.setItem(CUSTOM_FOODS_KEY, JSON.stringify(seedCustomFoods));
       localStorage.removeItem(DEACTIVATED_FOODS_KEY);
       localStorage.setItem(FOOD_SEED_VERSION_KEY, FOOD_SEED_VERSION);
     }
     const stored = localStorage.getItem(CUSTOM_FOODS_KEY);
-    return stored ? JSON.parse(stored) : [];
+    return stored ? JSON.parse(stored) : seedCustomFoods;
   } catch {
-    return [];
+    return seedCustomFoods;
   }
 }
 
@@ -320,12 +329,16 @@ export function deleteBaseFoodItem(id: string): string[] {
 // ─── Supplement Database ──────────────────────────────────────────────────────
 
 export function loadSupplementDB(): SupplementDBItem[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return seedSupplementDB;
   try {
+    if (localStorage.getItem(SUPPLEMENT_SEED_VERSION_KEY) !== SUPPLEMENT_SEED_VERSION) {
+      localStorage.setItem(SUPPLEMENT_DB_KEY, JSON.stringify(seedSupplementDB));
+      localStorage.setItem(SUPPLEMENT_SEED_VERSION_KEY, SUPPLEMENT_SEED_VERSION);
+    }
     const stored = localStorage.getItem(SUPPLEMENT_DB_KEY);
-    return stored ? JSON.parse(stored) : [];
+    return stored ? JSON.parse(stored) : seedSupplementDB;
   } catch {
-    return [];
+    return seedSupplementDB;
   }
 }
 
@@ -370,12 +383,16 @@ export function deleteSupplementDBItem(id: string): SupplementDBItem[] {
 // ─── Exercise Database ────────────────────────────────────────────────────────
 
 export function loadExerciseDB(): ExerciseDBItem[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return seedExerciseDB;
   try {
+    if (localStorage.getItem(EXERCISE_SEED_VERSION_KEY) !== EXERCISE_SEED_VERSION) {
+      localStorage.setItem(EXERCISE_DB_KEY, JSON.stringify(seedExerciseDB));
+      localStorage.setItem(EXERCISE_SEED_VERSION_KEY, EXERCISE_SEED_VERSION);
+    }
     const stored = localStorage.getItem(EXERCISE_DB_KEY);
-    return stored ? JSON.parse(stored) : [];
+    return stored ? JSON.parse(stored) : seedExerciseDB;
   } catch {
-    return [];
+    return seedExerciseDB;
   }
 }
 

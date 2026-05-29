@@ -8,24 +8,26 @@ import { StatCard } from "@/components/ui/StatCard";
 interface WeeklyCheckInFormProps {
   athlete: Athlete;
   onSubmit: (data: Omit<WeeklyCheckIn, "id" | "athleteId">) => void;
+  initialValues?: Partial<WeeklyCheckIn>;
+  isEdit?: boolean;
 }
 
 
-export function WeeklyCheckInForm({ athlete, onSubmit }: WeeklyCheckInFormProps) {
+export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit }: WeeklyCheckInFormProps) {
   const today = todayISO();
   const { start: weekStart } = getWeekDates(today);
   const analysis = analyzeWeek(athlete);
 
-  const [overallWeekRating, setOverallWeekRating] = useState<1|2|3|4|5>(3);
-  const [weekSatisfaction, setWeekSatisfaction] = useState<1|2|3|4|5>(3);
-  const [selfSatisfaction, setSelfSatisfaction] = useState<1|2|3|4|5>(3);
-  const [nutritionAdherence, setNutritionAdherence] = useState<1|2|3|4|5>(3);
-  const [hungerCravings, setHungerCravings] = useState("");
-  const [trainingRating, setTrainingRating] = useState<1|2|3|4|5>(3);
-  const [stressAvg, setStressAvg] = useState(3);
-  const [energyAvg, setEnergyAvg] = useState(3);
-  const [specialEvents, setSpecialEvents] = useState("");
-  const [freeNote, setFreeNote] = useState("");
+  const [overallWeekRating, setOverallWeekRating] = useState<1|2|3|4|5>((initialValues?.overallWeekRating as 1|2|3|4|5) ?? 3);
+  const [weekSatisfaction, setWeekSatisfaction] = useState<1|2|3|4|5>((initialValues?.weekSatisfaction as 1|2|3|4|5) ?? 3);
+  const [selfSatisfaction, setSelfSatisfaction] = useState<1|2|3|4|5>((initialValues?.selfSatisfaction as 1|2|3|4|5) ?? 3);
+  const [nutritionAdherence, setNutritionAdherence] = useState<1|2|3|4|5>((initialValues?.nutritionAdherence as 1|2|3|4|5) ?? 3);
+  const [hungerCravings, setHungerCravings] = useState(initialValues?.hungerCravings ?? "");
+  const [trainingRating, setTrainingRating] = useState<1|2|3|4|5>((initialValues?.trainingRating as 1|2|3|4|5) ?? 3);
+  const [stressAvg, setStressAvg] = useState(initialValues?.stressAvg ?? 3);
+  const [energyAvg, setEnergyAvg] = useState(initialValues?.energyAvg ?? 3);
+  const [specialEvents, setSpecialEvents] = useState(initialValues?.specialEvents ?? "");
+  const [freeNote, setFreeNote] = useState(initialValues?.freeNote ?? "");
   const [submitted, setSubmitted] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
@@ -122,7 +124,7 @@ export function WeeklyCheckInForm({ athlete, onSubmit }: WeeklyCheckInFormProps)
 
       <button type="submit"
         className="w-full py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors">
-        Wochen-Check-in absenden
+        {isEdit ? "Änderungen speichern" : "Wochen-Check-in absenden"}
       </button>
     </form>
   );

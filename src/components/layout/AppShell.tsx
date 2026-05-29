@@ -51,7 +51,7 @@ export function AppShell({ children, role, title }: AppShellProps) {
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-60 bg-[#0f1624] border-r border-[#1e2d42] shrink-0">
         <div className="p-6 pb-4 border-b border-[#1e2d42]">
-          <span className="text-lg font-bold tracking-tight text-[#f0f4ff]">Coach<span className="text-[#3b82f6]">OS</span></span>
+          <img src="/logo.png" alt="Logo" className="h-12 w-auto" />
           <p className="text-xs text-[#5a7090] mt-1 capitalize">{role === "coach" ? "Coach-Bereich" : "Athleten-Bereich"}</p>
         </div>
 
