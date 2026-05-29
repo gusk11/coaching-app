@@ -16,14 +16,14 @@ import { loadAuth } from "@/lib/store";
 import { Plus, Pencil, Trash2, X, Check, AlertTriangle } from "lucide-react";
 
 // ─── Categories ───────────────────────────────────────────────────────────────
-const BASE_CATEGORIES = [
+const ALLOWED_CATEGORIES = [
   "Protein",
   "Kohlenhydrate",
   "Fette",
-  "Gemüse & Obst",
+  "Gemüse",
   "Obst",
   "Weitere",
-];
+] as const;
 
 const SERVING_OPTIONS = ["100 g", "1 Stück"] as const;
 type ServingOption = typeof SERVING_OPTIONS[number];
@@ -60,13 +60,6 @@ function FoodForm({
   onClose: () => void;
 }) {
   const [form, setForm] = useState<Partial<FoodItem>>(initial ?? emptyForm());
-  const [customCat, setCustomCat] = useState("");
-
-  const allCategories = [...BASE_CATEGORIES];
-  if (form.category && !allCategories.includes(form.category)) {
-    allCategories.push(form.category);
-  }
-
   function set(field: keyof FoodItem, value: string | number) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -74,8 +67,7 @@ function FoodForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name?.trim()) return;
-    const finalCat = customCat.trim() || form.category || "Weitere";
-    onSave({ ...form, category: finalCat });
+    onSave({ ...form, category: form.category || "Weitere" });
   }
 
   const inputCls =
@@ -136,31 +128,14 @@ function FoodForm({
           <div>
             <label className={labelCls}>Kategorie</label>
             <select
-              value={allCategories.includes(form.category ?? "") ? form.category : "__custom__"}
-              onChange={(e) => {
-                if (e.target.value === "__custom__") {
-                  set("category", "");
-                } else {
-                  set("category", e.target.value);
-                  setCustomCat("");
-                }
-              }}
+              value={form.category ?? "Weitere"}
+              onChange={(e) => set("category", e.target.value)}
               className={inputCls}
             >
-              {allCategories.map((c) => (
+              {ALLOWED_CATEGORIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
-              <option value="__custom__">Eigene Kategorie…</option>
             </select>
-            {(!allCategories.includes(form.category ?? "") || form.category === "") && (
-              <input
-                type="text"
-                value={customCat}
-                onChange={(e) => setCustomCat(e.target.value)}
-                placeholder="Kategoriename eingeben"
-                className={`${inputCls} mt-2`}
-              />
-            )}
           </div>
 
           {/* Macros per serving */}
@@ -297,7 +272,7 @@ export default function FoodDatabase() {
     ...customFoods.filter((f) => f.isActive !== false),
   ];
 
-  const categories = ["Alle", ...Array.from(new Set(allItems.map((f) => f.category))).sort()];
+  const categories = ["Alle", ...ALLOWED_CATEGORIES];
 
   const filtered = allItems.filter((f) => {
     const matchCat = categoryFilter === "Alle" || f.category === categoryFilter;

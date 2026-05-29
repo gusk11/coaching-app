@@ -61,7 +61,7 @@ export const foodItems: FoodItem[] = [
   {
     id: "chiasamen",
     name: "Chiasamen",
-    category: "Sonstiges",
+    category: "Weitere",
     servingLabel: "100 g",
     kcalPer100g: 486, proteinPer100g: 17.0, carbsPer100g: 42.0, fatPer100g: 31.0, fiberPer100g: 34.0, saltPer100g: 0.1,
     defaultAmount: 15,

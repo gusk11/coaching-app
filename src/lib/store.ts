@@ -21,10 +21,10 @@ const SEED_VERSION = "2026-05-29-v4";
 
 const FOOD_SEED_VERSION_KEY = "coachOS_foodSeedVersion";
 // Bump when foodItems.ts seed data changes to clear custom/deactivated food state.
-const FOOD_SEED_VERSION = "2026-05-29-v3";
+const FOOD_SEED_VERSION = "2026-05-29-v5";
 
 const SUPPLEMENT_SEED_VERSION_KEY = "coachOS_supplementSeedVersion";
-const SUPPLEMENT_SEED_VERSION = "2026-05-29-v3";
+const SUPPLEMENT_SEED_VERSION = "2026-05-29-v4";
 
 const EXERCISE_SEED_VERSION_KEY = "coachOS_exerciseSeedVersion";
 const EXERCISE_SEED_VERSION = "2026-05-29-v3";

@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Minus, ChevronDown } from "lucide-react";
 
 interface Props {
   trainingLogs: TrainingLog[];
+  mode?: "athlete" | "coach";
 }
 
 type SetResult = "progress" | "same" | "regress" | "na";
@@ -230,7 +231,7 @@ function SessionCard({ session, defaultOpen }: CardProps) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function TrainingProgress({ trainingLogs }: Props) {
+export function TrainingProgress({ trainingLogs, mode = "athlete" }: Props) {
   const exerciseHistory = useMemo(() => buildExerciseHistory(trainingLogs), [trainingLogs]);
 
   const exerciseNames = useMemo(
@@ -268,8 +269,12 @@ export function TrainingProgress({ trainingLogs }: Props) {
   if (exerciseNames.length === 0) {
     return (
       <div className="p-6 rounded-2xl bg-[#141d2e] border border-[#1e2d42] text-center">
-        <p className="text-sm text-[#5a7090]">Noch keine Trainingseinheiten geloggt.</p>
-        <p className="text-xs text-[#5a7090] mt-1">Nutze den Trainingstracker, um deine erste Einheit einzutragen.</p>
+        <p className="text-sm text-[#5a7090]">
+          {mode === "coach" ? "Noch keine abgeschlossenen Trainings vorhanden." : "Noch keine Trainingseinheiten geloggt."}
+        </p>
+        {mode === "athlete" && (
+          <p className="text-xs text-[#5a7090] mt-1">Nutze den Trainingstracker, um deine erste Einheit einzutragen.</p>
+        )}
       </div>
     );
   }

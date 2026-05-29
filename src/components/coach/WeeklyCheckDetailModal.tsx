@@ -122,24 +122,32 @@ export function WeeklyCheckDetailModal({ ci, onClose }: Props) {
             </section>
           )}
 
-          {ci.photos && ci.photos.length > 0 && (
-            <section>
-              <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">
-                Fotos ({ci.photos.length})
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {ci.photos.map((photo, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={i}
-                    src={photo}
-                    alt={`Foto ${i + 1}`}
-                    className="rounded-xl w-full object-cover aspect-square"
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+          {(() => {
+            const images = ci.progressImages && ci.progressImages.length > 0
+              ? ci.progressImages.map((img) => ({ src: img.url, label: img.fileName }))
+              : ci.photos && ci.photos.length > 0
+              ? ci.photos.map((url, i) => ({ src: url, label: `Foto ${i + 1}` }))
+              : [];
+            if (images.length === 0) return null;
+            return (
+              <section>
+                <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">
+                  Fortschrittsbilder ({images.length})
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {images.map((img, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={i}
+                      src={img.src}
+                      alt={img.label}
+                      className="rounded-xl w-full object-cover aspect-square"
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })()}
         </div>
       </div>
     </div>

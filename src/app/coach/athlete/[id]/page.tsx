@@ -14,6 +14,8 @@ import { TrainingEditor } from "@/components/coach/TrainingEditor";
 import { SupplementEditor } from "@/components/coach/SupplementEditor";
 import { AthleteProfileEditor } from "@/components/coach/AthleteProfileEditor";
 import { ProgressAnalytics } from "@/components/coach/ProgressAnalytics";
+import { TrainingProgress } from "@/components/athlete/TrainingProgress";
+import { AllTrainings } from "@/components/athlete/AllTrainings";
 import { DailyCheckDetailModal } from "@/components/coach/DailyCheckDetailModal";
 import { WeeklyCheckDetailModal } from "@/components/coach/WeeklyCheckDetailModal";
 import { Badge } from "@/components/ui/Badge";
@@ -60,6 +62,9 @@ export default function CoachAthletePage() {
   const [editingNutrition, setEditingNutrition] = useState(false);
   const [editingTraining, setEditingTraining] = useState(false);
   const [editingSupplements, setEditingSupplements] = useState(false);
+
+  // Training progress sub-tab
+  const [progressSubTab, setProgressSubTab] = useState<"exercises" | "alltrainings">("exercises");
 
   useEffect(() => {
     const auth = loadAuth();
@@ -137,6 +142,11 @@ export default function CoachAthletePage() {
   function saveAthleteProfile(updates: Partial<Athlete>) {
     const updated = updateAthlete(athlete!.id, updates);
     setAthlete(updated.find((a) => a.id === athlete!.id)!);
+  }
+
+  function handleUpdateTrainingLogs(athletes: Athlete[]) {
+    const updated = athletes.find((a) => a.id === athlete!.id);
+    if (updated) setAthlete(updated);
   }
 
   return (
@@ -593,6 +603,41 @@ export default function CoachAthletePage() {
         {tab === "Fortschritt" && (
           <div className="flex flex-col gap-4">
             <ProgressAnalytics checkIns={athlete.dailyCheckIns} />
+
+            {/* Trainingsfortschritt */}
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-semibold text-[#f0f4ff]">Trainingsfortschritt</p>
+              <div className="flex rounded-xl bg-[#0f1624] border border-[#1e2d42] p-1 gap-1">
+                {([
+                  { key: "exercises" as const, label: "Übungen" },
+                  { key: "alltrainings" as const, label: "Gesamte Trainings" },
+                ]).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setProgressSubTab(key)}
+                    className={cn(
+                      "flex-1 py-2 rounded-lg text-xs font-medium transition-colors",
+                      progressSubTab === key
+                        ? "bg-[#1e2d42] text-[#f0f4ff]"
+                        : "text-[#5a7090] hover:text-[#8fa3c0]"
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {progressSubTab === "exercises" && (
+                <TrainingProgress trainingLogs={athlete.trainingLogs ?? []} mode="coach" />
+              )}
+              {progressSubTab === "alltrainings" && (
+                <AllTrainings
+                  trainingLogs={athlete.trainingLogs ?? []}
+                  athleteId={athlete.id}
+                  onUpdate={handleUpdateTrainingLogs}
+                  mode="coach"
+                />
+              )}
+            </div>
           </div>
         )}
 

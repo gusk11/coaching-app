@@ -9,6 +9,7 @@ interface Props {
   trainingLogs: TrainingLog[];
   athleteId: string;
   onUpdate: (athletes: Athlete[]) => void;
+  mode?: "athlete" | "coach";
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -94,7 +95,7 @@ function editStateToLog(state: EditState, original: TrainingLog): TrainingLog {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function AllTrainings({ trainingLogs, athleteId, onUpdate }: Props) {
+export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlete" }: Props) {
   const sorted = [...trainingLogs].sort((a, b) => b.date.localeCompare(a.date));
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
   const [editState, setEditState] = useState<EditState | null>(null);
@@ -210,8 +211,10 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate }: Props) {
     return (
       <div className="p-8 rounded-2xl bg-[#141d2e] border border-[#1e2d42] text-center">
         <p className="text-3xl mb-3">🏋️</p>
-        <p className="text-sm font-medium text-[#8fa3c0]">Noch keine abgeschlossenen Trainings</p>
-        <p className="text-xs text-[#5a7090] mt-1">Tracke dein erstes Training im Tab „Training tracken".</p>
+        <p className="text-sm font-medium text-[#8fa3c0]">Noch keine abgeschlossenen Trainings vorhanden.</p>
+        {mode === "athlete" && (
+          <p className="text-xs text-[#5a7090] mt-1">Tracke dein erstes Training im Tab „Training tracken".</p>
+        )}
       </div>
     );
   }

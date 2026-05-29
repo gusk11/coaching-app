@@ -152,6 +152,16 @@ export interface DailyCheckIn {
   fiber?: number;
 }
 
+export interface ProgressImage {
+  id: string;
+  fileName: string;
+  /** base64 dataUrl for local storage; swap for a remote URL when connecting to cloud storage */
+  url: string;
+  uploadedAt: string; // ISO timestamp
+  size?: number; // bytes
+  type?: string; // MIME type, e.g. image/jpeg
+}
+
 export interface WeeklyCheckIn {
   id: string;
   athleteId: string;
@@ -170,7 +180,9 @@ export interface WeeklyCheckIn {
   specialEvents: string;
   coachNote: string;
   freeNote: string;
-  photos?: string[]; // base64 data URLs
+  progressImages?: ProgressImage[];
+  /** @deprecated use progressImages instead */
+  photos?: string[];
 }
 
 export interface WeeklyAdjustment {
