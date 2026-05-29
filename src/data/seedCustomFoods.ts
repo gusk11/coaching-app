@@ -1,0 +1,47 @@
+import { FoodItem } from "@/types";
+
+export const seedCustomFoods: FoodItem[] = [
+  {
+    id: "food-haehnchenbrust",
+    name: "Hähnchenbrust",
+    category: "Protein",
+    servingLabel: "100 g",
+    kcalPer100g: 110, proteinPer100g: 23, carbsPer100g: 0, fatPer100g: 1.5, fiberPer100g: 0, saltPer100g: 0.2,
+    defaultAmount: 150,
+    isCustomFood: true,
+    isActive: true,
+    createdAt: "2026-05-29T00:00:00.000Z",
+  },
+  {
+    id: "food-reis-gekocht",
+    name: "Reis gekocht",
+    category: "Kohlenhydrate",
+    servingLabel: "100 g",
+    kcalPer100g: 130, proteinPer100g: 2.7, carbsPer100g: 28, fatPer100g: 0.3, fiberPer100g: 0.4, saltPer100g: 0,
+    isCustomFood: true,
+    isActive: true,
+    createdAt: "2026-05-29T00:00:00.000Z",
+  },
+  {
+    id: "food-ei",
+    name: "Ei",
+    category: "Protein",
+    servingLabel: "1 Stück",
+    kcalPer100g: 80, proteinPer100g: 7, carbsPer100g: 0.5, fatPer100g: 5.5, fiberPer100g: 0, saltPer100g: 0.2,
+    defaultAmount: 1,
+    isCustomFood: true,
+    isActive: true,
+    createdAt: "2026-05-29T00:00:00.000Z",
+  },
+  {
+    id: "food-banane",
+    name: "Banane",
+    category: "Obst",
+    servingLabel: "1 Stück",
+    kcalPer100g: 105, proteinPer100g: 1.3, carbsPer100g: 24, fatPer100g: 0.3, fiberPer100g: 2.6, saltPer100g: 0,
+    defaultAmount: 1,
+    isCustomFood: true,
+    isActive: true,
+    createdAt: "2026-05-29T00:00:00.000Z",
+  },
+];

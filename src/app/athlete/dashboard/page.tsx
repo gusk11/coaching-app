@@ -1,0 +1,254 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Athlete } from "@/types";
+import { loadAuth, loadAthletes, addDailyCheckIn } from "@/lib/store";
+import { DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
+import { AppShell } from "@/components/layout/AppShell";
+import { StatCard } from "@/components/ui/StatCard";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { DailyCheckInForm } from "@/components/athlete/DailyCheckInForm";
+import { ProgressAnalytics } from "@/components/coach/ProgressAnalytics";
+import {
+  analyzeWeek, calculateDistanceToGoal, calculateGoalProgressPercent,
+  getLastCheckIn, todayISO, getGoalLabel, getTrendIcon, getTrendColor,
+  getWeekDates,
+} from "@/lib/utils";
+import { ClipboardCheck, CalendarPlus } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+function getWeekday(isoDate: string): string {
+  return new Date(isoDate + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long" });
+}
+
+function yesterdayISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split("T")[0];
+}
+
+function minBackfillISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 90);
+  return d.toISOString().split("T")[0];
+}
+
+export default function AthleteDashboard() {
+  const router = useRouter();
+  const [athlete, setAthlete] = useState<Athlete | null>(null);
+  const [showCheckIn, setShowCheckIn] = useState(false);
+  const [showBackfill, setShowBackfill] = useState(false);
+  const [backfillDate, setBackfillDate] = useState(yesterdayISO);
+
+  useEffect(() => {
+    const auth = loadAuth();
+    if (auth.role !== "athlete" || !auth.athleteId) { router.replace("/login"); return; }
+    const athletes = loadAthletes();
+    const found = athletes.find((a) => a.id === auth.athleteId);
+    if (!found) { router.replace("/login"); return; }
+    setAthlete(found);
+  }, [router]);
+
+  if (!athlete) return null;
+
+  const today = todayISO();
+  const { start: weekStart } = getWeekDates(today);
+  const analysis = analyzeWeek(athlete);
+  const dist = calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight);
+  const progress = calculateGoalProgressPercent(athlete.startWeight, athlete.currentWeight, athlete.targetWeight);
+  const lastCI = getLastCheckIn(athlete.dailyCheckIns);
+  const alreadyCheckedIn = lastCI?.date === today;
+  const trendColor = getTrendColor(analysis.trend, athlete.goalType);
+
+  const backfillExisting = athlete.dailyCheckIns.find((c) => c.date === backfillDate);
+
+  function handleCheckInSubmit(data: any) {
+    const updated = addDailyCheckIn(athlete!.id, data);
+    const freshAthlete = updated.find((a) => a.id === athlete!.id)!;
+    setAthlete(freshAthlete);
+    setShowCheckIn(false);
+  }
+
+  function handleBackfillSubmit(data: any) {
+    const updated = addDailyCheckIn(athlete!.id, data);
+    const freshAthlete = updated.find((a) => a.id === athlete!.id)!;
+    setAthlete(freshAthlete);
+    setShowBackfill(false);
+  }
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Guten Morgen" : hour < 17 ? "Guten Tag" : "Guten Abend";
+
+  const visibleAdjustments = (athlete.weeklyAdjustments ?? []).filter(
+    (a) => a.weekStart === weekStart && a.visibleToAthlete
+  );
+
+  return (
+    <AppShell role="athlete">
+      <div className="max-w-lg mx-auto flex flex-col gap-5">
+        {/* Header */}
+        <div className="flex flex-col gap-1">
+          <p className="text-sm text-[#5a7090]">{greeting},</p>
+          <h1 className="text-2xl font-bold text-[#f0f4ff]">{athlete.name.split(" ")[0]}</h1>
+          <p className="text-sm text-[#8fa3c0]">
+            {new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })}
+            {" · "}
+            <span className="text-[#60a5fa]">{getGoalLabel(athlete.goalType)}</span>
+          </p>
+        </div>
+
+        {/* Daily check-in – first element */}
+        <div
+          className={cn(
+            "rounded-2xl border overflow-hidden transition-all",
+            alreadyCheckedIn
+              ? "bg-[#141d2e] border-[#1e2d42]"
+              : "bg-[#1a1209]/30 border-[#ca8a04]/25 ring-1 ring-[#ca8a04]/10"
+          )}
+        >
+          {/* Today toggle */}
+          <button
+            onClick={() => setShowCheckIn(!showCheckIn)}
+            className={cn(
+              "w-full flex items-center justify-between px-5 py-4 transition-colors",
+              alreadyCheckedIn ? "hover:bg-[#192236]" : "hover:bg-[#1a1209]/50"
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <ClipboardCheck
+                size={18}
+                className={alreadyCheckedIn ? "text-[#10b981]" : "text-[#ca8a04]"}
+              />
+              <div className="text-left">
+                <p className="text-sm font-semibold text-[#f0f4ff]">Daily Check-in</p>
+                <p className={cn("text-xs", alreadyCheckedIn ? "text-[#5a7090]" : "text-[#ca8a04]/80")}>
+                  {alreadyCheckedIn ? "Heute bereits eingetragen — bearbeiten?" : "Heute noch nicht eingetragen"}
+                </p>
+              </div>
+            </div>
+            <span className={cn("text-lg", alreadyCheckedIn ? "text-[#3b82f6]" : "text-[#ca8a04]")}>
+              {showCheckIn ? "−" : "+"}
+            </span>
+          </button>
+
+          {showCheckIn && (
+            <div className="border-t border-[#1e2d42] p-5">
+              <DailyCheckInForm
+                athleteId={athlete.id}
+                existingToday={alreadyCheckedIn ? lastCI : undefined}
+                onSubmit={handleCheckInSubmit}
+                checkConfig={{ ...DEFAULT_DAILY_CHECK_CONFIG, ...athlete.dailyCheckConfig }}
+              />
+            </div>
+          )}
+
+          {/* Nachtragen section */}
+          <div className="border-t border-[#1e2d42]">
+            <button
+              onClick={() => setShowBackfill(!showBackfill)}
+              className="w-full flex items-center justify-between px-5 py-3 hover:bg-[#192236] transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <CalendarPlus size={14} className="text-[#5a7090]" />
+                <span className="text-xs text-[#5a7090]">Früheren Tag nachtragen</span>
+              </div>
+              <span className="text-xs text-[#5a7090]">{showBackfill ? "−" : "+"}</span>
+            </button>
+
+            {showBackfill && (
+              <div className="px-5 pb-5 flex flex-col gap-4 border-t border-[#1e2d42]">
+                <div className="flex flex-col gap-2 pt-4">
+                  <label className="text-xs font-medium text-[#8fa3c0]">Datum wählen</label>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <input
+                      type="date"
+                      value={backfillDate}
+                      max={yesterdayISO()}
+                      min={minBackfillISO()}
+                      onChange={(e) => setBackfillDate(e.target.value)}
+                      className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                    />
+                    {backfillDate && (
+                      <span className="text-sm text-[#8fa3c0]">{getWeekday(backfillDate)}</span>
+                    )}
+                  </div>
+                  {backfillExisting && (
+                    <p className="text-xs text-[#60a5fa]">
+                      Für diesen Tag existiert bereits ein Eintrag — Daten sind vorausgefüllt.
+                    </p>
+                  )}
+                </div>
+                {backfillDate && (
+                  <DailyCheckInForm
+                    key={backfillDate}
+                    athleteId={athlete.id}
+                    existingToday={backfillExisting}
+                    date={backfillDate}
+                    onSubmit={handleBackfillSubmit}
+                    checkConfig={{ ...DEFAULT_DAILY_CHECK_CONFIG, ...athlete.dailyCheckConfig }}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Visible note */}
+        {athlete.visibleNote && (
+          <div className="p-4 rounded-2xl bg-[#1d4ed8]/10 border border-[#3b82f6]/20">
+            <p className="text-xs text-[#60a5fa] font-medium uppercase tracking-widest mb-1">Coach-Hinweis</p>
+            <p className="text-sm text-[#8fa3c0]">{athlete.visibleNote}</p>
+          </div>
+        )}
+
+        {/* Weekly adjustments */}
+        {visibleAdjustments.length > 0 && (
+          <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
+            <p className="text-xs text-[#5a7090] uppercase tracking-widest">Änderungen diese Woche</p>
+            {visibleAdjustments.map((adj) => (
+              <div key={adj.id} className="flex flex-col gap-0.5">
+                <p className="text-sm font-medium text-[#f0f4ff]">{adj.title}</p>
+                {adj.description && <p className="text-xs text-[#8fa3c0]">{adj.description}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard label="Aktuell" value={athlete.currentWeight} unit="kg" accent />
+          <StatCard label="Ziel" value={athlete.targetWeight} unit="kg" />
+          <StatCard
+            label="Abstand zum Ziel"
+            value={dist > 0 ? `+${dist}` : dist}
+            unit="kg"
+            color={Math.abs(dist) < 0.5 ? "text-[#10b981]" : "text-[#f0f4ff]"}
+          />
+          <StatCard
+            label="Wochentrend"
+            value={`${getTrendIcon(analysis.trend)} ${analysis.changeKg > 0 ? "+" : ""}${analysis.changeKg}`}
+            unit="kg"
+            color={trendColor}
+          />
+        </div>
+
+        {/* Progress */}
+        <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-[#8fa3c0]">Fortschritt zum Ziel</span>
+            <span className="text-sm font-bold text-[#f0f4ff]">{progress}%</span>
+          </div>
+          <ProgressBar value={progress} />
+          <div className="flex justify-between text-xs text-[#5a7090] mt-2">
+            <span>Start {athlete.startWeight} kg</span>
+            <span>Ziel {athlete.targetWeight} kg</span>
+          </div>
+        </div>
+
+        {/* Data analysis */}
+        <ProgressAnalytics checkIns={athlete.dailyCheckIns} />
+
+      </div>
+    </AppShell>
+  );
+}
