@@ -14,6 +14,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useRouter } from "next/navigation";
 import { loadAuth } from "@/lib/store";
 import { Plus, Pencil, Trash2, X, Check, AlertTriangle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { modalOverlay, modalContent, listContainer, listItem } from "@/lib/motion";
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 const ALLOWED_CATEGORIES = [
@@ -75,8 +77,20 @@ function FoodForm({
   const labelCls = "text-xs text-[#5a7090] mb-1 block";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-[#141d2e] border border-[#1e2d42] rounded-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <motion.div
+      variants={modalOverlay}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+    >
+      <motion.div
+        variants={modalContent}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="w-full max-w-lg bg-[#141d2e] border border-[#1e2d42] rounded-2xl overflow-hidden flex flex-col max-h-[90vh]"
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e2d42]">
           <h2 className="text-base font-semibold text-[#f0f4ff]">
             {initial?.id ? "Lebensmittel bearbeiten" : "Neues Lebensmittel"}
@@ -196,8 +210,8 @@ function FoodForm({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -212,8 +226,20 @@ function DeleteConfirmModal({
   onCancel: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-[#141d2e] border border-[#1e2d42] rounded-2xl p-6 flex flex-col gap-4">
+    <motion.div
+      variants={modalOverlay}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+    >
+      <motion.div
+        variants={modalContent}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="w-full max-w-sm bg-[#141d2e] border border-[#1e2d42] rounded-2xl p-6 flex flex-col gap-4"
+      >
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-xl bg-[#ef4444]/10 shrink-0">
             <AlertTriangle size={18} className="text-[#ef4444]" />
@@ -240,8 +266,8 @@ function DeleteConfirmModal({
             Löschen
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -365,6 +391,8 @@ export default function FoodDatabase() {
 
         {/* Table */}
         <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">
+          <div className="overflow-x-auto">
+          <div className="min-w-[560px]">
           {/* Header */}
           <div className="grid grid-cols-12 px-4 py-2.5 text-xs text-[#5a7090] uppercase tracking-widest border-b border-[#1e2d42] bg-[#0f1624]">
             <span className="col-span-3">Name · Menge</span>
@@ -430,6 +458,8 @@ export default function FoodDatabase() {
               ))
             )}
           </div>
+          </div>
+          </div>
         </div>
 
         <p className="text-xs text-[#5a7090] text-center">
@@ -438,22 +468,26 @@ export default function FoodDatabase() {
       </div>
 
       {/* Form modal */}
-      {editing !== null && (
-        <FoodForm
-          initial={editing}
-          onSave={handleSave}
-          onClose={() => setEditing(null)}
-        />
-      )}
+      <AnimatePresence>
+        {editing !== null && (
+          <FoodForm
+            initial={editing}
+            onSave={handleSave}
+            onClose={() => setEditing(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Delete confirmation modal */}
-      {deleteTarget !== null && (
-        <DeleteConfirmModal
-          foodName={deleteTarget.name}
-          onConfirm={handleDeleteConfirmed}
-          onCancel={() => setDeleteTarget(null)}
-        />
-      )}
+      <AnimatePresence>
+        {deleteTarget !== null && (
+          <DeleteConfirmModal
+            foodName={deleteTarget.name}
+            onConfirm={handleDeleteConfirmed}
+            onCancel={() => setDeleteTarget(null)}
+          />
+        )}
+      </AnimatePresence>
     </AppShell>
   );
 }

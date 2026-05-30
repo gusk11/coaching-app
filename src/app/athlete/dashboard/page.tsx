@@ -16,6 +16,8 @@ import {
 } from "@/lib/utils";
 import { ClipboardCheck, CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { listContainer, listItem } from "@/lib/motion";
 
 function getWeekday(isoDate: string): string {
   return new Date(isoDate + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long" });
@@ -87,14 +89,23 @@ export default function AthleteDashboard() {
     <AppShell role="athlete">
       <div className="max-w-lg mx-auto flex flex-col gap-5">
         {/* Header */}
-        <div className="flex flex-col gap-1">
-          <p className="text-sm text-[#5a7090]">{greeting},</p>
-          <h1 className="text-2xl font-bold text-[#f0f4ff]">{athlete.name.split(" ")[0]}</h1>
-          <p className="text-sm text-[#8fa3c0]">
-            {new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })}
-            {" · "}
-            <span className="text-[#60a5fa]">{getGoalLabel(athlete.goalType)}</span>
-          </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-[#5a7090]">{greeting},</p>
+            <h1 className="text-2xl font-bold text-[#f0f4ff]">{athlete.name.split(" ")[0]}</h1>
+            <p className="text-sm text-[#8fa3c0]">
+              {new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })}
+              {" · "}
+              <span className="text-[#60a5fa]">{getGoalLabel(athlete.goalType)}</span>
+            </p>
+          </div>
+          <div className="w-14 h-14 rounded-full overflow-hidden bg-[#1d4ed8]/20 flex items-center justify-center shrink-0">
+            {athlete.profileImage ? (
+              <img src={athlete.profileImage.url} alt={athlete.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-lg font-bold text-[#60a5fa]">{athlete.avatarInitials}</span>
+            )}
+          </div>
         </div>
 
         {/* Daily check-in – first element */}
@@ -216,31 +227,40 @@ export default function AthleteDashboard() {
           </div>
         )}
 
-        {/* Stats grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard label="Aktuell" value={athlete.currentWeight} unit="kg" accent />
-          <StatCard label="Ziel" value={athlete.targetWeight} unit="kg" />
-          <StatCard
-            label="Abstand zum Ziel"
-            value={dist > 0 ? `+${dist}` : dist}
-            unit="kg"
-            color={Math.abs(dist) < 0.5 ? "text-[#10b981]" : "text-[#f0f4ff]"}
-          />
-          <StatCard
-            label="Wochentrend"
-            value={
-              analysis.changeKg != null && athlete.currentWeight
-                ? (
-                  <span className="flex items-baseline gap-1.5 flex-wrap">
-                    <span>{getTrendIcon(analysis.trend)} {analysis.changeKg > 0 ? "+" : ""}{analysis.changeKg} kg</span>
-                    <span className="text-base font-medium opacity-70">({analysis.changeKg > 0 ? "+" : ""}{((analysis.changeKg / athlete.currentWeight) * 100).toFixed(2)} %)</span>
-                  </span>
-                )
-                : "–"
-            }
-            color={trendColor}
-          />
-        </div>
+        {/* Stats grid — staggered */}
+        <motion.div
+          className="grid grid-cols-2 gap-3"
+          variants={listContainer}
+          initial="hidden"
+          animate="visible"
+        >
+          <motion.div variants={listItem}><StatCard label="Aktuell" value={athlete.currentWeight} unit="kg" accent /></motion.div>
+          <motion.div variants={listItem}><StatCard label="Ziel" value={athlete.targetWeight} unit="kg" /></motion.div>
+          <motion.div variants={listItem}>
+            <StatCard
+              label="Abstand zum Ziel"
+              value={dist > 0 ? `+${dist}` : dist}
+              unit="kg"
+              color={Math.abs(dist) < 0.5 ? "text-[#10b981]" : "text-[#f0f4ff]"}
+            />
+          </motion.div>
+          <motion.div variants={listItem}>
+            <StatCard
+              label="Wochentrend"
+              value={
+                analysis.changeKg != null && athlete.currentWeight
+                  ? (
+                    <span className="flex items-baseline gap-1.5 flex-wrap">
+                      <span>{getTrendIcon(analysis.trend)} {analysis.changeKg > 0 ? "+" : ""}{analysis.changeKg} kg</span>
+                      <span className="text-base font-medium opacity-70">({analysis.changeKg > 0 ? "+" : ""}{((analysis.changeKg / athlete.currentWeight) * 100).toFixed(2)} %)</span>
+                    </span>
+                  )
+                  : "–"
+              }
+              color={trendColor}
+            />
+          </motion.div>
+        </motion.div>
 
         {/* Progress */}
         <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">

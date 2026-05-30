@@ -47,14 +47,18 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold",
-              isCheckInToday && !isDone
+              "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold overflow-hidden",
+              !athlete.profileImage && (isCheckInToday && !isDone
                 ? "bg-[#f59e0b]/15 text-[#f59e0b]"
                 : isCheckInToday && isDone
                 ? "bg-[#10b981]/15 text-[#10b981]"
-                : "bg-[#1d4ed8]/20 text-[#60a5fa]"
+                : "bg-[#1d4ed8]/20 text-[#60a5fa]")
             )}>
-              {athlete.avatarInitials}
+              {athlete.profileImage ? (
+                <img src={athlete.profileImage.url} alt={athlete.name} className="w-full h-full object-cover" />
+              ) : (
+                athlete.avatarInitials
+              )}
             </div>
             <div>
               <p className="text-sm font-semibold text-[#f0f4ff] group-hover:text-white">{athlete.name}</p>

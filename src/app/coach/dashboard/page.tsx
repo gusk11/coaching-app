@@ -7,6 +7,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { AthleteCard } from "@/components/coach/AthleteCard";
 import { analyzeWeek } from "@/lib/utils";
 import { UserPlus, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { listContainer, listItem, modalOverlay, modalContent } from "@/lib/motion";
 
 const GOAL_OPTIONS: { value: GoalType; label: string }[] = [
   { value: "cut", label: "Diät / Abnehmen" },
@@ -102,23 +104,35 @@ export default function CoachDashboard() {
     <AppShell role="coach" title="Athleten-Übersicht">
       <div className="max-w-2xl mx-auto flex flex-col gap-5">
         {/* Summary KPIs */}
-        <div className="grid grid-cols-4 gap-3">
-          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4">
-            <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-1">Athleten gesamt</p>
-            <p className="text-2xl font-bold text-[#f0f4ff]">{totalAthletes}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-3 sm:p-4">
+            <p className="text-[10px] sm:text-xs text-[#5a7090] uppercase tracking-widest mb-1">
+              <span className="sm:hidden">Athleten</span>
+              <span className="hidden sm:inline">Athleten gesamt</span>
+            </p>
+            <p className="text-xl sm:text-2xl font-bold text-[#f0f4ff]">{totalAthletes}</p>
           </div>
-          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4">
-            <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-1">Check-ins heute</p>
-            <p className="text-2xl font-bold text-[#f0f4ff]">{checkInsToday}</p>
+          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-3 sm:p-4">
+            <p className="text-[10px] sm:text-xs text-[#5a7090] uppercase tracking-widest mb-1">
+              <span className="sm:hidden">Heute</span>
+              <span className="hidden sm:inline">Check-ins heute</span>
+            </p>
+            <p className="text-xl sm:text-2xl font-bold text-[#f0f4ff]">{checkInsToday}</p>
           </div>
-          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4">
-            <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-1">Bearbeitet</p>
-            <p className="text-2xl font-bold text-[#f0f4ff]">
+          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-3 sm:p-4">
+            <p className="text-[10px] sm:text-xs text-[#5a7090] uppercase tracking-widest mb-1">
+              <span className="sm:hidden">Erledigt</span>
+              <span className="hidden sm:inline">Bearbeitet</span>
+            </p>
+            <p className="text-xl sm:text-2xl font-bold text-[#f0f4ff]">
               {checkInsToday === 0 ? "0 / 0" : `${checkInsProcessed} / ${checkInsToday}`}
             </p>
           </div>
-          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4">
-            <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-1">Wochentag</p>
+          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-3 sm:p-4">
+            <p className="text-[10px] sm:text-xs text-[#5a7090] uppercase tracking-widest mb-1">
+              <span className="sm:hidden">Tag</span>
+              <span className="hidden sm:inline">Wochentag</span>
+            </p>
             <p className="text-base font-bold text-[#f0f4ff]">{DAY_NAMES[todayDayOfWeek]}</p>
             <p className="text-[11px] text-[#5a7090] mt-0.5">{todayStr.split("-").reverse().join(".")}</p>
           </div>
@@ -134,27 +148,46 @@ export default function CoachDashboard() {
         </button>
 
         {/* Athlete cards */}
-        <div className="flex flex-col gap-3">
+        <motion.div
+          className="flex flex-col gap-3"
+          variants={listContainer}
+          initial="hidden"
+          animate="visible"
+        >
           {sortedAthletes.map((a) => {
             const isCheckInToday = a.checkInDay === todayDayOfWeek;
             const isDone = checkInDone[`${a.id}_${todayStr}`] === true;
             return (
-              <AthleteCard
-                key={a.id}
-                athlete={a}
-                isCheckInToday={isCheckInToday}
-                isDone={isDone}
-                onToggleDone={isCheckInToday ? () => handleToggleDone(a.id) : undefined}
-              />
+              <motion.div key={a.id} variants={listItem}>
+                <AthleteCard
+                  athlete={a}
+                  isCheckInToday={isCheckInToday}
+                  isDone={isDone}
+                  onToggleDone={isCheckInToday ? () => handleToggleDone(a.id) : undefined}
+                />
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
 
       {/* Create athlete modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-[#0f1624] border border-[#1e2d42] rounded-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <AnimatePresence>
+        {showModal && (
+        <motion.div
+          variants={modalOverlay}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        >
+          <motion.div
+            variants={modalContent}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="w-full max-w-lg bg-[#0f1624] border border-[#1e2d42] rounded-2xl overflow-hidden max-h-[90vh] flex flex-col"
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e2d42]">
               <h2 className="text-base font-semibold text-[#f0f4ff]">Neuen Athleten anlegen</h2>
               <button onClick={() => setShowModal(false)} className="p-1 rounded-lg hover:bg-[#141d2e] transition-colors">
@@ -303,9 +336,10 @@ export default function CoachDashboard() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </AppShell>
   );
 }

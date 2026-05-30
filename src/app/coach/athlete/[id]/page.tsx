@@ -14,8 +14,7 @@ import { TrainingEditor } from "@/components/coach/TrainingEditor";
 import { SupplementEditor } from "@/components/coach/SupplementEditor";
 import { AthleteProfileEditor } from "@/components/coach/AthleteProfileEditor";
 import { ProgressAnalytics } from "@/components/coach/ProgressAnalytics";
-import { TrainingProgress } from "@/components/athlete/TrainingProgress";
-import { AllTrainings } from "@/components/athlete/AllTrainings";
+import { TrainingProgressView } from "@/components/athlete/TrainingProgressView";
 import { DailyCheckDetailModal } from "@/components/coach/DailyCheckDetailModal";
 import { WeeklyCheckDetailModal } from "@/components/coach/WeeklyCheckDetailModal";
 import { Badge } from "@/components/ui/Badge";
@@ -26,6 +25,8 @@ import {
 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Pencil, Check, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { tabContentTransition, listContainer, listItem } from "@/lib/motion";
 
 const TABS = ["Übersicht", "Check-ins", "Fortschritt", "Ernährung", "Training", "Supplements"] as const;
 type Tab = (typeof TABS)[number];
@@ -54,6 +55,10 @@ export default function CoachAthletePage() {
   const [editCoachNote, setEditCoachNote] = useState("");
   const [editVisibleNote, setEditVisibleNote] = useState("");
 
+  // Target weight editing
+  const [editingTargetWeight, setEditingTargetWeight] = useState(false);
+  const [editTargetWeightInput, setEditTargetWeightInput] = useState("");
+
   // Trend target editing
   const [editingTrendTarget, setEditingTrendTarget] = useState(false);
   const [editTrendTargetInput, setEditTrendTargetInput] = useState("");
@@ -62,9 +67,6 @@ export default function CoachAthletePage() {
   const [editingNutrition, setEditingNutrition] = useState(false);
   const [editingTraining, setEditingTraining] = useState(false);
   const [editingSupplements, setEditingSupplements] = useState(false);
-
-  // Training progress sub-tab
-  const [progressSubTab, setProgressSubTab] = useState<"exercises" | "alltrainings">("exercises");
 
   useEffect(() => {
     const auth = loadAuth();
@@ -99,6 +101,14 @@ export default function CoachAthletePage() {
     const fresh = updated.find((a) => a.id === athlete!.id)!;
     setAthlete(fresh);
     setEditingGoal(false);
+  }
+
+  function saveTargetWeight() {
+    const parsed = parseFloat(editTargetWeightInput);
+    if (isNaN(parsed) || parsed <= 0) return;
+    const updated = updateAthlete(athlete!.id, { targetWeight: parsed });
+    setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    setEditingTargetWeight(false);
   }
 
   function saveTrendTarget() {
@@ -158,8 +168,12 @@ export default function CoachAthletePage() {
             <ArrowLeft size={18} className="text-[#8fa3c0]" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#1d4ed8]/20 flex items-center justify-center text-sm font-bold text-[#60a5fa]">
-              {athlete.avatarInitials}
+            <div className="w-10 h-10 rounded-full bg-[#1d4ed8]/20 flex items-center justify-center text-sm font-bold text-[#60a5fa] overflow-hidden">
+              {athlete.profileImage ? (
+                <img src={athlete.profileImage.url} alt={athlete.name} className="w-full h-full object-cover" />
+              ) : (
+                athlete.avatarInitials
+              )}
             </div>
             <div>
               <h1 className="text-lg font-bold text-[#f0f4ff]">{athlete.name}</h1>
@@ -188,12 +202,54 @@ export default function CoachAthletePage() {
           ))}
         </div>
 
+        <AnimatePresence mode="wait" initial={false}>
+
         {/* ── ÜBERSICHT ── */}
         {tab === "Übersicht" && (
-          <div className="flex flex-col gap-4">
+          <motion.div key="Übersicht" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">
               <StatCard label="Aktuell" value={athlete.currentWeight} unit="kg" accent />
-              <StatCard label="Ziel" value={athlete.targetWeight} unit="kg" />
+
+              {/* Zielgewicht – inline editierbar */}
+              <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 flex flex-col gap-1 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-[#5a7090] uppercase tracking-widest">Ziel</span>
+                  {!editingTargetWeight ? (
+                    <button
+                      onClick={() => { setEditTargetWeightInput(String(athlete.targetWeight)); setEditingTargetWeight(true); }}
+                      className="text-[#5a7090] hover:text-[#60a5fa] transition-colors"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button onClick={saveTargetWeight} className="text-[#10b981] hover:text-[#34d399] transition-colors"><Check size={12} /></button>
+                      <button onClick={() => setEditingTargetWeight(false)} className="text-[#5a7090] hover:text-[#f0f4ff] transition-colors"><X size={12} /></button>
+                    </div>
+                  )}
+                </div>
+                {!editingTargetWeight ? (
+                  <div className="flex items-baseline gap-1 mt-1 text-[#f0f4ff]">
+                    <span className="text-2xl font-bold leading-none">{athlete.targetWeight}</span>
+                    <span className="text-sm font-semibold text-[#8fa3c0]">kg</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 mt-2">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={editTargetWeightInput}
+                      onChange={(e) => setEditTargetWeightInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveTargetWeight(); if (e.key === "Escape") setEditingTargetWeight(false); }}
+                      placeholder="z. B. 80.0"
+                      className="w-full bg-[#0f1624] border border-[#3b82f6]/40 rounded-lg px-2 py-1 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                      autoFocus
+                    />
+                    <span className="text-sm text-[#8fa3c0] shrink-0">kg</span>
+                  </div>
+                )}
+              </div>
               <StatCard label="Start" value={athlete.startWeight} unit="kg" />
               <StatCard
                 label="Abstand Ziel"
@@ -400,12 +456,12 @@ export default function CoachAthletePage() {
 
             {/* Athlete profile (formerly own tab) */}
             <AthleteProfileEditor athlete={athlete} onSave={saveAthleteProfile} />
-          </div>
+          </motion.div>
         )}
 
         {/* ── CHECK-INS ── */}
         {tab === "Check-ins" && (
-          <div className="flex flex-col gap-4">
+          <motion.div key="Check-ins" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
             {/* Sub-tab bar */}
             <div className="flex gap-1">
               <button
@@ -440,11 +496,12 @@ export default function CoachAthletePage() {
 
             {/* Daily Checks list */}
             {checkInSubTab === "daily" && (
-              <div className="flex flex-col gap-3">
+              <motion.div className="flex flex-col gap-3" variants={listContainer} initial="hidden" animate="visible">
                 {[...athlete.dailyCheckIns]
                   .sort((a, b) => b.date.localeCompare(a.date))
                   .map((ci) => (
-                    <button
+                    <motion.button
+                      variants={listItem}
                       key={ci.id}
                       onClick={() => setSelectedDailyCI(ci)}
                       className="w-full text-left rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 hover:border-[#3b82f6]/30 hover:bg-[#192236] transition-all group"
@@ -509,17 +566,17 @@ export default function CoachAthletePage() {
                         <p className="text-xs text-[#f59e0b] mt-1">Abweichung: {ci.deviationReason}</p>
                       )}
                       <p className="text-[10px] text-[#3b4d6a] mt-2 text-right">Details ansehen →</p>
-                    </button>
+                    </motion.button>
                   ))}
                 {!athlete.dailyCheckIns.length && (
                   <p className="text-center text-[#5a7090] py-8">Noch keine Daily Check-ins vorhanden.</p>
                 )}
-              </div>
+              </motion.div>
             )}
 
             {/* Weekly Checks list */}
             {checkInSubTab === "weekly" && (
-              <div className="flex flex-col gap-3">
+              <motion.div className="flex flex-col gap-3" variants={listContainer} initial="hidden" animate="visible">
                 {[...athlete.weeklyCheckIns]
                   .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
                   .map((ci) => {
@@ -530,7 +587,8 @@ export default function CoachAthletePage() {
                       d.toLocaleDateString("de-DE", { day: "2-digit", month: "short" });
                     const weekLabel = `${fmtShort(weekStart)} – ${fmtShort(weekEnd)}`;
                     return (
-                      <button
+                      <motion.button
+                        variants={listItem}
                         key={ci.id}
                         onClick={() => setSelectedWeeklyCI(ci)}
                         className="w-full text-left rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 hover:border-[#3b82f6]/30 hover:bg-[#192236] transition-all group"
@@ -588,62 +646,37 @@ export default function CoachAthletePage() {
                           </p>
                         )}
                         <p className="text-[10px] text-[#3b4d6a] mt-2 text-right">Details ansehen →</p>
-                      </button>
+                      </motion.button>
                     );
                   })}
                 {!athlete.weeklyCheckIns.length && (
                   <p className="text-center text-[#5a7090] py-8">Noch keine Weekly Check-ins vorhanden.</p>
                 )}
-              </div>
+              </motion.div>
             )}
-          </div>
+          </motion.div>
         )}
 
         {/* ── FORTSCHRITT ── */}
         {tab === "Fortschritt" && (
-          <div className="flex flex-col gap-4">
+          <motion.div key="Fortschritt" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
             <ProgressAnalytics checkIns={athlete.dailyCheckIns} />
 
             {/* Trainingsfortschritt */}
             <div className="flex flex-col gap-3">
               <p className="text-sm font-semibold text-[#f0f4ff]">Trainingsfortschritt</p>
-              <div className="flex rounded-xl bg-[#0f1624] border border-[#1e2d42] p-1 gap-1">
-                {([
-                  { key: "exercises" as const, label: "Übungen" },
-                  { key: "alltrainings" as const, label: "Gesamte Trainings" },
-                ]).map(({ key, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => setProgressSubTab(key)}
-                    className={cn(
-                      "flex-1 py-2 rounded-lg text-xs font-medium transition-colors",
-                      progressSubTab === key
-                        ? "bg-[#1e2d42] text-[#f0f4ff]"
-                        : "text-[#5a7090] hover:text-[#8fa3c0]"
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {progressSubTab === "exercises" && (
-                <TrainingProgress trainingLogs={athlete.trainingLogs ?? []} mode="coach" />
-              )}
-              {progressSubTab === "alltrainings" && (
-                <AllTrainings
-                  trainingLogs={athlete.trainingLogs ?? []}
-                  athleteId={athlete.id}
-                  onUpdate={handleUpdateTrainingLogs}
-                  mode="coach"
-                />
-              )}
+              <TrainingProgressView
+                athlete={athlete}
+                onUpdate={handleUpdateTrainingLogs}
+                mode="coach"
+              />
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* ── ERNÄHRUNG ── */}
         {tab === "Ernährung" && (
-          <div className="flex flex-col gap-4">
+          <motion.div key="Ernährung" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
             {(() => {
               const plans = athlete.mealPlans ?? (athlete.mealPlan ? [athlete.mealPlan] : []);
               return (
@@ -676,12 +709,12 @@ export default function CoachAthletePage() {
                 </>
               );
             })()}
-          </div>
+          </motion.div>
         )}
 
         {/* ── TRAINING ── */}
         {tab === "Training" && (
-          <div className="flex flex-col gap-4">
+          <motion.div key="Training" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-[#f0f4ff]">
                 {athlete.trainingPlan ? athlete.trainingPlan.title : "Trainingsplan"}
@@ -727,12 +760,12 @@ export default function CoachAthletePage() {
                 </button>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
         {/* ── SUPPLEMENTS ── */}
         {tab === "Supplements" && (
-          <div className="flex flex-col gap-4">
+          <motion.div key="Supplements" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-[#f0f4ff]">Supplementplan</p>
               <button
@@ -767,21 +800,26 @@ export default function CoachAthletePage() {
                 </button>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
+        </AnimatePresence>
 
       </div>
 
       {/* Daily Check detail modal */}
-      {selectedDailyCI && (
-        <DailyCheckDetailModal ci={selectedDailyCI} athlete={athlete} onClose={() => setSelectedDailyCI(null)} />
-      )}
+      <AnimatePresence>
+        {selectedDailyCI && (
+          <DailyCheckDetailModal ci={selectedDailyCI} athlete={athlete} onClose={() => setSelectedDailyCI(null)} />
+        )}
+      </AnimatePresence>
 
       {/* Weekly Check detail modal */}
-      {selectedWeeklyCI && (
-        <WeeklyCheckDetailModal ci={selectedWeeklyCI} onClose={() => setSelectedWeeklyCI(null)} />
-      )}
+      <AnimatePresence>
+        {selectedWeeklyCI && (
+          <WeeklyCheckDetailModal ci={selectedWeeklyCI} onClose={() => setSelectedWeeklyCI(null)} />
+        )}
+      </AnimatePresence>
     </AppShell>
   );
 }

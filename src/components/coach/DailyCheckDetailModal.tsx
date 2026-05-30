@@ -2,6 +2,8 @@
 import { Athlete, DailyCheckIn, CalorieTrackerDay, MealPlan, NutritionStatusType } from "@/types";
 import { calculateDayMacros, calculateMealMacros, roundMacro, roundSalt } from "@/lib/utils";
 import { X } from "lucide-react";
+import { motion } from "framer-motion";
+import { modalOverlay, modalContent } from "@/lib/motion";
 
 interface Props {
   ci: DailyCheckIn;
@@ -256,11 +258,19 @@ export function DailyCheckDetailModal({ ci, athlete, onClose }: Props) {
   const noInfoReason = ci.noExactNutritionReason ?? ci.deviationReason;
 
   return (
-    <div
+    <motion.div
+      variants={modalOverlay}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
-      <div
+      <motion.div
+        variants={modalContent}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
         className="w-full max-w-lg bg-[#0f1624] border border-[#1e2d42] rounded-2xl overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
@@ -347,7 +357,7 @@ export function DailyCheckDetailModal({ ci, athlete, onClose }: Props) {
             </section>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -11,6 +11,8 @@ import {
 import { AppShell } from "@/components/layout/AppShell";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, X, Check, ExternalLink } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { modalOverlay, modalContent } from "@/lib/motion";
 
 // ─── Timing suggestions ───────────────────────────────────────────────────────
 const TIMING_OPTIONS = [
@@ -87,8 +89,20 @@ function SupplementForm({
     : "";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-[#141d2e] border border-[#1e2d42] rounded-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <motion.div
+      variants={modalOverlay}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+    >
+      <motion.div
+        variants={modalContent}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="w-full max-w-lg bg-[#141d2e] border border-[#1e2d42] rounded-2xl overflow-hidden flex flex-col max-h-[90vh]"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e2d42]">
           <h2 className="text-base font-semibold text-[#f0f4ff]">
@@ -207,8 +221,8 @@ function SupplementForm({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -221,8 +235,20 @@ function DeleteConfirmModal({
   onCancel: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-[#141d2e] border border-[#1e2d42] rounded-2xl overflow-hidden">
+    <motion.div
+      variants={modalOverlay}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+    >
+      <motion.div
+        variants={modalContent}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="w-full max-w-sm bg-[#141d2e] border border-[#1e2d42] rounded-2xl overflow-hidden"
+      >
         <div className="px-5 py-5 flex flex-col gap-4">
           <h2 className="text-base font-semibold text-[#f0f4ff]">Supplement löschen</h2>
           <p className="text-sm text-[#8fa3c0] leading-relaxed">
@@ -245,8 +271,8 @@ function DeleteConfirmModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -319,6 +345,8 @@ export default function SupplementDatabase() {
 
         {/* Table */}
         <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">
+          <div className="overflow-x-auto">
+          <div className="min-w-[580px]">
           {/* Header */}
           <div className="grid grid-cols-12 px-4 py-2 text-xs text-[#5a7090] uppercase tracking-widest border-b border-[#1e2d42] bg-[#0f1624]">
             <span className="col-span-2">Name</span>
@@ -400,6 +428,8 @@ export default function SupplementDatabase() {
               ))
             )}
           </div>
+          </div>
+          </div>
         </div>
 
         {filtered.length > 0 && (
@@ -410,21 +440,25 @@ export default function SupplementDatabase() {
       </div>
 
       {/* Form modal */}
-      {editing !== null && (
-        <SupplementForm
-          initial={editing}
-          onSave={handleSave}
-          onClose={() => setEditing(null)}
-        />
-      )}
+      <AnimatePresence>
+        {editing !== null && (
+          <SupplementForm
+            initial={editing}
+            onSave={handleSave}
+            onClose={() => setEditing(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Delete confirm modal */}
-      {confirmDelete !== null && (
-        <DeleteConfirmModal
-          onConfirm={() => handleDelete(confirmDelete)}
-          onCancel={() => setConfirmDelete(null)}
-        />
-      )}
+      <AnimatePresence>
+        {confirmDelete !== null && (
+          <DeleteConfirmModal
+            onConfirm={() => handleDelete(confirmDelete)}
+            onCancel={() => setConfirmDelete(null)}
+          />
+        )}
+      </AnimatePresence>
     </AppShell>
   );
 }

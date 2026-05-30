@@ -356,6 +356,8 @@ export interface Athlete {
   name: string;
   pin: string;
   avatarInitials: string;
+  /** Optional profile image — base64 dataUrl locally; swap url for remote URL when connecting cloud storage */
+  profileImage?: ProgressImage;
   startWeight: number;
   currentWeight: number;
   targetWeight: number;
