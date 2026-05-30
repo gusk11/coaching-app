@@ -17,17 +17,17 @@ const CHECK_IN_DONE_KEY = "coachOS_checkInDone";
 const ACTIVE_SESSION_KEY = "coachOS_activeSession";
 const SEED_VERSION_KEY = "coachOS_seedVersion";
 // Bump this string whenever seed data changes to force a localStorage reset.
-const SEED_VERSION = "2026-05-29-v4";
+const SEED_VERSION = "2026-05-30-v1";
 
 const FOOD_SEED_VERSION_KEY = "coachOS_foodSeedVersion";
 // Bump when foodItems.ts seed data changes to clear custom/deactivated food state.
-const FOOD_SEED_VERSION = "2026-05-29-v5";
+const FOOD_SEED_VERSION = "2026-05-30-v1";
 
 const SUPPLEMENT_SEED_VERSION_KEY = "coachOS_supplementSeedVersion";
-const SUPPLEMENT_SEED_VERSION = "2026-05-29-v4";
+const SUPPLEMENT_SEED_VERSION = "2026-05-30-v1";
 
 const EXERCISE_SEED_VERSION_KEY = "coachOS_exerciseSeedVersion";
-const EXERCISE_SEED_VERSION = "2026-05-29-v3";
+const EXERCISE_SEED_VERSION = "2026-05-30-v1";
 
 export function loadAthletes(): Athlete[] {
   if (typeof window === "undefined") return initialAthletes;
@@ -38,7 +38,14 @@ export function loadAthletes(): Athlete[] {
       localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION);
     }
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : initialAthletes;
+    const athletes: Athlete[] = stored ? JSON.parse(stored) : initialAthletes;
+    // Migrate legacy singular mealPlan → mealPlans[]
+    return athletes.map((a) => {
+      if (!a.mealPlans?.length && a.mealPlan) {
+        return { ...a, mealPlans: [a.mealPlan] };
+      }
+      return a;
+    });
   } catch {
     return initialAthletes;
   }

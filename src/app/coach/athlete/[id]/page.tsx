@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/Badge";
 import { DailyCheckIn, WeeklyCheckIn } from "@/types";
 import {
   analyzeWeek, calculateDistanceToGoal, calculateGoalProgressPercent,
-  getGoalLabel, getGoalColor, getTrendIcon, getTrendColor,
+  getGoalLabel, getGoalColor, getTrendIcon, getTrendColor, normalizeNutritionStatus,
 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Pencil, Check, X } from "lucide-react";
@@ -121,7 +121,7 @@ export default function CoachAthletePage() {
   }
 
   function saveMealPlan(plan: MealPlan) {
-    const currentPlans = athlete!.mealPlans ?? (athlete!.mealPlan ? [athlete!.mealPlan] : []);
+    const currentPlans = athlete!.mealPlans ?? [];
     const exists = currentPlans.some(p => p.id === plan.id);
     const newPlans = exists
       ? currentPlans.map(p => p.id === plan.id ? plan : p)
@@ -131,7 +131,7 @@ export default function CoachAthletePage() {
   }
 
   function deleteMealPlan(planId: string) {
-    const currentPlans = athlete!.mealPlans ?? (athlete!.mealPlan ? [athlete!.mealPlan] : []);
+    const currentPlans = athlete!.mealPlans ?? [];
     const newPlans = currentPlans.filter(p => p.id !== planId);
     const updated = updateAthlete(athlete!.id, { mealPlans: newPlans });
     setAthlete(updated.find((a) => a.id === athlete!.id)!);
@@ -542,13 +542,15 @@ export default function CoachAthletePage() {
                           </span>
                         </div>
                         {(() => {
-                          const ns = ci.nutritionStatus;
-                          const mc = ci.mealCompliance;
-                          const isTracker = ns === "calorie_tracker_used" || (!ns && ["full_tracking", "tracked_in_calorie_tracker"].includes(mc));
-                          const isPlan    = ns === "meal_plan_followed"   || (!ns && ["full", "fully_followed"].includes(mc));
-                          const isNoInfo  = ns === "no_exact_info"        || (!ns && ["not_followed", "minor_deviation", "major_deviation", "off_plan"].includes(mc));
-                          const variant: "accent"|"success"|"warning"|"danger" = isTracker ? "accent" : isPlan ? "success" : isNoInfo ? "warning" : "danger";
-                          const label = isTracker ? "◎ Tracker" : isPlan ? "✓ Plan" : isNoInfo ? "K.A." : "✗";
+                          const ns = normalizeNutritionStatus(ci);
+                          const variant: "accent"|"success"|"warning" =
+                            ns === "calorie_tracker_used" ? "accent"
+                            : ns === "meal_plan_followed" ? "success"
+                            : "warning";
+                          const label =
+                            ns === "calorie_tracker_used" ? "◎ Tracker"
+                            : ns === "meal_plan_followed" ? "✓ Plan"
+                            : "K.A.";
                           return (
                             <div className="flex flex-col gap-0.5">
                               <span className="text-[#5a7090]">Ernährung</span>
@@ -678,7 +680,7 @@ export default function CoachAthletePage() {
         {tab === "Ernährung" && (
           <motion.div key="Ernährung" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
             {(() => {
-              const plans = athlete.mealPlans ?? (athlete.mealPlan ? [athlete.mealPlan] : []);
+              const plans = athlete.mealPlans ?? [];
               return (
                 <>
                   <div className="flex items-center justify-between">

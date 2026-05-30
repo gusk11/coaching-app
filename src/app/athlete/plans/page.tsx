@@ -53,7 +53,7 @@ export default function AthletePlans() {
         <AnimatePresence mode="wait" initial={false}>
           {/* Ernährungsplan */}
           {tab === "Ernährungsplan" && (() => {
-            const plans = athlete.mealPlans ?? (athlete.mealPlan ? [athlete.mealPlan] : []);
+            const plans = athlete.mealPlans ?? [];
             return (
               <motion.div key="Ernährungsplan" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit">
                 {plans.length === 0 ? (

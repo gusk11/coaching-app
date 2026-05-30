@@ -20,7 +20,7 @@ export default function AthleteNutrition() {
 
   if (!athlete) return null;
 
-  const plans: MealPlan[] = athlete.mealPlans ?? (athlete.mealPlan ? [athlete.mealPlan] : []);
+  const plans: MealPlan[] = athlete.mealPlans ?? [];
 
   return (
     <AppShell role="athlete" title="Ernährungsplan">

@@ -1,5 +1,6 @@
 "use client";
 import { WeeklyCheckIn } from "@/types";
+import { CheckInSection, CheckInRow } from "@/components/ui/CheckInModalLayout";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
 import { modalOverlay, modalContent } from "@/lib/motion";
@@ -14,25 +15,6 @@ function stars(val: number | undefined, max = 5): string {
   return "★".repeat(val) + "☆".repeat(max - val) + ` (${val}/5)`;
 }
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between py-2 border-b border-[#1e2d42] last:border-0 gap-3">
-      <span className="text-xs text-[#5a7090] flex-shrink-0 w-44">{label}</span>
-      <span className="text-xs text-[#f0f4ff] text-right break-words">{value ?? "–"}</span>
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">{title}</p>
-      <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] px-4 py-1">
-        {children}
-      </div>
-    </section>
-  );
-}
 
 function weekRangeLabel(weekStart: string): string {
   const start = new Date(weekStart + "T12:00:00");
@@ -77,33 +59,35 @@ export function WeeklyCheckDetailModal({ ci, onClose }: Props) {
         </div>
 
         <div className="overflow-y-auto p-5 flex flex-col gap-5">
-          <Section title="Gesamtbewertung">
-            <Row label="Gesamte Woche" value={stars(ci.overallWeekRating)} />
-            <Row label="Wochenzufriedenheit" value={stars(ci.weekSatisfaction)} />
-            <Row label="Selbstzufriedenheit" value={stars(ci.selfSatisfaction)} />
-          </Section>
+          <CheckInSection title="Gesamtbewertung">
+            <CheckInRow label="Gesamte Woche" value={stars(ci.overallWeekRating)} labelWidth="w-44" />
+            <CheckInRow label="Wochenzufriedenheit" value={stars(ci.weekSatisfaction)} labelWidth="w-44" />
+            <CheckInRow label="Selbstzufriedenheit" value={stars(ci.selfSatisfaction)} labelWidth="w-44" />
+          </CheckInSection>
 
-          <Section title="Training">
-            <Row label="Trainingseinschätzung" value={stars(ci.trainingRating)} />
-            <Row
+          <CheckInSection title="Training">
+            <CheckInRow label="Trainingseinschätzung" value={stars(ci.trainingRating)} labelWidth="w-44" />
+            <CheckInRow
               label="Erholung"
               value={ci.recoveryRating != null ? stars(ci.recoveryRating) : "–"}
+              labelWidth="w-44"
             />
-          </Section>
+          </CheckInSection>
 
-          <Section title="Ernährung">
-            <Row label="Plan-Umsetzung" value={stars(ci.nutritionAdherence)} />
-            <Row label="Hunger & Cravings" value={ci.hungerCravings || "–"} />
-          </Section>
+          <CheckInSection title="Ernährung">
+            <CheckInRow label="Plan-Umsetzung" value={stars(ci.nutritionAdherence)} labelWidth="w-44" />
+            <CheckInRow label="Hunger & Cravings" value={ci.hungerCravings || "–"} labelWidth="w-44" />
+          </CheckInSection>
 
-          <Section title="Wohlbefinden (Wochendurchschnitt)">
-            <Row label="Energielevel Ø" value={`${ci.energyAvg} / 5`} />
-            <Row label="Stresslevel Ø" value={`${ci.stressAvg} / 5`} />
-            <Row
+          <CheckInSection title="Wohlbefinden (Wochendurchschnitt)">
+            <CheckInRow label="Energielevel Ø" value={`${ci.energyAvg} / 5`} labelWidth="w-44" />
+            <CheckInRow label="Stresslevel Ø" value={`${ci.stressAvg} / 5`} labelWidth="w-44" />
+            <CheckInRow
               label="Schlafdauer Ø"
               value={ci.sleepAvg != null ? `${ci.sleepAvg} h` : "–"}
+              labelWidth="w-44"
             />
-          </Section>
+          </CheckInSection>
 
           {ci.specialEvents && (
             <section>

@@ -1,6 +1,9 @@
 export type GoalType = "cut" | "bulk" | "recomp" | "maintenance";
 
-/** Old values kept for backward-compat with localStorage; new form uses the latter three */
+/**
+ * @deprecated Use NutritionStatusType instead.
+ * Kept for backward-compat with existing localStorage data.
+ */
 export type MealComplianceType =
   | "full"
   | "minor_deviation"
@@ -120,7 +123,6 @@ export interface DailyCheckIn {
   measurementTime: string;
   appetite: 1 | 2 | 3 | 4 | 5;
   digestion: 1 | 2 | 3 | 4 | 5;
-  trackingAccuracy?: 1 | 2 | 3 | 4 | 5;
   caffeine: number; // mg
   steps: number;
   cardio: boolean;
@@ -138,9 +140,11 @@ export interface DailyCheckIn {
   stressLevel: 1 | 2 | 3 | 4 | 5;
   mood: 1 | 2 | 3 | 4 | 5;
   note: string;
+  /** @deprecated Legacy field. Use nutritionStatus instead. Kept for backward-compat with stored data. */
   mealCompliance: MealComplianceType;
+  /** @deprecated Use noExactNutritionReason instead. */
   deviationReason?: string;
-  /** New nutrition status — takes precedence over mealCompliance when present */
+  /** Canonical nutrition status. Takes precedence over mealCompliance. */
   nutritionStatus?: NutritionStatusType;
   selectedMealPlanId?: string;
   noExactNutritionReason?: string;
@@ -226,6 +230,7 @@ export interface TrainingLog {
 export interface SupplementDBItem {
   id: string;
   name: string;
+  category?: string;        // z.B. "Vitamine", "Mineralstoffe", "Aminosäuren"
   standardDosage: string;   // Standarddosierung
   timing: string;           // Einnahmezeitpunkt
   instructions: string;     // Einnahmeanleitung
@@ -239,6 +244,7 @@ export interface ExerciseDBItem {
   id: string;
   name: string;             // Übungsname
   muscleGroup: string;      // Muskelgruppe
+  equipment?: string;       // z.B. "Langhantel", "Kurzhantel", "Kabelzug", "Maschine", "Körpergewicht"
   notes?: string;           // Anmerkungen
   executionLink?: string;   // Link zur Übungsausführung
   createdAt?: string;
@@ -251,8 +257,10 @@ export interface FoodItem {
   category: string;
   kcalPer100g: number;
   proteinPer100g: number;
+  /** Net carbs (EU standard: excludes dietary fiber). Do NOT include fiberPer100g here. */
   carbsPer100g: number;
   fatPer100g: number;
+  /** Dietary fiber, always tracked separately from carbsPer100g. */
   fiberPer100g: number;
   saltPer100g: number;
   defaultAmount?: number;
@@ -386,6 +394,7 @@ export interface Athlete {
   weeklyAdjustments?: WeeklyAdjustment[];
   trainingLogs?: TrainingLog[];
   calorieTrackerDays?: CalorieTrackerDay[];
+  /** @deprecated Migrate via loadAthletes() → use mealPlans instead */
   mealPlan?: MealPlan;
   mealPlans?: MealPlan[];
   trainingPlan?: TrainingPlan;

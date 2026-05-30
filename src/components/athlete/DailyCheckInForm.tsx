@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DailyCheckIn, MealPlan, NutritionStatusType, DailyCheckConfig, DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { SliderInput } from "@/components/ui/SliderInput";
-import { cn, todayISO } from "@/lib/utils";
+import { cn, normalizeNutritionStatus, todayISO } from "@/lib/utils";
 
 interface DailyCheckInFormProps {
   athleteId: string;
@@ -12,18 +12,6 @@ interface DailyCheckInFormProps {
   date?: string; // defaults to todayISO()
   mealPlans?: MealPlan[];
   onSubmit: (data: Omit<DailyCheckIn, "id" | "athleteId">) => void;
-}
-
-function deriveInitialNutritionStatus(ci?: DailyCheckIn): NutritionStatusType {
-  if (!ci) return "meal_plan_followed";
-  if (ci.nutritionStatus) return ci.nutritionStatus;
-  if (["tracked_in_calorie_tracker", "full_tracking", "calorie_tracker_used"].includes(ci.mealCompliance)) {
-    return "calorie_tracker_used";
-  }
-  if (["not_followed", "off_plan", "minor_deviation", "major_deviation", "no_exact_info"].includes(ci.mealCompliance)) {
-    return "no_exact_info";
-  }
-  return "meal_plan_followed";
 }
 
 const nutritionOptions: { value: NutritionStatusType; label: string; desc: string }[] = [
@@ -63,7 +51,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
   const [note, setNote] = useState(init?.note ?? "");
 
   const [nutritionStatus, setNutritionStatus] = useState<NutritionStatusType>(
-    () => deriveInitialNutritionStatus(init)
+    () => init ? normalizeNutritionStatus(init) : "meal_plan_followed"
   );
   const [selectedMealPlanId, setSelectedMealPlanId] = useState<string>(
     init?.selectedMealPlanId ?? mealPlans?.[0]?.id ?? ""

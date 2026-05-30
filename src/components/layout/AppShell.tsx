@@ -1,8 +1,8 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { clearAuth } from "@/lib/store";
+import { clearAuth, loadAuth, loadAthletes } from "@/lib/store";
 import { useRouter, usePathname } from "next/navigation";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import {
   LayoutDashboard, Dumbbell,
   Pill, ClipboardCheck, Users, BookOpen, LogOut, ChevronRight,
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { pageTransition } from "@/lib/motion";
+import { isCheckInDay, getWeekDates, todayISO } from "@/lib/utils";
 
 interface NavItem {
   label: string;
@@ -19,19 +20,71 @@ interface NavItem {
 
 const athleteNav: NavItem[] = [
   { label: "Dashboard", href: "/athlete/dashboard", icon: <LayoutDashboard size={20} /> },
+  { label: "Check-ins", href: "/athlete/checkins", icon: <ClipboardCheck size={20} /> },
   { label: "Kalorientracker", href: "/athlete/calorie-tracker", icon: <Flame size={20} /> },
   { label: "Trainingstracker", href: "/athlete/training", icon: <Dumbbell size={20} /> },
   { label: "Pläne", href: "/athlete/plans", icon: <Salad size={20} /> },
-  { label: "Weekly Check-in", href: "/athlete/weekly-checkin", icon: <ClipboardCheck size={20} /> },
   { label: "Stammdaten", href: "/athlete/stammdaten", icon: <User size={20} /> },
 ];
 
 const coachNav: NavItem[] = [
-  { label: "Athleten", href: "/coach/dashboard", icon: <Users size={20} /> },
-  { label: "Food DB", href: "/coach/food-database", icon: <BookOpen size={20} /> },
-  { label: "Supplement DB", href: "/coach/supplement-database", icon: <Pill size={20} /> },
+  { label: "Athletenübersicht", href: "/coach/dashboard", icon: <Users size={20} /> },
+  { label: "Food-Datenbank", href: "/coach/food-database", icon: <BookOpen size={20} /> },
+  { label: "SupplementDB", href: "/coach/supplement-database", icon: <Pill size={20} /> },
   { label: "ÜbungenDB", href: "/coach/exercise-database", icon: <ListChecks size={20} /> },
 ];
+
+function NavItemButton({
+  item,
+  active,
+  showPending,
+  variant,
+  onClick,
+}: {
+  item: NavItem;
+  active: boolean;
+  showPending: boolean;
+  variant: "desktop" | "mobile";
+  onClick: () => void;
+}) {
+  if (variant === "desktop") {
+    return (
+      <button
+        onClick={onClick}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all w-full text-left",
+          active
+            ? "bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20"
+            : showPending
+            ? "text-[#f59e0b] bg-[#451a03]/30 hover:bg-[#451a03]/50"
+            : "text-[#8fa3c0] hover:bg-[#141d2e] hover:text-[#f0f4ff]"
+        )}
+      >
+        <span className={active ? "text-[#3b82f6]" : showPending ? "text-[#f59e0b]" : ""}>{item.icon}</span>
+        {item.label}
+        {active && <ChevronRight size={14} className="ml-auto text-[#3b82f6]" />}
+        {showPending && <span className="ml-auto w-2 h-2 rounded-full bg-[#f59e0b] shrink-0" />}
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all",
+        active
+          ? "bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20"
+          : showPending
+          ? "text-[#f59e0b] bg-[#451a03]/30"
+          : "text-[#5a7090] hover:text-[#8fa3c0]"
+      )}
+    >
+      {item.icon}
+      {item.label}
+      {showPending && <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] shrink-0" />}
+    </button>
+  );
+}
 
 interface AppShellProps {
   children: ReactNode;
@@ -43,6 +96,23 @@ export function AppShell({ children, role, title }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const nav = role === "athlete" ? athleteNav : coachNav;
+  const [hasPendingCheckins, setHasPendingCheckins] = useState(false);
+
+  useEffect(() => {
+    if (role !== "athlete") return;
+    const auth = loadAuth();
+    if (!auth.athleteId) return;
+    const athlete = loadAthletes().find((a) => a.id === auth.athleteId);
+    if (!athlete) return;
+
+    const today = todayISO();
+    const dailyDone = athlete.dailyCheckIns.some((c) => c.date === today);
+    const { start: weekStart } = getWeekDates(today);
+    const weeklyDone = athlete.weeklyCheckIns.some((w) => w.weekStart === weekStart);
+    const isWeeklyDay = isCheckInDay(athlete.checkInDay);
+
+    setHasPendingCheckins(!dailyDone || (isWeeklyDay && !weeklyDone));
+  }, [role, pathname]);
 
   function handleLogout() {
     clearAuth();
@@ -62,21 +132,16 @@ export function AppShell({ children, role, title }: AppShellProps) {
           <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto">
             {nav.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
+              const showPending = !active && role === "athlete" && item.href === "/athlete/checkins" && hasPendingCheckins;
               return (
-                <button
+                <NavItemButton
                   key={item.href}
+                  item={item}
+                  active={active}
+                  showPending={showPending}
+                  variant="desktop"
                   onClick={() => router.push(item.href)}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all w-full text-left",
-                    active
-                      ? "bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20"
-                      : "text-[#8fa3c0] hover:bg-[#141d2e] hover:text-[#f0f4ff]"
-                  )}
-                >
-                  <span className={active ? "text-[#3b82f6]" : ""}>{item.icon}</span>
-                  {item.label}
-                  {active && <ChevronRight size={14} className="ml-auto text-[#3b82f6]" />}
-                </button>
+                />
               );
             })}
           </nav>
@@ -117,20 +182,16 @@ export function AppShell({ children, role, title }: AppShellProps) {
             <nav className="flex overflow-x-auto px-3 pb-2.5 gap-1 scrollbar-none" aria-label="Hauptnavigation">
               {nav.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                const showPending = !active && role === "athlete" && item.href === "/athlete/checkins" && hasPendingCheckins;
                 return (
-                  <button
+                  <NavItemButton
                     key={item.href}
+                    item={item}
+                    active={active}
+                    showPending={showPending}
+                    variant="mobile"
                     onClick={() => router.push(item.href)}
-                    className={cn(
-                      "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all",
-                      active
-                        ? "bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20"
-                        : "text-[#5a7090] hover:text-[#8fa3c0]"
-                    )}
-                  >
-                    {item.icon}
-                    {item.label}
-                  </button>
+                  />
                 );
               })}
             </nav>

@@ -1,6 +1,7 @@
 import { FoodItem } from "@/types";
 
 // Nutritional values refer exactly to the selected servingLabel (100 g or 1 Stück).
+// carbsPer100g = net carbs (EU standard, dietary fiber excluded). fiberPer100g is always a separate field.
 export const foodItems: FoodItem[] = [
   {
     id: "haehnchenbrust",
@@ -61,9 +62,9 @@ export const foodItems: FoodItem[] = [
   {
     id: "chiasamen",
     name: "Chiasamen",
-    category: "Weitere",
+    category: "Fettquelle",
     servingLabel: "100 g",
-    kcalPer100g: 486, proteinPer100g: 17.0, carbsPer100g: 42.0, fatPer100g: 31.0, fiberPer100g: 34.0, saltPer100g: 0.1,
+    kcalPer100g: 486, proteinPer100g: 17.0, carbsPer100g: 8.0, fatPer100g: 31.0, fiberPer100g: 34.0, saltPer100g: 0.1,
     defaultAmount: 15,
   },
   {
@@ -77,7 +78,7 @@ export const foodItems: FoodItem[] = [
   {
     id: "olivenoel",
     name: "Olivenöl",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 884, proteinPer100g: 0.0, carbsPer100g: 0.0, fatPer100g: 100.0, fiberPer100g: 0.0, saltPer100g: 0.0,
     defaultAmount: 10,

@@ -149,7 +149,7 @@ export default function AthleteDashboard() {
                 existingToday={alreadyCheckedIn ? lastCI : undefined}
                 onSubmit={handleCheckInSubmit}
                 checkConfig={{ ...DEFAULT_DAILY_CHECK_CONFIG, ...athlete.dailyCheckConfig }}
-                mealPlans={athlete.mealPlans ?? (athlete.mealPlan ? [athlete.mealPlan] : [])}
+                mealPlans={athlete.mealPlans ?? []}
               />
             </div>
           )}
@@ -198,7 +198,7 @@ export default function AthleteDashboard() {
                     date={backfillDate}
                     onSubmit={handleBackfillSubmit}
                     checkConfig={{ ...DEFAULT_DAILY_CHECK_CONFIG, ...athlete.dailyCheckConfig }}
-                    mealPlans={athlete.mealPlans ?? (athlete.mealPlan ? [athlete.mealPlan] : [])}
+                    mealPlans={athlete.mealPlans ?? []}
                   />
                 )}
               </div>

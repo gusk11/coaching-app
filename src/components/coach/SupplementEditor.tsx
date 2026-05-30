@@ -170,7 +170,8 @@ export function SupplementEditor({ plan, athleteId, onSave }: Props) {
                     >
                       <p className="text-sm font-medium text-[#f0f4ff]">{item.name}</p>
                       <p className="text-xs text-[#5a7090] mt-0.5">
-                        {item.standardDosage} · {item.timing}
+                        {item.category && <span className="text-[#3a5070]">{item.category} · </span>}
+                        {item.standardDosage}
                       </p>
                     </button>
                   ))

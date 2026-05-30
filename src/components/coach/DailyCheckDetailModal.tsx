@@ -1,6 +1,7 @@
 "use client";
-import { Athlete, DailyCheckIn, CalorieTrackerDay, MealPlan, NutritionStatusType } from "@/types";
-import { calculateDayMacros, calculateMealMacros, roundMacro, roundSalt } from "@/lib/utils";
+import { Athlete, DailyCheckIn, MealPlan } from "@/types";
+import { calculateCalorieTrackerDayMacros, calculateDayMacros, calculateMealMacros, normalizeNutritionStatus, roundMacro, roundSalt } from "@/lib/utils";
+import { CheckInSection, CheckInRow, MacroChip } from "@/components/ui/CheckInModalLayout";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
 import { modalOverlay, modalContent } from "@/lib/motion";
@@ -15,58 +16,6 @@ function stars(val: number, max = 5) {
   return "★".repeat(val) + "☆".repeat(max - val) + ` (${val}/5)`;
 }
 
-function getNutritionStatus(ci: DailyCheckIn): NutritionStatusType {
-  if (ci.nutritionStatus) return ci.nutritionStatus;
-  if (["tracked_in_calorie_tracker", "full_tracking", "calorie_tracker_used"].includes(ci.mealCompliance)) {
-    return "calorie_tracker_used";
-  }
-  if (["not_followed", "off_plan", "minor_deviation", "major_deviation", "no_exact_info"].includes(ci.mealCompliance)) {
-    return "no_exact_info";
-  }
-  return "meal_plan_followed";
-}
-
-function sumCTDay(day: CalorieTrackerDay) {
-  let kcal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0, salt = 0;
-  for (const meal of day.meals) {
-    for (const e of meal.entries) {
-      kcal += e.kcal; protein += e.protein; carbs += e.carbs;
-      fat += e.fat; fiber += e.fiber; salt += e.salt;
-    }
-  }
-  return { kcal, protein, carbs, fat, fiber, salt };
-}
-
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between py-2 border-b border-[#1e2d42] last:border-0 gap-3">
-      <span className="text-xs text-[#5a7090] flex-shrink-0 w-40">{label}</span>
-      <span className="text-xs text-[#f0f4ff] text-right break-words">{value ?? "–"}</span>
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">{title}</p>
-      <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] px-4 py-1">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function MacroChip({ label, value, unit = "g", color }: { label: string; value: number; unit?: string; color?: string }) {
-  return (
-    <div className="flex flex-col items-center gap-0.5 px-2">
-      <span className={`text-sm font-semibold ${color ?? "text-[#f0f4ff]"}`}>
-        {Math.round(value)}{unit}
-      </span>
-      <span className="text-[10px] text-[#5a7090]">{label}</span>
-    </div>
-  );
-}
 
 function NutritionCalorieTracker({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
   const ctDay = (athlete.calorieTrackerDays ?? []).find(d => d.date === ci.date);
@@ -77,7 +26,7 @@ function NutritionCalorieTracker({ ci, athlete }: { ci: DailyCheckIn; athlete: A
   if (!ctDay) {
     return (
       <>
-        <Row label="Quelle" value="Kalorientracker" />
+        <CheckInRow label="Quelle" value="Kalorientracker" />
         <div className="py-4 text-center">
           <p className="text-xs text-[#5a7090]">
             Für diesen Tag wurde kein Kalorientracker-Eintrag gefunden.
@@ -87,11 +36,11 @@ function NutritionCalorieTracker({ ci, athlete }: { ci: DailyCheckIn; athlete: A
     );
   }
 
-  const totals = sumCTDay(ctDay);
+  const totals = calculateCalorieTrackerDayMacros(ctDay);
 
   return (
     <>
-      <Row label="Quelle" value={`Kalorientracker · ${dateLabel}`} />
+      <CheckInRow label="Quelle" value={`Kalorientracker · ${dateLabel}`} />
       {/* Totals strip */}
       <div className="flex flex-wrap gap-1 justify-around py-3 border-b border-[#1e2d42]">
         <MacroChip label="kcal" value={totals.kcal} unit="" color="text-[#f0f4ff] font-bold" />
@@ -106,7 +55,7 @@ function NutritionCalorieTracker({ ci, athlete }: { ci: DailyCheckIn; athlete: A
 }
 
 function NutritionMealPlan({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
-  const plans: MealPlan[] = athlete.mealPlans ?? (athlete.mealPlan ? [athlete.mealPlan] : []);
+  const plans: MealPlan[] = athlete.mealPlans ?? [];
   const plan = ci.selectedMealPlanId
     ? plans.find(p => p.id === ci.selectedMealPlanId)
     : plans[0];
@@ -114,7 +63,7 @@ function NutritionMealPlan({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete
   if (!plan) {
     return (
       <>
-        <Row label="Quelle" value="Ernährungsplan" />
+        <CheckInRow label="Quelle" value="Ernährungsplan" />
         <div className="py-4 text-center">
           <p className="text-xs text-[#5a7090]">Kein Ernährungsplan gefunden.</p>
         </div>
@@ -126,7 +75,7 @@ function NutritionMealPlan({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete
 
   return (
     <>
-      <Row label="Quelle" value={`Ernährungsplan: ${plan.title}`} />
+      <CheckInRow label="Quelle" value={`Ernährungsplan: ${plan.title}`} />
       {/* Totals strip */}
       <div className="flex flex-wrap gap-1 justify-around py-3 border-b border-[#1e2d42]">
         <MacroChip label="kcal" value={dayMacros.kcal} unit="" color="text-[#f0f4ff] font-bold" />
@@ -141,7 +90,7 @@ function NutritionMealPlan({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete
 }
 
 function MealDetails({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
-  const status = getNutritionStatus(ci);
+  const status = normalizeNutritionStatus(ci);
 
   if (status === "calorie_tracker_used") {
     const ctDay = (athlete.calorieTrackerDays ?? []).find(d => d.date === ci.date);
@@ -190,7 +139,7 @@ function MealDetails({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
   }
 
   if (status === "meal_plan_followed") {
-    const plans: MealPlan[] = athlete.mealPlans ?? (athlete.mealPlan ? [athlete.mealPlan] : []);
+    const plans: MealPlan[] = athlete.mealPlans ?? [];
     const plan = ci.selectedMealPlanId
       ? plans.find(p => p.id === ci.selectedMealPlanId)
       : plans[0];
@@ -254,7 +203,7 @@ export function DailyCheckDetailModal({ ci, athlete, onClose }: Props) {
     weekday: "long", day: "2-digit", month: "long", year: "numeric",
   });
 
-  const status = getNutritionStatus(ci);
+  const status = normalizeNutritionStatus(ci);
   const noInfoReason = ci.noExactNutritionReason ?? ci.deviationReason;
 
   return (
@@ -285,51 +234,51 @@ export function DailyCheckDetailModal({ ci, athlete, onClose }: Props) {
         </div>
 
         <div className="overflow-y-auto p-5 flex flex-col gap-5">
-          <Section title="Körpermessung">
-            <Row label="Körpergewicht" value={`${ci.weight} kg`} />
-            <Row label="Messzeitpunkt" value={ci.measurementTime || "–"} />
-          </Section>
+          <CheckInSection title="Körpermessung">
+            <CheckInRow label="Körpergewicht" value={`${ci.weight} kg`} />
+            <CheckInRow label="Messzeitpunkt" value={ci.measurementTime || "–"} />
+          </CheckInSection>
 
-          <Section title="Schlaf">
-            <Row label="Schlafdauer" value={`${ci.sleepHours} h`} />
-            <Row label="Schlafqualität" value={stars(ci.sleepQuality)} />
-            <Row label="Schlafscore" value={ci.sleepScore != null ? `${ci.sleepScore} / 100` : "–"} />
-          </Section>
+          <CheckInSection title="Schlaf">
+            <CheckInRow label="Schlafdauer" value={`${ci.sleepHours} h`} />
+            <CheckInRow label="Schlafqualität" value={stars(ci.sleepQuality)} />
+            <CheckInRow label="Schlafscore" value={ci.sleepScore != null ? `${ci.sleepScore} / 100` : "–"} />
+          </CheckInSection>
 
-          <Section title="Vitalwerte">
-            <Row label="Ruheherzfrequenz" value={ci.restingHeartRate != null ? `${ci.restingHeartRate} bpm` : "–"} />
-            <Row label="HRV" value={ci.hrv != null ? `${ci.hrv} ms` : "–"} />
-            <Row label="SpO₂" value={ci.spO2 != null ? `${ci.spO2} %` : "–"} />
-            <Row
+          <CheckInSection title="Vitalwerte">
+            <CheckInRow label="Ruheherzfrequenz" value={ci.restingHeartRate != null ? `${ci.restingHeartRate} bpm` : "–"} />
+            <CheckInRow label="HRV" value={ci.hrv != null ? `${ci.hrv} ms` : "–"} />
+            <CheckInRow label="SpO₂" value={ci.spO2 != null ? `${ci.spO2} %` : "–"} />
+            <CheckInRow
               label="Blutdruck"
               value={ci.bloodPressure ? `${ci.bloodPressure.systolic} / ${ci.bloodPressure.diastolic} mmHg` : "–"}
             />
-          </Section>
+          </CheckInSection>
 
-          <Section title="Wohlbefinden">
-            <Row label="Energielevel" value={stars(ci.energyLevel)} />
-            <Row label="Stresslevel" value={stars(ci.stressLevel)} />
-            <Row label="Stimmung" value={stars(ci.mood)} />
-            <Row label="Appetit" value={stars(ci.appetite)} />
-            <Row label="Verdauung" value={stars(ci.digestion)} />
-          </Section>
+          <CheckInSection title="Wohlbefinden">
+            <CheckInRow label="Energielevel" value={stars(ci.energyLevel)} />
+            <CheckInRow label="Stresslevel" value={stars(ci.stressLevel)} />
+            <CheckInRow label="Stimmung" value={stars(ci.mood)} />
+            <CheckInRow label="Appetit" value={stars(ci.appetite)} />
+            <CheckInRow label="Verdauung" value={stars(ci.digestion)} />
+          </CheckInSection>
 
-          <Section title="Bewegung">
-            <Row label="Schritte" value={ci.steps.toLocaleString("de-DE")} />
-            <Row label="Training absolviert" value={ci.training ? "Ja" : "Nein"} />
-            <Row
+          <CheckInSection title="Bewegung">
+            <CheckInRow label="Schritte" value={ci.steps.toLocaleString("de-DE")} />
+            <CheckInRow label="Training absolviert" value={ci.training ? "Ja" : "Nein"} />
+            <CheckInRow
               label="Trainingsqualität"
               value={ci.training ? stars(ci.trainingQuality) : "–"}
             />
-            <Row label="Cardio absolviert" value={ci.cardio ? "Ja" : "Nein"} />
-            <Row
+            <CheckInRow label="Cardio absolviert" value={ci.cardio ? "Ja" : "Nein"} />
+            <CheckInRow
               label="Cardio-Dauer"
               value={ci.cardioDuration != null ? `${ci.cardioDuration} min` : "–"}
             />
-          </Section>
+          </CheckInSection>
 
           {/* ── Ernährung ── */}
-          <Section title="Ernährung">
+          <CheckInSection title="Ernährung">
             {status === "calorie_tracker_used" && (
               <NutritionCalorieTracker ci={ci} athlete={athlete} />
             )}
@@ -338,12 +287,12 @@ export function DailyCheckDetailModal({ ci, athlete, onClose }: Props) {
             )}
             {status === "no_exact_info" && (
               <>
-                <Row label="Quelle" value="Keine genaue Angabe" />
-                <Row label="Begründung" value={noInfoReason || "–"} />
+                <CheckInRow label="Quelle" value="Keine genaue Angabe" />
+                <CheckInRow label="Begründung" value={noInfoReason || "–"} />
               </>
             )}
-            <Row label="Koffein" value={ci.caffeine ? `${ci.caffeine} mg` : "–"} />
-          </Section>
+            <CheckInRow label="Koffein" value={ci.caffeine ? `${ci.caffeine} mg` : "–"} />
+          </CheckInSection>
 
           {/* Mahlzeit-Details */}
           <MealDetails ci={ci} athlete={athlete} />

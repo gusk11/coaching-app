@@ -1,4 +1,4 @@
-import { Athlete, DailyCheckIn, FoodItem, Meal, MealEntry, WeekAnalysis } from "@/types";
+import { Athlete, CalorieTrackerDay, DailyCheckIn, FoodItem, Meal, MealEntry, NutritionStatusType, WeekAnalysis } from "@/types";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -92,6 +92,33 @@ export function calculateGoalProgressPercent(
   if (!total) return 100;
   const done = Math.abs(currentWeight - startWeight);
   return Math.min(100, Math.round((done / total) * 100));
+}
+
+/**
+ * Resolves the canonical NutritionStatusType for a DailyCheckIn.
+ * Prefers the new `nutritionStatus` field; falls back to mapping legacy `mealCompliance` values.
+ */
+export function normalizeNutritionStatus(ci: DailyCheckIn): NutritionStatusType {
+  if (ci.nutritionStatus) return ci.nutritionStatus;
+  const mc = ci.mealCompliance;
+  if (["tracked_in_calorie_tracker", "full_tracking", "calorie_tracker_used"].includes(mc)) {
+    return "calorie_tracker_used";
+  }
+  if (["not_followed", "off_plan", "minor_deviation", "major_deviation", "no_exact_info"].includes(mc)) {
+    return "no_exact_info";
+  }
+  return "meal_plan_followed";
+}
+
+export function calculateCalorieTrackerDayMacros(day: CalorieTrackerDay) {
+  let kcal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0, salt = 0;
+  for (const meal of day.meals) {
+    for (const e of meal.entries) {
+      kcal += e.kcal; protein += e.protein; carbs += e.carbs;
+      fat += e.fat; fiber += e.fiber; salt += e.salt;
+    }
+  }
+  return { kcal, protein, carbs, fat, fiber, salt };
 }
 
 export function calculateMealMacros(entries: MealEntry[]) {

@@ -14,6 +14,17 @@ import { Plus, Pencil, Trash2, X, Check, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { modalOverlay, modalContent } from "@/lib/motion";
 
+// ─── Categories ───────────────────────────────────────────────────────────────
+const SUPPLEMENT_CATEGORIES = [
+  "Aminosäuren",
+  "Adaptogene",
+  "Fettsäuren",
+  "Mineralstoffe",
+  "Schlaf & Erholung",
+  "Vitamine",
+  "Weitere",
+] as const;
+
 // ─── Timing suggestions ───────────────────────────────────────────────────────
 const TIMING_OPTIONS = [
   "morgens",
@@ -29,6 +40,7 @@ const TIMING_OPTIONS = [
 function emptyForm(): Partial<SupplementDBItem> {
   return {
     name: "",
+    category: "Weitere",
     standardDosage: "",
     timing: "",
     instructions: "",
@@ -129,6 +141,20 @@ function SupplementForm({
               required
               className={inputCls}
             />
+          </div>
+
+          {/* Kategorie */}
+          <div>
+            <label className={labelCls}>Kategorie</label>
+            <select
+              value={form.category ?? "Weitere"}
+              onChange={(e) => set("category", e.target.value)}
+              className={inputCls}
+            >
+              {SUPPLEMENT_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
 
           {/* Standarddosierung */}
@@ -281,6 +307,7 @@ export default function SupplementDatabase() {
   const router = useRouter();
   const [items, setItems] = useState<SupplementDBItem[]>([]);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("Alle");
   const [editing, setEditing] = useState<Partial<SupplementDBItem> | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -290,11 +317,15 @@ export default function SupplementDatabase() {
     setItems(loadSupplementDB());
   }, [router]);
 
-  const filtered = items.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.timing.toLowerCase().includes(search.toLowerCase()) ||
-    s.standardDosage.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = items.filter((s) => {
+    const matchCat = categoryFilter === "Alle" || (s.category ?? "Weitere") === categoryFilter;
+    const q = search.toLowerCase();
+    const matchSearch =
+      s.name.toLowerCase().includes(q) ||
+      s.timing.toLowerCase().includes(q) ||
+      s.standardDosage.toLowerCase().includes(q);
+    return matchCat && matchSearch;
+  });
 
   function handleSave(data: Partial<SupplementDBItem>) {
     if (editing?.id) {
@@ -334,14 +365,31 @@ export default function SupplementDatabase() {
           </button>
         </div>
 
-        {/* Search */}
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Supplement suchen…"
-          className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-4 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors placeholder:text-[#5a7090]"
-        />
+        {/* Search + Category filter */}
+        <div className="flex flex-col gap-3">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Supplement suchen…"
+            className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-4 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors placeholder:text-[#5a7090]"
+          />
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {(["Alle", ...SUPPLEMENT_CATEGORIES] as string[]).map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategoryFilter(c)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                  categoryFilter === c
+                    ? "bg-[#3b82f6] text-white"
+                    : "bg-[#141d2e] text-[#8fa3c0] hover:text-[#f0f4ff]"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Table */}
         <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">
@@ -389,6 +437,7 @@ export default function SupplementDatabase() {
                         </a>
                       )}
                     </div>
+                    <p className="text-xs text-[#3a5070] mt-0.5">{s.category ?? "Weitere"}</p>
                   </div>
                   <div className="col-span-2 pr-3">
                     <p className="text-sm text-[#8fa3c0] line-clamp-2">{s.standardDosage || "—"}</p>

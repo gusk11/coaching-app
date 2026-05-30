@@ -609,7 +609,7 @@ export const athletes: Athlete[] = [
           label: "Push",
           exercises: [
             { id:"ep-max-bank", name:"Bankdrücken Langhantel", sets:3, reps:"6-10", rir:2, restSeconds:180, muscleGroup:"Brust", videoUrl:"https://example.com/bankdruecken", exerciseDbNote:"Saubere Schulterblattposition, kontrollierte Exzentrik.", exerciseDbId:"ex-bankdruecken" },
-            { id:"ep-max-seit", name:"Seitheben", sets:3, reps:"12-20", rir:2, restSeconds:90, muscleGroup:"Schulter", videoUrl:"https://example.com/seitheben", exerciseDbNote:"Kontrollierte Bewegung, nicht schwingen.", exerciseDbId:"ex-seitheben" },
+            { id:"ep-max-seit", name:"Seitheben", sets:3, reps:"12-20", rir:2, restSeconds:90, muscleGroup:"Schultern", videoUrl:"https://example.com/seitheben", exerciseDbNote:"Kontrollierte Bewegung, nicht schwingen.", exerciseDbId:"ex-seitheben" },
           ],
         },
         {
@@ -678,7 +678,7 @@ export const athletes: Athlete[] = [
           label: "Push",
           exercises: [
             { id:"ep-lena-bank", name:"Bankdrücken Langhantel", sets:3, reps:"6-10", rir:2, restSeconds:180, muscleGroup:"Brust", videoUrl:"https://example.com/bankdruecken", exerciseDbNote:"Saubere Schulterblattposition, kontrollierte Exzentrik.", exerciseDbId:"ex-bankdruecken" },
-            { id:"ep-lena-seit", name:"Seitheben", sets:3, reps:"12-20", rir:2, restSeconds:90, muscleGroup:"Schulter", videoUrl:"https://example.com/seitheben", exerciseDbNote:"Kontrollierte Bewegung, nicht schwingen.", exerciseDbId:"ex-seitheben" },
+            { id:"ep-lena-seit", name:"Seitheben", sets:3, reps:"12-20", rir:2, restSeconds:90, muscleGroup:"Schultern", videoUrl:"https://example.com/seitheben", exerciseDbNote:"Kontrollierte Bewegung, nicht schwingen.", exerciseDbId:"ex-seitheben" },
           ],
         },
         {
@@ -747,7 +747,7 @@ export const athletes: Athlete[] = [
           label: "Push",
           exercises: [
             { id:"ep-tom-bank", name:"Bankdrücken Langhantel", sets:3, reps:"6-10", rir:2, restSeconds:180, muscleGroup:"Brust", videoUrl:"https://example.com/bankdruecken", exerciseDbNote:"Saubere Schulterblattposition, kontrollierte Exzentrik.", exerciseDbId:"ex-bankdruecken" },
-            { id:"ep-tom-seit", name:"Seitheben", sets:3, reps:"12-20", rir:2, restSeconds:90, muscleGroup:"Schulter", videoUrl:"https://example.com/seitheben", exerciseDbNote:"Kontrollierte Bewegung, nicht schwingen.", exerciseDbId:"ex-seitheben" },
+            { id:"ep-tom-seit", name:"Seitheben", sets:3, reps:"12-20", rir:2, restSeconds:90, muscleGroup:"Schultern", videoUrl:"https://example.com/seitheben", exerciseDbNote:"Kontrollierte Bewegung, nicht schwingen.", exerciseDbId:"ex-seitheben" },
           ],
         },
         {

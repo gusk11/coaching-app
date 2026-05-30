@@ -532,7 +532,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-avocado",
     name: "Avocado",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 160, proteinPer100g: 2, carbsPer100g: 2, fatPer100g: 15, fiberPer100g: 7, saltPer100g: 0.01,
     defaultAmount: 100,
@@ -543,7 +543,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-olivenoel",
     name: "Olivenöl",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 884, proteinPer100g: 0, carbsPer100g: 0, fatPer100g: 100, fiberPer100g: 0, saltPer100g: 0,
     defaultAmount: 10,
@@ -554,7 +554,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-butter",
     name: "Butter",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 717, proteinPer100g: 0.9, carbsPer100g: 0.1, fatPer100g: 81, fiberPer100g: 0, saltPer100g: 0.02,
     defaultAmount: 10,
@@ -565,7 +565,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-erdnuesse",
     name: "Erdnüsse",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 567, proteinPer100g: 26, carbsPer100g: 7, fatPer100g: 49, fiberPer100g: 9, saltPer100g: 0.02,
     defaultAmount: 30,
@@ -576,7 +576,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-mandeln",
     name: "Mandeln",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 579, proteinPer100g: 21, carbsPer100g: 10, fatPer100g: 50, fiberPer100g: 12, saltPer100g: 0.02,
     defaultAmount: 30,
@@ -587,7 +587,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-cashews",
     name: "Cashews",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 553, proteinPer100g: 18, carbsPer100g: 27, fatPer100g: 44, fiberPer100g: 3, saltPer100g: 0.03,
     defaultAmount: 30,
@@ -598,7 +598,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-walnuesse",
     name: "Walnüsse",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 654, proteinPer100g: 15, carbsPer100g: 7, fatPer100g: 65, fiberPer100g: 7, saltPer100g: 0.01,
     defaultAmount: 30,
@@ -609,7 +609,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-macadamia",
     name: "Macadamia",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 718, proteinPer100g: 8, carbsPer100g: 5, fatPer100g: 76, fiberPer100g: 9, saltPer100g: 0.01,
     defaultAmount: 30,
@@ -620,7 +620,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-haselnuesse",
     name: "Haselnüsse",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 628, proteinPer100g: 15, carbsPer100g: 7, fatPer100g: 61, fiberPer100g: 10, saltPer100g: 0.01,
     defaultAmount: 30,
@@ -631,7 +631,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-chiasamen",
     name: "Chiasamen",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 486, proteinPer100g: 17, carbsPer100g: 8, fatPer100g: 31, fiberPer100g: 34, saltPer100g: 0.04,
     defaultAmount: 15,
@@ -642,7 +642,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-leinsamen",
     name: "Leinsamen",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 534, proteinPer100g: 18, carbsPer100g: 2, fatPer100g: 42, fiberPer100g: 27, saltPer100g: 0.03,
     defaultAmount: 15,
@@ -653,7 +653,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-kuerbiskerne",
     name: "Kürbiskerne",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 559, proteinPer100g: 30, carbsPer100g: 5, fatPer100g: 49, fiberPer100g: 6, saltPer100g: 0.02,
     defaultAmount: 20,
@@ -664,7 +664,7 @@ export const seedCustomFoods: FoodItem[] = [
   {
     id: "food-zartbitterschokolade-80",
     name: "Zartbitterschokolade mindestens 80 %",
-    category: "Fette",
+    category: "Fettquelle",
     servingLabel: "100 g",
     kcalPer100g: 590, proteinPer100g: 8, carbsPer100g: 20, fatPer100g: 50, fiberPer100g: 11, saltPer100g: 0.02,
     defaultAmount: 20,

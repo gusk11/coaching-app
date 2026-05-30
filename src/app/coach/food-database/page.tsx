@@ -21,7 +21,7 @@ import { modalOverlay, modalContent, listContainer, listItem } from "@/lib/motio
 const ALLOWED_CATEGORIES = [
   "Protein",
   "Kohlenhydrate",
-  "Fette",
+  "Fettquelle",
   "Gemüse",
   "Obst",
   "Weitere",

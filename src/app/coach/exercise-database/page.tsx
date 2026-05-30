@@ -25,10 +25,19 @@ const MUSCLE_GROUPS = [
   "Gluteus",
   "Waden",
   "Sonstiges",
-];
+] as const;
+
+const EQUIPMENT_OPTIONS = [
+  "Langhantel",
+  "Kurzhantel",
+  "Kabelzug",
+  "Maschine",
+  "Körpergewicht",
+  "Sonstiges",
+] as const;
 
 function emptyForm(): Partial<ExerciseDBItem> {
-  return { name: "", muscleGroup: "", notes: "", executionLink: "" };
+  return { name: "", muscleGroup: "", equipment: "", notes: "", executionLink: "" };
 }
 
 // ─── Form Modal ───────────────────────────────────────────────────────────────
@@ -142,6 +151,21 @@ function ExerciseForm({
             {errors.muscleGroup && (
               <p className="text-xs text-[#ef4444] mt-1">{errors.muscleGroup}</p>
             )}
+          </div>
+
+          {/* Equipment */}
+          <div>
+            <label className={labelCls}>Equipment</label>
+            <select
+              value={form.equipment ?? ""}
+              onChange={(e) => set("equipment", e.target.value)}
+              className={inputCls}
+            >
+              <option value="">— auswählen —</option>
+              {EQUIPMENT_OPTIONS.map((eq) => (
+                <option key={eq} value={eq}>{eq}</option>
+              ))}
+            </select>
           </div>
 
           {/* Anmerkungen */}
@@ -314,24 +338,29 @@ export default function ExerciseDatabase() {
         </div>
 
         {/* Search + filter row */}
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col gap-3">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Übung suchen…"
-            className="flex-1 min-w-[200px] bg-[#0f1624] border border-[#1e2d42] rounded-xl px-4 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors placeholder:text-[#5a7090]"
+            className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-4 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors placeholder:text-[#5a7090]"
           />
-          <select
-            value={muscleFilter}
-            onChange={(e) => setMuscleFilter(e.target.value)}
-            className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-sm text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] transition-colors"
-          >
-            <option value="">Alle Muskelgruppen</option>
-            {usedMuscleGroups.map((g) => (
-              <option key={g} value={g}>{g}</option>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {(["Alle", ...MUSCLE_GROUPS] as string[]).map((g) => (
+              <button
+                key={g}
+                onClick={() => setMuscleFilter(g === "Alle" ? "" : g)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                  (g === "Alle" ? !muscleFilter : muscleFilter === g)
+                    ? "bg-[#3b82f6] text-white"
+                    : "bg-[#141d2e] text-[#8fa3c0] hover:text-[#f0f4ff]"
+                }`}
+              >
+                {g}
+              </button>
             ))}
-          </select>
+          </div>
         </div>
 
         {/* Table */}
@@ -368,11 +397,14 @@ export default function ExerciseDatabase() {
                     </p>
                   </div>
 
-                  {/* Muskelgruppe */}
+                  {/* Muskelgruppe + Equipment */}
                   <div className="col-span-2 pr-3">
                     <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20">
                       {e.muscleGroup}
                     </span>
+                    {e.equipment && (
+                      <p className="text-xs text-[#3a5070] mt-0.5">{e.equipment}</p>
+                    )}
                   </div>
 
                   {/* Anmerkungen */}

@@ -6,6 +6,7 @@ import { Athlete, GoalType } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { AthleteCard } from "@/components/coach/AthleteCard";
 import { analyzeWeek } from "@/lib/utils";
+import { StatCard } from "@/components/ui/StatCard";
 import { UserPlus, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { listContainer, listItem, modalOverlay, modalContent } from "@/lib/motion";
@@ -105,37 +106,23 @@ export default function CoachDashboard() {
       <div className="max-w-2xl mx-auto flex flex-col gap-5">
         {/* Summary KPIs */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-3 sm:p-4">
-            <p className="text-[10px] sm:text-xs text-[#5a7090] uppercase tracking-widest mb-1">
-              <span className="sm:hidden">Athleten</span>
-              <span className="hidden sm:inline">Athleten gesamt</span>
-            </p>
-            <p className="text-xl sm:text-2xl font-bold text-[#f0f4ff]">{totalAthletes}</p>
-          </div>
-          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-3 sm:p-4">
-            <p className="text-[10px] sm:text-xs text-[#5a7090] uppercase tracking-widest mb-1">
-              <span className="sm:hidden">Heute</span>
-              <span className="hidden sm:inline">Check-ins heute</span>
-            </p>
-            <p className="text-xl sm:text-2xl font-bold text-[#f0f4ff]">{checkInsToday}</p>
-          </div>
-          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-3 sm:p-4">
-            <p className="text-[10px] sm:text-xs text-[#5a7090] uppercase tracking-widest mb-1">
-              <span className="sm:hidden">Erledigt</span>
-              <span className="hidden sm:inline">Bearbeitet</span>
-            </p>
-            <p className="text-xl sm:text-2xl font-bold text-[#f0f4ff]">
-              {checkInsToday === 0 ? "0 / 0" : `${checkInsProcessed} / ${checkInsToday}`}
-            </p>
-          </div>
-          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-3 sm:p-4">
-            <p className="text-[10px] sm:text-xs text-[#5a7090] uppercase tracking-widest mb-1">
-              <span className="sm:hidden">Tag</span>
-              <span className="hidden sm:inline">Wochentag</span>
-            </p>
-            <p className="text-base font-bold text-[#f0f4ff]">{DAY_NAMES[todayDayOfWeek]}</p>
-            <p className="text-[11px] text-[#5a7090] mt-0.5">{todayStr.split("-").reverse().join(".")}</p>
-          </div>
+          <StatCard
+            label={<><span className="sm:hidden">Athleten</span><span className="hidden sm:inline">Athleten gesamt</span></>}
+            value={totalAthletes}
+          />
+          <StatCard
+            label={<><span className="sm:hidden">Heute</span><span className="hidden sm:inline">Check-ins heute</span></>}
+            value={checkInsToday}
+          />
+          <StatCard
+            label={<><span className="sm:hidden">Erledigt</span><span className="hidden sm:inline">Bearbeitet</span></>}
+            value={checkInsToday === 0 ? "0 / 0" : `${checkInsProcessed} / ${checkInsToday}`}
+          />
+          <StatCard
+            label={<><span className="sm:hidden">Tag</span><span className="hidden sm:inline">Wochentag</span></>}
+            value={DAY_NAMES[todayDayOfWeek]}
+            sub={todayStr.split("-").reverse().join(".")}
+          />
         </div>
 
         {/* Add athlete button */}

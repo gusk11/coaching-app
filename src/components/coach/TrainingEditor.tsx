@@ -96,7 +96,10 @@ function ExerciseDBPicker({ exercises, onSelect, onClose }: DBPickerProps) {
               className="text-left px-2.5 py-2 rounded-lg hover:bg-[#1e2d42] transition-colors"
             >
               <span className="text-xs font-medium text-[#f0f4ff] block">{item.name}</span>
-              <span className="text-[10px] text-[#5a7090]">{item.muscleGroup}</span>
+              <span className="text-[10px] text-[#5a7090]">
+                {item.muscleGroup}
+                {item.equipment && <span className="text-[#3a5070]"> · {item.equipment}</span>}
+              </span>
             </button>
           ))}
         </div>
