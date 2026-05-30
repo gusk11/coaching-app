@@ -6,6 +6,7 @@ import {
 } from "@/types";
 import { cn, getGoalLabel } from "@/lib/utils";
 import { Upload, Trash2, Pencil, Check, X } from "lucide-react";
+import { ProfileDisplaySections } from "@/components/athlete/ProfileSections";
 
 const MAX_PROFILE_IMAGE_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -508,6 +509,21 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
           )}
         </div>
 
+        {/* Coaching-Profil (Onboarding-Daten) */}
+        {athlete.profile && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-[#5a7090] uppercase tracking-widest">Coaching-Profil</p>
+            </div>
+            <ProfileDisplaySections profile={athlete.profile} />
+          </div>
+        )}
+        {!athlete.profile && !editing && (
+          <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
+            <p className="text-sm text-[#5a7090]">Kein Coaching-Fragebogen ausgefüllt.</p>
+          </div>
+        )}
+
         {/* Bottom save/cancel */}
         {editing && (
           <div className="flex gap-3">
@@ -588,6 +604,19 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
         <p className="text-xs text-[#5a7090]">Welche Daten soll dieser Athlet täglich tracken?</p>
         <CheckConfigToggles config={checkConfig} onToggle={toggleConfig} />
       </div>
+
+      {/* Coaching-Profil (Onboarding-Fragebogen) */}
+      {athlete.profile && (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-[#5a7090] uppercase tracking-widest">Coaching-Fragebogen</p>
+          <ProfileDisplaySections profile={athlete.profile} />
+        </div>
+      )}
+      {!athlete.profile && (
+        <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
+          <p className="text-sm text-[#5a7090]">Kein Coaching-Fragebogen ausgefüllt. Der Athlet muss sich über den Registrierungs-Prozess anmelden.</p>
+        </div>
+      )}
 
       <button type="button" onClick={handleSave}
         className="w-full py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors flex items-center justify-center gap-2"

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { MealPlan, Meal, MealEntry, FoodItem } from "@/types";
 import { getAllFoodItems } from "@/lib/store";
 import { Trash2, Plus, ChevronDown, ChevronUp, Pencil, ArrowLeft } from "lucide-react";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { calculateMealMacros, calculateDayMacros, roundMacro, roundSalt } from "@/lib/utils";
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -148,9 +149,10 @@ interface SinglePlanEditorProps {
   plan: MealPlan;
   onSave: (plan: MealPlan) => void;
   onCancel: () => void;
+  athleteWeight?: number;
 }
 
-function SinglePlanEditor({ plan, onSave, onCancel }: SinglePlanEditorProps) {
+function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanEditorProps) {
   const [title, setTitle] = useState(plan.title);
   const [coachNote, setCoachNote] = useState(plan.coachNote ?? "");
   const [meals, setMeals] = useState<Meal[]>(plan.meals);
@@ -229,9 +231,9 @@ function SinglePlanEditor({ plan, onSave, onCancel }: SinglePlanEditorProps) {
       {meals.length > 0 && (
         <div className="p-3 rounded-xl bg-[#3b82f6]/5 border border-[#3b82f6]/20 flex gap-4 text-xs flex-wrap">
           <span className="text-[#f0f4ff] font-semibold">{Math.round(dayMacros.kcal)} kcal</span>
-          <span className="text-[#60a5fa]">P {Math.round(dayMacros.protein)}g</span>
+          <span className="text-[#60a5fa]">P {Math.round(dayMacros.protein)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.protein / athleteWeight).toFixed(1)} g/kg)</span> : null}</span>
           <span className="text-[#8fa3c0]">K {Math.round(dayMacros.carbs)}g</span>
-          <span className="text-[#8fa3c0]">F {Math.round(dayMacros.fat)}g</span>
+          <span className="text-[#8fa3c0]">F {Math.round(dayMacros.fat)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.fat / athleteWeight).toFixed(1)} g/kg)</span> : null}</span>
           <span className="text-[#34d399]">Bal {roundMacro(dayMacros.fiber)}g</span>
           <span className="text-[#f59e0b]">Salz {roundSalt(dayMacros.salt)}g</span>
         </div>
@@ -262,10 +264,12 @@ function SinglePlanEditor({ plan, onSave, onCancel }: SinglePlanEditorProps) {
                   )}
                 </div>
               </button>
-              <button type="button" onClick={() => deleteMeal(meal.id)}
-                className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors">
-                <Trash2 size={14} className="text-[#ef4444]/60 hover:text-[#ef4444]" />
-              </button>
+              <Tooltip label="Mahlzeit löschen">
+                <button type="button" onClick={() => deleteMeal(meal.id)} aria-label="Mahlzeit löschen"
+                  className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors">
+                  <Trash2 size={14} className="text-[#ef4444]/60 hover:text-[#ef4444]" />
+                </button>
+              </Tooltip>
             </div>
 
             {expanded && (
@@ -293,10 +297,12 @@ function SinglePlanEditor({ plan, onSave, onCancel }: SinglePlanEditorProps) {
                           onChange={(e) => updateEntryAmount(meal.id, entry.foodItemId, Number(e.target.value))}
                           className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1 text-[#f0f4ff] text-xs w-16 focus:outline-none focus:border-[#3b82f6] text-right" />
                         <span className="text-xs text-[#5a7090]">g</span>
-                        <button type="button" onClick={() => deleteEntry(meal.id, entry.foodItemId)}
-                          className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors">
-                          <Trash2 size={12} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
-                        </button>
+                        <Tooltip label="Eintrag entfernen">
+                          <button type="button" onClick={() => deleteEntry(meal.id, entry.foodItemId)} aria-label="Eintrag entfernen"
+                            className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors">
+                            <Trash2 size={12} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                   );
@@ -333,9 +339,10 @@ interface Props {
   athleteId: string;
   onSavePlan: (plan: MealPlan) => void;
   onDeletePlan: (planId: string) => void;
+  athleteWeight?: number;
 }
 
-export function MealPlanEditor({ plans, athleteId, onSavePlan, onDeletePlan }: Props) {
+export function MealPlanEditor({ plans, athleteId, onSavePlan, onDeletePlan, athleteWeight }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newPlanDraft, setNewPlanDraft] = useState<MealPlan | null>(null);
 
@@ -375,6 +382,7 @@ export function MealPlanEditor({ plans, athleteId, onSavePlan, onDeletePlan }: P
         plan={planToEdit}
         onSave={handleSave}
         onCancel={handleCancel}
+        athleteWeight={athleteWeight}
       />
     );
   }
@@ -396,7 +404,7 @@ export function MealPlanEditor({ plans, athleteId, onSavePlan, onDeletePlan }: P
               <p className="text-sm font-semibold text-[#f0f4ff] truncate">{plan.title}</p>
               {plan.meals.length > 0 ? (
                 <p className="text-xs text-[#5a7090] mt-0.5">
-                  {Math.round(dayMacros.kcal)} kcal · P {Math.round(dayMacros.protein)}g · K {Math.round(dayMacros.carbs)}g · F {Math.round(dayMacros.fat)}g
+                  {Math.round(dayMacros.kcal)} kcal · P {Math.round(dayMacros.protein)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.protein / athleteWeight).toFixed(1)} g/kg)</span> : null}{" · "}K {Math.round(dayMacros.carbs)}g · F {Math.round(dayMacros.fat)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.fat / athleteWeight).toFixed(1)} g/kg)</span> : null}
                   <span className="ml-1.5">· {plan.meals.length} Mahlzeit{plan.meals.length !== 1 ? "en" : ""}</span>
                 </p>
               ) : (
@@ -411,10 +419,12 @@ export function MealPlanEditor({ plans, athleteId, onSavePlan, onDeletePlan }: P
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1e2d42] text-[#8fa3c0] text-xs hover:text-[#60a5fa] hover:bg-[#3b82f6]/10 transition-colors">
                 <Pencil size={11} /> Bearbeiten
               </button>
-              <button type="button" onClick={() => onDeletePlan(plan.id)}
-                className="p-1.5 rounded-lg hover:bg-[#ef4444]/10 transition-colors">
-                <Trash2 size={13} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
-              </button>
+              <Tooltip label="Plan löschen">
+                <button type="button" onClick={() => onDeletePlan(plan.id)} aria-label="Plan löschen"
+                  className="p-1.5 rounded-lg hover:bg-[#ef4444]/10 transition-colors">
+                  <Trash2 size={13} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+                </button>
+              </Tooltip>
             </div>
           </div>
         );

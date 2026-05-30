@@ -10,6 +10,7 @@ import { WeeklyCheckInForm } from "@/components/athlete/WeeklyCheckInForm";
 import { isCheckInDay, getWeekDates, todayISO } from "@/lib/utils";
 import { ClipboardCheck, CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 function yesterdayISO(): string {
   const d = new Date();
@@ -50,7 +51,19 @@ export default function CheckInsPage() {
     setAthlete(found);
   }, [router]);
 
-  if (!athlete) return null;
+  if (!athlete) {
+    return (
+      <AppShell role="athlete" title="Check-ins">
+        <div className="max-w-lg mx-auto flex flex-col gap-5">
+          <Skeleton className="h-10 rounded-xl" />
+          <Skeleton className="h-[72px] rounded-2xl" />
+          <div className="flex flex-col gap-3">
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   const today = todayISO();
   const { start: weekStart } = getWeekDates(today);

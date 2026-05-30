@@ -164,6 +164,16 @@ export function roundSalt(val: number): number {
   return Math.round(val * 100) / 100;
 }
 
+/** Returns the best available body weight for an athlete (for g/kg calculations).
+ *  Priority: currentWeight → last daily check-in weight → startWeight → undefined */
+export function resolveAthleteWeight(athlete: Athlete): number | undefined {
+  if (athlete.currentWeight > 0) return athlete.currentWeight;
+  const lastWithWeight = [...athlete.dailyCheckIns].reverse().find((c) => c.weight > 0);
+  if (lastWithWeight) return lastWithWeight.weight;
+  if (athlete.startWeight > 0) return athlete.startWeight;
+  return undefined;
+}
+
 export function analyzeWeek(
   athlete: Athlete,
   todayStr?: string

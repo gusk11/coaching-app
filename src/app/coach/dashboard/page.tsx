@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { AthleteCard } from "@/components/coach/AthleteCard";
 import { analyzeWeek } from "@/lib/utils";
 import { StatCard } from "@/components/ui/StatCard";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { UserPlus, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { listContainer, listItem, modalOverlay, modalContent } from "@/lib/motion";
@@ -27,6 +28,7 @@ function todayDateString(): string {
 export default function CoachDashboard() {
   const router = useRouter();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [checkInDone, setCheckInDoneState] = useState<Record<string, boolean>>({});
 
@@ -46,6 +48,7 @@ export default function CoachDashboard() {
     if (auth.role !== "coach") { router.replace("/login"); return; }
     setAthletes(loadAthletes());
     setCheckInDoneState(loadCheckInDone());
+    setIsLoaded(true);
   }, [router]);
 
   const todayDayOfWeek = new Date().getDay() as 0|1|2|3|4|5|6;
@@ -135,6 +138,11 @@ export default function CoachDashboard() {
         </button>
 
         {/* Athlete cards */}
+        {!isLoaded ? (
+          <div className="flex flex-col gap-3">
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+          </div>
+        ) : (
         <motion.div
           className="flex flex-col gap-3"
           variants={listContainer}
@@ -156,6 +164,7 @@ export default function CoachDashboard() {
             );
           })}
         </motion.div>
+        )}
       </div>
 
       {/* Create athlete modal */}

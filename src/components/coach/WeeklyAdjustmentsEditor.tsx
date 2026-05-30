@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { WeeklyAdjustment } from "@/types";
 import { Trash2, Plus } from "lucide-react";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 interface Props {
   adjustments: WeeklyAdjustment[];
@@ -152,13 +153,16 @@ function AdjCard({ adj, onDelete }: { adj: WeeklyAdjustment; onDelete: (id: stri
         {adj.description && <p className="text-xs text-[#8fa3c0] mt-0.5">{adj.description}</p>}
         <p className="text-xs text-[#5a7090] mt-1">KW {new Date(adj.weekStart).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })}</p>
       </div>
-      <button
-        type="button"
-        onClick={() => onDelete(adj.id)}
-        className="p-1.5 rounded-lg hover:bg-[#ef4444]/10 transition-colors self-start"
-      >
-        <Trash2 size={13} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
-      </button>
+      <Tooltip label="Anpassung löschen">
+        <button
+          type="button"
+          onClick={() => onDelete(adj.id)}
+          aria-label="Anpassung löschen"
+          className="p-1.5 rounded-lg hover:bg-[#ef4444]/10 transition-colors self-start"
+        >
+          <Trash2 size={13} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+        </button>
+      </Tooltip>
     </div>
   );
 }

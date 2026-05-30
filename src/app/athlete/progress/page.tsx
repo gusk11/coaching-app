@@ -6,6 +6,7 @@ import { loadAuth, loadAthletes } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/ui/StatCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { WeightChart } from "@/components/charts/WeightChart";
 import {
   analyzeWeek, calculateDistanceToGoal, calculateGoalProgressPercent,
@@ -24,7 +25,20 @@ export default function AthleteProgress() {
     setAthlete(found);
   }, [router]);
 
-  if (!athlete) return null;
+  if (!athlete) {
+    return (
+      <AppShell role="athlete" title="Fortschritt">
+        <div className="max-w-lg mx-auto flex flex-col gap-5">
+          <Skeleton className="h-72 rounded-2xl" />
+          <div className="grid grid-cols-2 gap-3">
+            {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+          </div>
+          <Skeleton className="h-20 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
+        </div>
+      </AppShell>
+    );
+  }
 
   const analysis = analyzeWeek(athlete);
   const dist = calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight);

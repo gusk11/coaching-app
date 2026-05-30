@@ -3,6 +3,7 @@ import { useState } from "react";
 import { TrainingLog } from "@/types";
 import { Athlete } from "@/types";
 import { ChevronDown, Plus, Trash2, X } from "lucide-react";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { updateTrainingLog, deleteTrainingLog } from "@/lib/store";
 
 interface Props {
@@ -258,22 +259,26 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
                 </button>
                 {!editing && !confirming && (
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      onClick={() => requestDelete(log.id)}
-                      className="p-1.5 text-[#5a7090] hover:text-[#ef4444] transition-colors rounded-lg hover:bg-[#ef4444]/10"
-                      title="Training löschen"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <Tooltip label="Training löschen">
+                      <button
+                        onClick={() => requestDelete(log.id)}
+                        aria-label="Training löschen"
+                        className="p-1.5 text-[#5a7090] hover:text-[#ef4444] transition-colors rounded-lg hover:bg-[#ef4444]/10"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </Tooltip>
                     <button
                       onClick={() => startEdit(log)}
                       className="text-xs px-2.5 py-1 rounded-lg border border-[#1e2d42] text-[#8fa3c0] hover:text-[#f0f4ff] hover:border-[#3b82f6] transition-colors"
                     >
                       Bearbeiten
                     </button>
-                    <button onClick={() => toggleOpen(log.id)} className="p-1">
-                      <ChevronDown className={`w-4 h-4 text-[#5a7090] transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
-                    </button>
+                    <Tooltip label="Details ein-/ausblenden">
+                      <button onClick={() => toggleOpen(log.id)} aria-label="Details ein-/ausblenden" className="p-1">
+                        <ChevronDown className={`w-4 h-4 text-[#5a7090] transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+                      </button>
+                    </Tooltip>
                   </div>
                 )}
               </div>
@@ -402,13 +407,15 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
                           placeholder="Übungsname"
                           className="flex-1 bg-transparent border-b border-[#1e2d42] pb-1 text-sm font-medium text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6]"
                         />
-                        <button
-                          onClick={() => removeExercise(exIdx)}
-                          className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors"
-                          title="Übung entfernen"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <Tooltip label="Übung entfernen">
+                          <button
+                            onClick={() => removeExercise(exIdx)}
+                            aria-label="Übung entfernen"
+                            className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </Tooltip>
                       </div>
 
                       <div className="flex flex-col gap-1.5">
@@ -448,12 +455,15 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
                               placeholder="Notiz"
                               className="flex-1 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] min-w-0"
                             />
-                            <button
-                              onClick={() => removeSet(exIdx, setIdx)}
-                              className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
+                            <Tooltip label="Satz entfernen">
+                              <button
+                                onClick={() => removeSet(exIdx, setIdx)}
+                                aria-label="Satz entfernen"
+                                className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </Tooltip>
                           </div>
                         ))}
                       </div>

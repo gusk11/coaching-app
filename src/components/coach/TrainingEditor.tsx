@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { TrainingPlan, TrainingDay, Exercise, TrainingPlanMode, ExerciseDBItem } from "@/types";
 import { loadExerciseDB } from "@/lib/store";
 import { Trash2, Plus, ChevronDown, ChevronUp, GripVertical, ExternalLink, Database, X } from "lucide-react";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 interface Props {
   plan?: TrainingPlan;
@@ -71,13 +72,16 @@ function ExerciseDBPicker({ exercises, onSelect, onClose }: DBPickerProps) {
           placeholder="Übung suchen..."
           className="flex-1 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2.5 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6]"
         />
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-[#1e2d42] text-[#5a7090] hover:text-[#f0f4ff] transition-colors"
-        >
-          <X size={12} />
-        </button>
+        <Tooltip label="Schließen">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Schließen"
+            className="p-1.5 rounded-lg hover:bg-[#1e2d42] text-[#5a7090] hover:text-[#f0f4ff] transition-colors"
+          >
+            <X size={12} />
+          </button>
+        </Tooltip>
       </div>
       {exercises.length === 0 ? (
         <p className="text-xs text-[#5a7090] text-center py-3 leading-relaxed">
@@ -198,13 +202,16 @@ function ExerciseRow({ exercise, onChange, onDelete }: ExerciseRowProps) {
         />
       </div>
 
-      <button
-        type="button"
-        onClick={onDelete}
-        className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors mt-1 shrink-0"
-      >
-        <Trash2 size={12} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
-      </button>
+      <Tooltip label="Übung entfernen">
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label="Übung entfernen"
+          className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors mt-1 shrink-0"
+        >
+          <Trash2 size={12} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+        </button>
+      </Tooltip>
     </div>
   );
 }
@@ -405,13 +412,16 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
                     {day.exercises.length} Übungen
                   </span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => deleteDay(day.id)}
-                  className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors"
-                >
-                  <Trash2 size={14} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
-                </button>
+                <Tooltip label="Tag löschen">
+                  <button
+                    type="button"
+                    onClick={() => deleteDay(day.id)}
+                    aria-label="Tag löschen"
+                    className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors"
+                  >
+                    <Trash2 size={14} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+                  </button>
+                </Tooltip>
               </div>
 
               {expanded && (

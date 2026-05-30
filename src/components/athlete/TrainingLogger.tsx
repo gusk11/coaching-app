@@ -9,6 +9,7 @@ import {
 } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Plus, Trash2, Play, Pause, RotateCcw, Timer } from "lucide-react";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 interface Props {
   trainingPlan: TrainingPlan;
@@ -93,12 +94,15 @@ function RestTimerWidget() {
 
         {/* −10s / Zeit / +10s */}
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => adjust(-10)}
-            className="w-6 h-6 flex items-center justify-center rounded bg-[#1e2d42] text-[#8fa3c0] text-xs hover:bg-[#243650] hover:text-[#f0f4ff] transition-colors"
-          >
-            ▼
-          </button>
+          <Tooltip label="-10 Sekunden">
+            <button
+              onClick={() => adjust(-10)}
+              aria-label="-10 Sekunden"
+              className="w-6 h-6 flex items-center justify-center rounded bg-[#1e2d42] text-[#8fa3c0] text-xs hover:bg-[#243650] hover:text-[#f0f4ff] transition-colors"
+            >
+              ▼
+            </button>
+          </Tooltip>
           <span
             className={cn(
               "text-sm font-mono font-bold w-14 text-center tabular-nums",
@@ -111,30 +115,39 @@ function RestTimerWidget() {
           >
             {done ? "Fertig!" : formatDuration(seconds)}
           </span>
-          <button
-            onClick={() => adjust(10)}
-            className="w-6 h-6 flex items-center justify-center rounded bg-[#1e2d42] text-[#8fa3c0] text-xs hover:bg-[#243650] hover:text-[#f0f4ff] transition-colors"
-          >
-            ▲
-          </button>
+          <Tooltip label="+10 Sekunden">
+            <button
+              onClick={() => adjust(10)}
+              aria-label="+10 Sekunden"
+              className="w-6 h-6 flex items-center justify-center rounded bg-[#1e2d42] text-[#8fa3c0] text-xs hover:bg-[#243650] hover:text-[#f0f4ff] transition-colors"
+            >
+              ▲
+            </button>
+          </Tooltip>
         </div>
 
-        <button
-          onClick={toggle}
-          className="p-1.5 rounded-lg bg-[#1e2d42] hover:bg-[#243650] transition-colors"
-        >
-          {running ? (
-            <Pause size={11} className="text-[#f0f4ff]" />
-          ) : (
-            <Play size={11} className="text-[#f0f4ff]" />
-          )}
-        </button>
-        <button
-          onClick={reset}
-          className="p-1.5 rounded-lg bg-[#1e2d42] hover:bg-[#243650] transition-colors"
-        >
-          <RotateCcw size={11} className="text-[#8fa3c0]" />
-        </button>
+        <Tooltip label={running ? "Pausentimer stoppen" : "Pausentimer starten"}>
+          <button
+            onClick={toggle}
+            aria-label={running ? "Pausentimer stoppen" : "Pausentimer starten"}
+            className="p-1.5 rounded-lg bg-[#1e2d42] hover:bg-[#243650] transition-colors"
+          >
+            {running ? (
+              <Pause size={11} className="text-[#f0f4ff]" />
+            ) : (
+              <Play size={11} className="text-[#f0f4ff]" />
+            )}
+          </button>
+        </Tooltip>
+        <Tooltip label="Zurücksetzen">
+          <button
+            onClick={reset}
+            aria-label="Zurücksetzen"
+            className="p-1.5 rounded-lg bg-[#1e2d42] hover:bg-[#243650] transition-colors"
+          >
+            <RotateCcw size={11} className="text-[#8fa3c0]" />
+          </button>
+        </Tooltip>
       </div>
 
       <div className="mt-2 h-0.5 bg-[#1e2d42] rounded-full overflow-hidden">
@@ -533,16 +546,19 @@ export function TrainingLogger({
                         placeholder="–"
                         className="col-span-3 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
                       />
-                      <button
-                        type="button"
-                        onClick={() => removeSet(exIdx, setIdx)}
-                        className="col-span-1 flex items-center justify-center p-1 rounded hover:bg-[#ef4444]/10 transition-colors"
-                      >
-                        <Trash2
-                          size={11}
-                          className="text-[#ef4444]/50 hover:text-[#ef4444]"
-                        />
-                      </button>
+                      <Tooltip label="Satz entfernen">
+                        <button
+                          type="button"
+                          onClick={() => removeSet(exIdx, setIdx)}
+                          aria-label="Satz entfernen"
+                          className="col-span-1 flex items-center justify-center p-1 rounded hover:bg-[#ef4444]/10 transition-colors"
+                        >
+                          <Trash2
+                            size={11}
+                            className="text-[#ef4444]/50 hover:text-[#ef4444]"
+                          />
+                        </button>
+                      </Tooltip>
                     </div>
                   ))}
 

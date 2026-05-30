@@ -6,6 +6,7 @@ import { Athlete, GoalType, MealPlan, TrainingPlan, SupplementPlan } from "@/typ
 import { AppShell } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/ui/StatCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { MealPlanView } from "@/components/athlete/MealPlanView";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { SupplementList } from "@/components/athlete/SupplementList";
@@ -21,10 +22,11 @@ import { Badge } from "@/components/ui/Badge";
 import { DailyCheckIn, WeeklyCheckIn } from "@/types";
 import {
   analyzeWeek, calculateDistanceToGoal, calculateGoalProgressPercent,
-  getGoalLabel, getGoalColor, getTrendIcon, getTrendColor, normalizeNutritionStatus,
+  getGoalLabel, getGoalColor, getTrendIcon, getTrendColor, normalizeNutritionStatus, resolveAthleteWeight,
 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Pencil, Check, X } from "lucide-react";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition, listContainer, listItem } from "@/lib/motion";
 
@@ -80,7 +82,38 @@ export default function CoachAthletePage() {
     setEditVisibleNote(found.visibleNote);
   }, [router, id]);
 
-  if (!athlete) return null;
+  if (!athlete) {
+    return (
+      <AppShell role="coach">
+        <div className="max-w-2xl mx-auto flex flex-col gap-4">
+          {/* Back + Header skeleton */}
+          <div className="flex items-center gap-3">
+            <Skeleton className="w-9 h-9 rounded-xl shrink-0" />
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-5 w-36" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+            </div>
+          </div>
+          {/* Tab bar skeleton */}
+          <div className="flex gap-1">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-7 w-20 rounded-lg" />
+            ))}
+          </div>
+          {/* Stats grid skeleton */}
+          <div className="grid grid-cols-2 gap-3">
+            {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+          </div>
+          <Skeleton className="h-16 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+        </div>
+      </AppShell>
+    );
+  }
 
   const analysis = analyzeWeek(athlete);
   const dist = calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight);
@@ -164,9 +197,11 @@ export default function CoachAthletePage() {
       <div className="max-w-2xl mx-auto flex flex-col gap-4">
         {/* Back + Header */}
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-[#141d2e] transition-colors">
-            <ArrowLeft size={18} className="text-[#8fa3c0]" />
-          </button>
+          <Tooltip label="Zurück">
+            <button onClick={() => router.back()} aria-label="Zurück" className="p-2 rounded-xl hover:bg-[#141d2e] transition-colors">
+              <ArrowLeft size={18} className="text-[#8fa3c0]" />
+            </button>
+          </Tooltip>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#1d4ed8]/20 flex items-center justify-center text-sm font-bold text-[#60a5fa] overflow-hidden">
               {athlete.profileImage ? (
@@ -215,16 +250,23 @@ export default function CoachAthletePage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-[#5a7090] uppercase tracking-widest">Ziel</span>
                   {!editingTargetWeight ? (
-                    <button
-                      onClick={() => { setEditTargetWeightInput(String(athlete.targetWeight)); setEditingTargetWeight(true); }}
-                      className="text-[#5a7090] hover:text-[#60a5fa] transition-colors"
-                    >
-                      <Pencil size={12} />
-                    </button>
+                    <Tooltip label="Zielgewicht bearbeiten">
+                      <button
+                        onClick={() => { setEditTargetWeightInput(String(athlete.targetWeight)); setEditingTargetWeight(true); }}
+                        aria-label="Zielgewicht bearbeiten"
+                        className="text-[#5a7090] hover:text-[#60a5fa] transition-colors"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                    </Tooltip>
                   ) : (
                     <div className="flex gap-2">
-                      <button onClick={saveTargetWeight} className="text-[#10b981] hover:text-[#34d399] transition-colors"><Check size={12} /></button>
-                      <button onClick={() => setEditingTargetWeight(false)} className="text-[#5a7090] hover:text-[#f0f4ff] transition-colors"><X size={12} /></button>
+                      <Tooltip label="Speichern">
+                        <button onClick={saveTargetWeight} aria-label="Speichern" className="text-[#10b981] hover:text-[#34d399] transition-colors"><Check size={12} /></button>
+                      </Tooltip>
+                      <Tooltip label="Abbrechen">
+                        <button onClick={() => setEditingTargetWeight(false)} aria-label="Abbrechen" className="text-[#5a7090] hover:text-[#f0f4ff] transition-colors"><X size={12} /></button>
+                      </Tooltip>
                     </div>
                   )}
                 </div>
@@ -280,23 +322,30 @@ export default function CoachAthletePage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-[#5a7090] uppercase tracking-widest">Wochentrendziel</span>
                   {!editingTrendTarget ? (
-                    <button
-                      onClick={() => {
-                        setEditTrendTargetInput(athlete.weeklyTrendTargetPercent != null ? String(athlete.weeklyTrendTargetPercent) : "");
-                        setEditingTrendTarget(true);
-                      }}
-                      className="text-[#5a7090] hover:text-[#60a5fa] transition-colors"
-                    >
-                      <Pencil size={12} />
-                    </button>
+                    <Tooltip label="Wochentrendziel bearbeiten">
+                      <button
+                        onClick={() => {
+                          setEditTrendTargetInput(athlete.weeklyTrendTargetPercent != null ? String(athlete.weeklyTrendTargetPercent) : "");
+                          setEditingTrendTarget(true);
+                        }}
+                        aria-label="Wochentrendziel bearbeiten"
+                        className="text-[#5a7090] hover:text-[#60a5fa] transition-colors"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                    </Tooltip>
                   ) : (
                     <div className="flex gap-2">
-                      <button onClick={saveTrendTarget} className="text-[#10b981] hover:text-[#34d399] transition-colors">
-                        <Check size={12} />
-                      </button>
-                      <button onClick={() => setEditingTrendTarget(false)} className="text-[#5a7090] hover:text-[#f0f4ff] transition-colors">
-                        <X size={12} />
-                      </button>
+                      <Tooltip label="Speichern">
+                        <button onClick={saveTrendTarget} aria-label="Speichern" className="text-[#10b981] hover:text-[#34d399] transition-colors">
+                          <Check size={12} />
+                        </button>
+                      </Tooltip>
+                      <Tooltip label="Abbrechen">
+                        <button onClick={() => setEditingTrendTarget(false)} aria-label="Abbrechen" className="text-[#5a7090] hover:text-[#f0f4ff] transition-colors">
+                          <X size={12} />
+                        </button>
+                      </Tooltip>
                     </div>
                   )}
                 </div>
@@ -704,9 +753,10 @@ export default function CoachAthletePage() {
                       athleteId={athlete.id}
                       onSavePlan={saveMealPlan}
                       onDeletePlan={deleteMealPlan}
+                      athleteWeight={resolveAthleteWeight(athlete)}
                     />
                   ) : (
-                    <MealPlanView plans={plans} />
+                    <MealPlanView plans={plans} athleteWeight={resolveAthleteWeight(athlete)} />
                   )}
                 </>
               );

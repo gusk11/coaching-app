@@ -5,6 +5,7 @@ import { Athlete } from "@/types";
 import { loadAuth, loadAthletes, updateAthlete } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { AthleteStammdatenForm } from "@/components/athlete/AthleteStammdatenForm";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export default function AthleteStammdatenPage() {
   const router = useRouter();
@@ -18,7 +19,24 @@ export default function AthleteStammdatenPage() {
     setAthlete(found);
   }, [router]);
 
-  if (!athlete) return null;
+  if (!athlete) {
+    return (
+      <AppShell role="athlete" title="Stammdaten">
+        <div className="max-w-lg mx-auto flex flex-col gap-4">
+          <Skeleton className="h-6 w-40" />
+          <div className="flex flex-col gap-3">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex flex-col gap-1.5">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-11 rounded-xl" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="h-12 rounded-xl" />
+        </div>
+      </AppShell>
+    );
+  }
 
   function handleSave(updates: Partial<Athlete>) {
     const updated = updateAthlete(athlete!.id, updates);

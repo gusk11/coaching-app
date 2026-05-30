@@ -4,7 +4,7 @@ import { foodItems as baseFoodItems } from "@/data/foodItems";
 import { seedCustomFoods } from "@/data/seedCustomFoods";
 import { seedSupplementDB } from "@/data/seedSupplements";
 import { seedExerciseDB } from "@/data/seedExercises";
-import { Athlete, DailyCheckIn, WeeklyCheckIn, WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay, FoodItem, SupplementDBItem, ExerciseDBItem } from "@/types";
+import { Athlete, AthleteProfile, DailyCheckIn, WeeklyCheckIn, WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay, FoodItem, SupplementDBItem, ExerciseDBItem, GoalType, DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { todayISO } from "./utils";
 
 const STORAGE_KEY = "coachOS_athletes";
@@ -17,11 +17,11 @@ const CHECK_IN_DONE_KEY = "coachOS_checkInDone";
 const ACTIVE_SESSION_KEY = "coachOS_activeSession";
 const SEED_VERSION_KEY = "coachOS_seedVersion";
 // Bump this string whenever seed data changes to force a localStorage reset.
-const SEED_VERSION = "2026-05-30-v1";
+const SEED_VERSION = "2026-05-30-v2";
 
 const FOOD_SEED_VERSION_KEY = "coachOS_foodSeedVersion";
 // Bump when foodItems.ts seed data changes to clear custom/deactivated food state.
-const FOOD_SEED_VERSION = "2026-05-30-v1";
+const FOOD_SEED_VERSION = "2026-05-30-v2";
 
 const SUPPLEMENT_SEED_VERSION_KEY = "coachOS_supplementSeedVersion";
 const SUPPLEMENT_SEED_VERSION = "2026-05-30-v1";
@@ -134,6 +134,88 @@ export function addAthlete(athlete: Athlete): Athlete[] {
   const updated = [...athletes, athlete];
   saveAthletes(updated);
   return updated;
+}
+
+function getInitials(name: string): string {
+  return name.trim().split(/\s+/).map((w) => w[0]?.toUpperCase() ?? "").slice(0, 2).join("");
+}
+
+function deriveGoalType(priorities: string[]): GoalType {
+  if (priorities.includes("Fettverlust")) return "cut";
+  if (priorities.includes("Muskelaufbau")) return "bulk";
+  if (priorities.includes("Recomp")) return "recomp";
+  return "maintenance";
+}
+
+export interface RegistrationData {
+  name: string;
+  email: string;
+  pin: string;
+  birthDate?: string;
+  height?: number;
+  currentWeight?: number;
+  targetWeight?: number;
+  checkInDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  experienceLevel?: string;
+  injuries?: string;
+  trainingHistory?: string;
+  profile: AthleteProfile;
+  goalPriorities?: string[];
+  goalText?: string;
+}
+
+export function registerAthlete(data: RegistrationData): Athlete {
+  const athletes = loadAthletes();
+  const emailExists = athletes.some(
+    (a) => (a.email || a.profile?.personal?.email || "").toLowerCase() === data.email.toLowerCase()
+  );
+  if (emailExists) throw new Error("E-Mail-Adresse bereits registriert.");
+
+  const now = new Date().toISOString();
+  const today = now.split("T")[0];
+  const weight = data.currentWeight ?? 0;
+  const newAthlete: Athlete = {
+    id: `athlete-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name: data.name.trim(),
+    email: data.email.toLowerCase().trim(),
+    pin: data.pin,
+    avatarInitials: getInitials(data.name),
+    onboardingCompleted: true,
+    profile: { ...data.profile, personal: { email: data.email.toLowerCase().trim(), birthDate: data.birthDate } },
+    startWeight: weight,
+    currentWeight: weight,
+    targetWeight: data.targetWeight ?? weight,
+    goalType: deriveGoalType(data.goalPriorities ?? []),
+    goalText: data.goalText,
+    checkInDay: data.checkInDay ?? 1,
+    height: data.height,
+    experienceLevel: (data.experienceLevel as Athlete["experienceLevel"]) ?? undefined,
+    injuries: data.injuries,
+    trainingHistory: data.trainingHistory,
+    dailyCheckConfig: { ...DEFAULT_DAILY_CHECK_CONFIG },
+    coachNote: "",
+    visibleNote: "",
+    dailyCheckIns: [],
+    weeklyCheckIns: [],
+    weeklyAdjustments: [],
+    trainingLogs: [],
+    calorieTrackerDays: [],
+    mealPlans: [],
+    notes: [],
+    joinedAt: today,
+  };
+  saveAthletes([...athletes, newAthlete]);
+  return newAthlete;
+}
+
+export function findAthleteByLogin(nameOrEmail: string, pin: string): Athlete | null {
+  const athletes = loadAthletes();
+  const key = nameOrEmail.trim().toLowerCase();
+  return athletes.find((a) => {
+    const emailMatch = (a.email || a.profile?.personal?.email || "").toLowerCase() === key;
+    const nameMatch = a.name.toLowerCase() === key;
+    return (emailMatch || nameMatch) && a.pin === pin;
+  }) ?? null;
 }
 
 export function addWeeklyAdjustment(

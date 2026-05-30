@@ -3,11 +3,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
 import { loadAuth, loadAthletes } from "@/lib/store";
+import { resolveAthleteWeight } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { MealPlanView } from "@/components/athlete/MealPlanView";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { SupplementList } from "@/components/athlete/SupplementList";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition } from "@/lib/motion";
 
@@ -27,7 +29,21 @@ export default function AthletePlans() {
     setAthlete(found);
   }, [router]);
 
-  if (!athlete) return null;
+  if (!athlete) {
+    return (
+      <AppShell role="athlete" title="Pläne">
+        <div className="max-w-lg mx-auto flex flex-col gap-4">
+          <div className="flex gap-1.5">
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-8 w-28 rounded-lg" />)}
+          </div>
+          <Skeleton className="h-48 rounded-2xl" />
+          <div className="flex flex-col gap-3">
+            {[0, 1].map((i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell role="athlete" title="Pläne">
@@ -70,7 +86,7 @@ export default function AthletePlans() {
                       </h2>
                       <p className="text-xs text-[#5a7090]">Erstellt von deinem Coach</p>
                     </div>
-                    <MealPlanView plans={plans} />
+                    <MealPlanView plans={plans} athleteWeight={resolveAthleteWeight(athlete)} />
                   </div>
                 )}
               </motion.div>

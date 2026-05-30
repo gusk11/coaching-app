@@ -5,6 +5,7 @@ import { Athlete } from "@/types";
 import { loadAuth, loadAthletes, saveCalorieTrackerDay } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { CalorieTracker } from "@/components/athlete/CalorieTracker";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { todayISO } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -21,7 +22,20 @@ export default function CalorieTrackerPage() {
     setAthlete(found);
   }, [router]);
 
-  if (!athlete) return null;
+  if (!athlete) {
+    return (
+      <AppShell role="athlete" title="Kalorientracker">
+        <div className="max-w-lg mx-auto flex flex-col gap-4">
+          <Skeleton className="h-14 rounded-2xl" />
+          <Skeleton className="h-10 rounded-xl" />
+          <Skeleton className="h-36 rounded-2xl" />
+          <div className="flex flex-col gap-3">
+            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   const existing = (athlete.calorieTrackerDays ?? []).find((d) => d.date === date);
 

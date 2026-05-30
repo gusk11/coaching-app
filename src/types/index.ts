@@ -362,8 +362,11 @@ export interface Note {
 export interface Athlete {
   id: string;
   name: string;
+  email?: string;
   pin: string;
   avatarInitials: string;
+  onboardingCompleted?: boolean;
+  profile?: AthleteProfile;
   /** Optional profile image — base64 dataUrl locally; swap url for remote URL when connecting cloud storage */
   profileImage?: ProgressImage;
   startWeight: number;
@@ -402,6 +405,88 @@ export interface Athlete {
   notes: Note[];
   joinedAt: string;
   weeklyTrendTargetPercent?: number;
+}
+
+// ─── Athlete Onboarding Profile ───────────────────────────────────────────────
+
+export interface AthleteProfile {
+  personal?: { email?: string; birthDate?: string };
+  body?: {
+    lowestWeightThreeYears?: number; lowestWeightUnknown?: boolean;
+    highestWeightThreeYears?: number; highestWeightUnknown?: boolean;
+    targetWeightUnknown?: boolean;
+  };
+  lifestyle?: {
+    occupation?: string; weeklyWorkloadHours?: number; weeklyWorkloadUnknown?: boolean;
+    dailyPlanningScore?: number; dailyRoutine?: string; stressLevel?: number;
+    averageSteps?: number; averageStepsUnknown?: boolean; dailyActivityLevel?: number;
+    currentCardio?: string; weeklyTimeInvestment?: number;
+  };
+  recovery?: {
+    sleepHours?: number; sleepHoursUnknown?: boolean; sleepQuality?: number;
+    morningRecovery?: number; sleepScheduleRegularity?: number; shiftWork?: string;
+    sleepDisruptors?: string[]; sleepDisruptorsOther?: string;
+  };
+  health?: {
+    hasInjuries?: string; injuriesDetail?: string; problematicMovements?: string;
+    hasHealthIssues?: string; healthIssuesDetail?: string; medications?: string;
+    medicationsDetail?: string; hasDigestionIssues?: string; digestionDetail?: string;
+    otherLimitations?: string;
+  };
+  nutrition?: {
+    dietType?: string[]; currentNutritionConcept?: string; currentTrackingStatus?: string;
+    preferredNutritionMethod?: string; calorieCountingConfidence?: number;
+    macroConfidence?: number; macroAdherenceConfidence?: number;
+    mealPlanAdherenceConfidence?: number; nutritionProblems?: string[];
+    nutritionProblemsOther?: string; currentCalories?: number; currentCaloriesUnknown?: boolean;
+    knowsMacros?: string; currentMacros?: { protein?: number; carbs?: number; fat?: number };
+    mealRegularity?: number; eatingOutFrequency?: string; weighingFoodWillingness?: number;
+  };
+  foodPreferences?: {
+    proteinSources?: string[]; proteinSourcesOther?: string;
+    carbSources?: string[]; carbSourcesOther?: string;
+    fatSources?: string[]; fatSourcesOther?: string;
+    favoriteFoods?: string; dislikedFoods?: string; intoleratedFoods?: string;
+    triggerFoods?: string; hungerTiming?: string; cravingsFrequency?: number;
+    emotionalEatingFrequency?: number; emotionalEatingSkipped?: boolean;
+  };
+  supplements?: {
+    currentSupplements?: string[]; currentSupplementsOther?: string;
+    supplementTiming?: string; supplementTimingDetail?: string;
+    unwantedSupplements?: string; caffeineMg?: number; caffeineUnknown?: boolean;
+    caffeineSources?: string[]; caffeineTiming?: string;
+    preWorkoutNutrition?: string; postWorkoutNutrition?: string;
+  };
+  training?: {
+    trainingAge?: string; structuredTrainingAge?: string; trainingExperienceLevel?: string;
+    trainingHistory?: string; bulkCutHistory?: string; bulkCutHistoryDetail?: string;
+    previousSplit?: string[]; previousSplitOther?: string; weeklySessions?: number;
+    currentSessionDuration?: number; desiredSessionDuration?: number;
+    progressionMethod?: string[]; tracksPerformance?: string;
+    freeWeightsOrMachines?: string; effectiveExercises?: string;
+    ineffectiveExercises?: string; avoidedExercises?: string; bestLifts?: string;
+  };
+  availability?: {
+    realisticTrainingDays?: number; availableWeekdays?: number[];
+    unavailableWeekdays?: number[]; sessionTimeAvailable?: number;
+    trainingLocation?: string; equipment?: string; scheduleFlexibility?: number;
+    cardioPossible?: string; realisticCardioSessions?: number; realisticCardioUnknown?: boolean;
+  };
+  goals?: {
+    shortTermGoal?: string; longTermGoal?: string; priorities?: string[];
+    prioritiesOther?: string; targetDateOrEvent?: string; noTargetDate?: boolean;
+    physiqueImportance?: number; strengthImportance?: number; lifestyleImportance?: number;
+    previousBarriers?: string; successDefinition?: string;
+  };
+  coachingPreferences?: {
+    preferenceStructureFlexibility?: string; feedbackDirectness?: number;
+    explanationDepth?: string; motivationDrivers?: string[]; motivationDriversOther?: string;
+    checkInReliability?: number; preferredCheckInDay?: number;
+  };
+  finalNotes?: {
+    coachShouldKnow?: string; supportFocus?: string; thingsToAvoid?: string;
+    confirmed?: boolean;
+  };
 }
 
 export interface CoachCredentials {

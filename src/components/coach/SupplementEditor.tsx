@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { SupplementPlan, Supplement, SupplementDBItem } from "@/types";
 import { Trash2, Plus, Database, Search, X, ExternalLink } from "lucide-react";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { loadSupplementDB } from "@/lib/store";
 
 interface Props {
@@ -118,13 +119,16 @@ export function SupplementEditor({ plan, athleteId, onSave }: Props) {
             <span className="flex items-center gap-1.5 text-xs font-medium text-[#60a5fa] uppercase tracking-widest">
               <Database size={13} /> Supplement aus Datenbank
             </span>
-            <button
-              type="button"
-              onClick={closeDBPicker}
-              className="p-1 rounded-lg hover:bg-[#1e2d42] transition-colors"
-            >
-              <X size={14} className="text-[#5a7090]" />
-            </button>
+            <Tooltip label="Schließen">
+              <button
+                type="button"
+                onClick={closeDBPicker}
+                aria-label="Schließen"
+                className="p-1 rounded-lg hover:bg-[#1e2d42] transition-colors"
+              >
+                <X size={14} className="text-[#5a7090]" />
+              </button>
+            </Tooltip>
           </div>
 
           {supplementDB.length === 0 ? (
@@ -264,13 +268,16 @@ export function SupplementEditor({ plan, athleteId, onSave }: Props) {
                 </span>
               )}
             </span>
-            <button
-              type="button"
-              onClick={() => deleteSupplement(s.id)}
-              className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors"
-            >
-              <Trash2 size={14} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
-            </button>
+            <Tooltip label="Supplement löschen">
+              <button
+                type="button"
+                onClick={() => deleteSupplement(s.id)}
+                aria-label="Supplement löschen"
+                className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors"
+              >
+                <Trash2 size={14} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+              </button>
+            </Tooltip>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -358,14 +365,17 @@ export function SupplementEditor({ plan, athleteId, onSave }: Props) {
                   className={INPUT}
                 />
                 {s.link && (
-                  <a
-                    href={s.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-[#1d4ed8]/15 border border-[#3b82f6]/30 text-[#60a5fa] hover:bg-[#1d4ed8]/25 transition-colors"
-                  >
-                    <ExternalLink size={14} />
-                  </a>
+                  <Tooltip label="Link öffnen">
+                    <a
+                      href={s.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Link öffnen"
+                      className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-[#1d4ed8]/15 border border-[#3b82f6]/30 text-[#60a5fa] hover:bg-[#1d4ed8]/25 transition-colors"
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+                  </Tooltip>
                 )}
               </div>
             </div>

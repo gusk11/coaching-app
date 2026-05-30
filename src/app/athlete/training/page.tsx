@@ -9,6 +9,7 @@ import { TrainingLogger } from "@/components/athlete/TrainingLogger";
 import { TrainingProgressView } from "@/components/athlete/TrainingProgressView";
 import { todayISO } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition } from "@/lib/motion";
 
@@ -27,7 +28,19 @@ export default function AthleteTraining() {
     setAthlete(found);
   }, [router]);
 
-  if (!athlete) return null;
+  if (!athlete) {
+    return (
+      <AppShell role="athlete" title="Trainingstracker">
+        <div className="max-w-lg mx-auto flex flex-col gap-4">
+          <Skeleton className="h-11 rounded-xl" />
+          <Skeleton className="h-40 rounded-2xl" />
+          <div className="flex flex-col gap-3">
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   const today = todayISO();
 

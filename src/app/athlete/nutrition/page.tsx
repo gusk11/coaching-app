@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete, MealPlan } from "@/types";
 import { loadAuth, loadAthletes } from "@/lib/store";
+import { resolveAthleteWeight } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { MealPlanView } from "@/components/athlete/MealPlanView";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export default function AthleteNutrition() {
   const router = useRouter();
@@ -18,7 +20,17 @@ export default function AthleteNutrition() {
     setAthlete(found);
   }, [router]);
 
-  if (!athlete) return null;
+  if (!athlete) {
+    return (
+      <AppShell role="athlete" title="Ernährungsplan">
+        <div className="max-w-lg mx-auto flex flex-col gap-3">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-3 w-32" />
+          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
+        </div>
+      </AppShell>
+    );
+  }
 
   const plans: MealPlan[] = athlete.mealPlans ?? [];
 
@@ -39,7 +51,7 @@ export default function AthleteNutrition() {
               </h2>
               <p className="text-xs text-[#5a7090]">Erstellt von deinem Coach</p>
             </div>
-            <MealPlanView plans={plans} />
+            <MealPlanView plans={plans} athleteWeight={resolveAthleteWeight(athlete)} />
           </div>
         )}
       </div>

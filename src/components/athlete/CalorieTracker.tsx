@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CalorieTrackerDay, CalorieTrackerEntry, CalorieTrackerMeal, FoodItem, MealPlan } from "@/types";
 import { getAllFoodItems } from "@/lib/store";
 import { Plus, Trash2, Search, ChevronDown, ChevronUp, CheckCircle2, X, Check } from "lucide-react";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 
 // ─── Serving helpers ──────────────────────────────────────────────────────────
@@ -272,9 +273,11 @@ function MealPlanImportModal({
       <div className="w-full max-w-lg rounded-2xl bg-[#0d1525] border border-[#1e2d42] overflow-hidden">
         <div className="p-4 border-b border-[#1e2d42] flex items-center justify-between">
           <p className="text-sm font-semibold text-[#f0f4ff]">Aus Ernährungsplan übernehmen</p>
-          <button type="button" onClick={onClose} className="p-1 rounded-lg hover:bg-[#1e2d42] transition-colors">
-            <X size={16} className="text-[#5a7090]" />
-          </button>
+          <Tooltip label="Schließen">
+            <button type="button" onClick={onClose} aria-label="Schließen" className="p-1 rounded-lg hover:bg-[#1e2d42] transition-colors">
+              <X size={16} className="text-[#5a7090]" />
+            </button>
+          </Tooltip>
         </div>
 
         <p className="px-4 pt-3 text-xs text-[#5a7090]">Wähle, welche Mahlzeiten du für diesen Tag übernehmen möchtest.</p>
@@ -483,13 +486,16 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
                   <span className="text-xs text-[#f97316] ml-auto">{mealTotals.kcal} kcal</span>
                   {isOpen ? <ChevronUp size={14} className="text-[#5a7090]" /> : <ChevronDown size={14} className="text-[#5a7090]" />}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => removeMeal(meal.id)}
-                  className="p-1.5 rounded-lg hover:bg-[#ef4444]/10 transition-colors"
-                >
-                  <Trash2 size={13} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
-                </button>
+                <Tooltip label="Mahlzeit entfernen">
+                  <button
+                    type="button"
+                    onClick={() => removeMeal(meal.id)}
+                    aria-label="Mahlzeit entfernen"
+                    className="p-1.5 rounded-lg hover:bg-[#ef4444]/10 transition-colors"
+                  >
+                    <Trash2 size={13} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+                  </button>
+                </Tooltip>
               </div>
 
               {isOpen && (
@@ -504,13 +510,16 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
                           {entry.salt > 0 ? ` · Salz ${entry.salt}g` : ""}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeEntry(meal.id, entry.id)}
-                        className="p-1 rounded hover:bg-[#ef4444]/10 transition-colors"
-                      >
-                        <X size={11} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
-                      </button>
+                      <Tooltip label="Eintrag entfernen">
+                        <button
+                          type="button"
+                          onClick={() => removeEntry(meal.id, entry.id)}
+                          aria-label="Eintrag entfernen"
+                          className="p-1 rounded hover:bg-[#ef4444]/10 transition-colors"
+                        >
+                          <X size={11} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+                        </button>
+                      </Tooltip>
                     </div>
                   ))}
 

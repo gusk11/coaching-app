@@ -3,17 +3,24 @@ import { useState } from "react";
 import { MealPlan } from "@/types";
 import { calculateMealMacros, calculateDayMacros, roundMacro, roundSalt } from "@/lib/utils";
 
-function MacroRow({ label, value, unit = "g", color, fmt = Math.round }: { label: string; value: number; unit?: string; color?: string; fmt?: (v: number) => number }) {
+function MacroRow({ label, value, unit = "g", color, fmt = Math.round, perKg }: { label: string; value: number; unit?: string; color?: string; fmt?: (v: number) => number; perKg?: number }) {
   return (
     <div className="flex items-center justify-between text-xs">
       <span className="text-[#5a7090]">{label}</span>
-      <span className={color ?? "text-[#8fa3c0]"}>{fmt(value)}{unit}</span>
+      <span className={color ?? "text-[#8fa3c0]"}>
+        {fmt(value)}{unit}
+        {perKg !== undefined && (
+          <span className="text-[10px] text-[#3b4d6a] ml-1">({perKg.toFixed(1)} g/kg)</span>
+        )}
+      </span>
     </div>
   );
 }
 
-function SinglePlanView({ plan }: { plan: MealPlan }) {
+function SinglePlanView({ plan, athleteWeight }: { plan: MealPlan; athleteWeight?: number }) {
   const dayMacros = calculateDayMacros(plan.meals);
+  const proteinPerKg = athleteWeight ? dayMacros.protein / athleteWeight : undefined;
+  const fatPerKg = athleteWeight ? dayMacros.fat / athleteWeight : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -28,9 +35,9 @@ function SinglePlanView({ plan }: { plan: MealPlan }) {
         <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-3">Tagessumme</p>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
           <MacroRow label="Kalorien" value={dayMacros.kcal} unit=" kcal" color="text-[#f0f4ff] font-semibold" />
-          <MacroRow label="Protein" value={dayMacros.protein} color="text-[#60a5fa]" />
+          <MacroRow label="Protein" value={dayMacros.protein} color="text-[#60a5fa]" perKg={proteinPerKg} />
           <MacroRow label="Kohlenhydrate" value={dayMacros.carbs} />
-          <MacroRow label="Fett" value={dayMacros.fat} />
+          <MacroRow label="Fett" value={dayMacros.fat} perKg={fatPerKg} />
           <MacroRow label="Ballaststoffe" value={dayMacros.fiber} fmt={roundMacro} />
           <MacroRow label="Salz" value={dayMacros.salt} fmt={roundSalt} />
         </div>
@@ -97,7 +104,7 @@ function SinglePlanView({ plan }: { plan: MealPlan }) {
   );
 }
 
-export function MealPlanView({ plans }: { plans: MealPlan[] }) {
+export function MealPlanView({ plans, athleteWeight }: { plans: MealPlan[]; athleteWeight?: number }) {
   const [activeIdx, setActiveIdx] = useState(0);
 
   if (plans.length === 0) {
@@ -134,7 +141,7 @@ export function MealPlanView({ plans }: { plans: MealPlan[] }) {
         </div>
       )}
 
-      <SinglePlanView plan={activePlan} />
+      <SinglePlanView plan={activePlan} athleteWeight={athleteWeight} />
     </div>
   );
 }
