@@ -15,7 +15,7 @@ import {
   getLastCheckIn, todayISO, getGoalLabel, getTrendIcon, getTrendColor,
   getWeekDates,
 } from "@/lib/utils";
-import { ClipboardCheck, CalendarPlus } from "lucide-react";
+import { ClipboardCheck, CalendarPlus, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { listContainer, listItem } from "@/lib/motion";
@@ -131,6 +131,25 @@ export default function AthleteDashboard() {
             )}
           </div>
         </div>
+
+        {/* Einführungsvideo – shown after onboarding */}
+        {athlete.onboardingCompleted && (
+          <a
+            href="https://www.loom.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-4 p-4 rounded-2xl bg-[#1a2744] border border-[#3b82f6]/30 hover:border-[#3b82f6]/60 hover:bg-[#1e2f52] transition-all group"
+          >
+            <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#3b82f6]/20 flex items-center justify-center group-hover:bg-[#3b82f6]/30 transition-colors">
+              <PlayCircle size={22} className="text-[#60a5fa]" />
+            </div>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <p className="text-sm font-semibold text-[#f0f4ff]">Einführungsvideo ansehen</p>
+              <p className="text-xs text-[#8fa3c0] truncate">Lerne, wie du dieses Tool optimal nutzt</p>
+            </div>
+            <span className="ml-auto text-[#3b82f6] text-lg flex-shrink-0">→</span>
+          </a>
+        )}
 
         {/* Daily check-in – first element */}
         <div

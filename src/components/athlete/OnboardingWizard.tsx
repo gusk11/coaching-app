@@ -140,7 +140,8 @@ const STEPS = [
 ];
 
 // Intro-Video: videoUrl setzen sobald vorhanden, sonst Platzhalter
-const INTRO_DURATION = 25; // Sekunden — später durch echte Videodauer ersetzen
+const INTRO_DURATION = 50; // Sekunden
+const OUTRO_DURATION = 27; // Sekunden
 const TOTAL_STEPS = STEPS.length + 1; // 1 Intro + 11 Fragebogen
 
 type Phase = "intro" | "questionnaire" | "complete";
@@ -1298,6 +1299,7 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [introElapsed, setIntroElapsed] = useState(0);
+  const [outroElapsed, setOutroElapsed] = useState(0);
   const [completedAthleteId, setCompletedAthleteId] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -1307,8 +1309,16 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
     return () => clearInterval(id);
   }, [phase, introElapsed]);
 
+  useEffect(() => {
+    if (phase !== "complete" || outroElapsed >= OUTRO_DURATION) return;
+    const id = setInterval(() => setOutroElapsed((e) => Math.min(e + 1, OUTRO_DURATION)), 1000);
+    return () => clearInterval(id);
+  }, [phase, outroElapsed]);
+
   const introTimerDone = introElapsed >= INTRO_DURATION;
   const introProgress = Math.round((introElapsed / INTRO_DURATION) * 100);
+  const outroTimerDone = outroElapsed >= OUTRO_DURATION;
+  const outroProgress = Math.round((outroElapsed / OUTRO_DURATION) * 100);
   const globalStep = phase === "intro" ? 1 : step + 1;
   const headerProgress = Math.round((globalStep / TOTAL_STEPS) * 100);
   const headerStepName = phase === "intro" ? "Willkommen" : STEPS[step - 1];
@@ -1429,18 +1439,16 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
 
         <div className="flex-1 overflow-y-auto px-4 py-6">
           <div className="max-w-lg mx-auto flex flex-col gap-6">
-            {/* Video-Platzhalter */}
-            <div className="bg-[#0f1624] border border-[#1e2d42] rounded-2xl overflow-hidden relative"
-              style={{ aspectRatio: "16/9" }}>
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/30 flex items-center justify-center">
-                  <Play size={28} className="text-[#60a5fa] translate-x-0.5" />
-                </div>
-                <div className="text-center px-4">
-                  <p className="text-base font-semibold text-[#f0f4ff]">Willkommen im Coaching</p>
-                  <p className="text-sm text-[#5a7090] mt-1">Kurzes Onboarding-Video</p>
-                </div>
-              </div>
+            {/* Intro-Video */}
+            <div className="bg-[#0f1624] border border-[#1e2d42] rounded-2xl overflow-hidden relative mx-auto w-full max-w-[320px]"
+              style={{ aspectRatio: "9/16" }}>
+              <iframe
+                src="https://www.youtube.com/embed/ElZV49jyn9s"
+                title="Onboarding Video – Vorher"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full border-0"
+              />
             </div>
 
             <p className="text-sm text-[#5a7090] text-center px-2">
@@ -1497,14 +1505,26 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
               <p className="text-sm text-[#5a7090] mt-2">Dein Profil wurde erfolgreich erstellt.</p>
             </div>
 
-            {/* Abschluss-Video-Platzhalter */}
-            <div className="bg-[#0a0f1a] border border-[#1e2d42] rounded-xl overflow-hidden relative"
-              style={{ aspectRatio: "16/9" }}>
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-[#1e2d42] border border-[#2e4060] flex items-center justify-center">
-                  <Play size={20} className="text-[#5a7090] translate-x-0.5" />
-                </div>
-                <p className="text-sm text-[#4a6080]">Abschlussvideo wird hier eingefügt</p>
+            {/* Abschluss-Video */}
+            <div className="bg-[#0a0f1a] border border-[#1e2d42] rounded-xl overflow-hidden relative mx-auto w-full max-w-[320px]"
+              style={{ aspectRatio: "9/16" }}>
+              <iframe
+                src="https://www.youtube.com/embed/PaQm9oeclJ0"
+                title="Onboarding Video – Nachher"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full border-0"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-xs text-[#5a7090]">
+                <span>{outroTimerDone ? "Video abgeschlossen" : "Video läuft…"}</span>
+                <span>{outroElapsed}s / {OUTRO_DURATION}s</span>
+              </div>
+              <div className="w-full bg-[#1e2d42] rounded-full h-1.5">
+                <div className="bg-[#3b82f6] h-1.5 rounded-full transition-all duration-1000"
+                  style={{ width: `${outroProgress}%` }} />
               </div>
             </div>
 
