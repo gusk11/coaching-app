@@ -24,9 +24,11 @@ export default function AthletePlans() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "athlete" || !auth.athleteId) { router.replace("/login"); return; }
-    const found = loadAthletes().find((a) => a.id === auth.athleteId);
-    if (!found) { router.replace("/login"); return; }
-    setAthlete(found);
+    loadAthletes().then((athletes) => {
+      const found = athletes.find((a) => a.id === auth.athleteId);
+      if (!found) { router.replace("/login"); return; }
+      setAthlete(found);
+    });
   }, [router]);
 
   if (!athlete) {

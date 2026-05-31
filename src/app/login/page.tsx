@@ -31,14 +31,14 @@ export default function LoginPage() {
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotError, setForgotError] = useState("");
 
-  function handleForgotSubmit(e: React.FormEvent) {
+  async function handleForgotSubmit(e: React.FormEvent) {
     e.preventDefault();
     setForgotError("");
     if (!forgotName.trim()) {
       setForgotError("Bitte einen Namen eingeben.");
       return;
     }
-    addLoginHelpRequest(forgotName.trim(), forgotNote.trim() || undefined);
+    await addLoginHelpRequest(forgotName.trim(), forgotNote.trim() || undefined);
     setForgotSent(true);
   }
 
@@ -50,14 +50,14 @@ export default function LoginPage() {
     setForgotError("");
   }
 
-  function handleAthleteLogin(e: React.FormEvent) {
+  async function handleAthleteLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoginError("");
     if (!nameOrEmail.trim() || !pin.trim()) {
       setLoginError("Bitte Name/E-Mail und PIN eingeben.");
       return;
     }
-    const athlete = findAthleteByLogin(nameOrEmail, pin);
+    const athlete = await findAthleteByLogin(nameOrEmail, pin);
     if (!athlete) {
       setLoginError("Name/E-Mail oder PIN ungültig.");
       return;

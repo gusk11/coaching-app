@@ -24,9 +24,11 @@ export default function AthleteTraining() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "athlete" || !auth.athleteId) { router.replace("/login"); return; }
-    const found = loadAthletes().find((a) => a.id === auth.athleteId);
-    if (!found) { router.replace("/login"); return; }
-    setAthlete(found);
+    loadAthletes().then((athletes) => {
+      const found = athletes.find((a) => a.id === auth.athleteId);
+      if (!found) { router.replace("/login"); return; }
+      setAthlete(found);
+    });
   }, [router]);
 
   if (!athlete) {
@@ -45,9 +47,9 @@ export default function AthleteTraining() {
 
   const today = todayISO();
 
-  function handleSaveLog(log: Parameters<typeof saveTrainingLog>[1]) {
+  async function handleSaveLog(log: Parameters<typeof saveTrainingLog>[1]) {
     try {
-      const updated = saveTrainingLog(athlete!.id, log);
+      const updated = await saveTrainingLog(athlete!.id, log);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       showToast("Training gespeichert.", "success");
     } catch {

@@ -49,10 +49,12 @@ export default function CoachDashboard() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "coach") { router.replace("/login"); return; }
-    setAthletes(loadAthletes());
     setCheckInDoneState(loadCheckInDone());
-    setLoginHelpRequests(loadLoginHelpRequests());
-    setIsLoaded(true);
+    Promise.all([loadAthletes(), loadLoginHelpRequests()]).then(([athletes, helpRequests]) => {
+      setAthletes(athletes);
+      setLoginHelpRequests(helpRequests);
+      setIsLoaded(true);
+    });
   }, [router]);
 
   const todayDayOfWeek = useMemo(() => new Date().getDay() as 0|1|2|3|4|5|6, []);
@@ -96,18 +98,18 @@ export default function CoachDashboard() {
     }
   }, [checkInDone, todayStr]);
 
-  function handleResolveLoginHelp(id: string) {
-    const updated = resolveLoginHelpRequest(id);
+  async function handleResolveLoginHelp(id: string) {
+    const updated = await resolveLoginHelpRequest(id);
     setLoginHelpRequests(updated);
   }
 
-  function handleDeleteLoginHelp(id: string) {
-    const updated = deleteLoginHelpRequest(id);
+  async function handleDeleteLoginHelp(id: string) {
+    const updated = await deleteLoginHelpRequest(id);
     setLoginHelpRequests(updated);
     setConfirmDeleteId(null);
   }
 
-  function handleCreateAthlete(e: React.FormEvent) {
+  async function handleCreateAthlete(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim() || newPin.length < 4) return;
     const initials = newName.trim().split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
@@ -129,7 +131,7 @@ export default function CoachDashboard() {
       notes: [],
       joinedAt: new Date().toISOString(),
     };
-    const updated = addAthlete(newAthlete);
+    const updated = await addAthlete(newAthlete);
     setAthletes(updated);
     setShowModal(false);
     // Reset form

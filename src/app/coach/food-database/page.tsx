@@ -287,8 +287,10 @@ export default function FoodDatabase() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "coach") router.replace("/login");
-    setCustomFoods(loadCustomFoods());
-    setHiddenBaseIds(loadDeactivatedFoods());
+    Promise.all([loadCustomFoods(), loadDeactivatedFoods()]).then(([custom, deactivated]) => {
+      setCustomFoods(custom);
+      setHiddenBaseIds(deactivated);
+    });
   }, [router]);
 
   // Merge base (minus hidden) + custom
@@ -311,22 +313,22 @@ export default function FoodDatabase() {
     return matchCat && matchSearch;
   });
 
-  function handleSave(data: Partial<FoodItem>) {
+  async function handleSave(data: Partial<FoodItem>) {
     const prevCustom = [...customFoods];
     const prevHidden = [...hiddenBaseIds];
     try {
       if (editing?.id) {
         if (editing.isCustomFood) {
-          setCustomFoods(updateCustomFood(editing.id, data));
+          setCustomFoods(await updateCustomFood(editing.id, data));
         } else {
           // Base food: hide the original, create an editable custom copy
-          setHiddenBaseIds(deleteBaseFoodItem(editing.id));
+          setHiddenBaseIds(await deleteBaseFoodItem(editing.id));
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { id, isCustomFood, createdAt, updatedAt, ...foodData } = { ...editing, ...data };
-          setCustomFoods(addCustomFood(foodData as Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">));
+          setCustomFoods(await addCustomFood(foodData as Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">));
         }
       } else {
-        setCustomFoods(addCustomFood(data as Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">));
+        setCustomFoods(await addCustomFood(data as Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">));
       }
       setEditing(null);
       showToast("Lebensmittel gespeichert.", "success");
@@ -337,12 +339,11 @@ export default function FoodDatabase() {
     }
   }
 
-  function handleDeleteConfirmed() {
+  async function handleDeleteConfirmed() {
     if (!deleteTarget) return;
     const target = deleteTarget;
     const prevCustom = [...customFoods];
     const prevHidden = [...hiddenBaseIds];
-    // Optimistic: remove from UI immediately after confirmation
     if (target.isCustomFood) {
       setCustomFoods((prev) => prev.filter((f) => f.id !== target.id));
     } else {
@@ -351,9 +352,9 @@ export default function FoodDatabase() {
     setDeleteTarget(null);
     try {
       if (target.isCustomFood) {
-        deleteCustomFood(target.id);
+        await deleteCustomFood(target.id);
       } else {
-        deleteBaseFoodItem(target.id);
+        await deleteBaseFoodItem(target.id);
       }
     } catch {
       setCustomFoods(prevCustom);

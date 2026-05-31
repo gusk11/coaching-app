@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { registerAthlete, loadAthletes } from "@/lib/store";
+import { registerAthlete } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRight, Check, Play, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp, Play, X } from "lucide-react";
 import { AthleteProfile } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -72,6 +72,9 @@ interface WizardData {
   checkInReliability: number; preferredCheckInDay: number;
   // Step 11: Final Notes
   coachShouldKnow: string; supportFocus: string; thingsToAvoid: string; confirmed: boolean;
+  // Step 12: Legal Consent
+  privacyAccepted: boolean; contractAccepted: boolean;
+  signatureDataUrl: string; signedName: string;
 }
 
 const DEFAULT: WizardData = {
@@ -126,13 +129,14 @@ const DEFAULT: WizardData = {
   explanationDepth: "", motivationDrivers: [], motivationDriversOther: "",
   checkInReliability: 7, preferredCheckInDay: 1,
   coachShouldKnow: "", supportFocus: "", thingsToAvoid: "", confirmed: false,
+  privacyAccepted: false, contractAccepted: false, signatureDataUrl: "", signedName: "",
 };
 
 const STEPS = [
   "Basisdaten", "Alltag & Lifestyle", "Schlaf & Regeneration",
   "Gesundheit", "Ernährung", "Lebensmittel",
   "Supplemente", "Trainingserfahrung", "Verfügbarkeit",
-  "Ziele & Coaching", "Abschluss",
+  "Ziele & Coaching", "Abschluss", "Rechtliches & Zustimmung",
 ];
 
 // Intro-Video: videoUrl setzen sobald vorhanden, sonst Platzhalter
@@ -876,6 +880,249 @@ function Step11({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }
   );
 }
 
+// ─── Legal document texts ─────────────────────────────────────────────────────
+
+const PRIVACY_TEXT = `Im Rahmen des Coachings werden personenbezogene Daten verarbeitet, die du im Onboarding, in Check-ins oder im weiteren Coachingverlauf angibst. Dazu können insbesondere Name, E-Mail-Adresse, Körperdaten, Trainingsdaten, Ernährungsdaten, Check-in-Angaben, Fortschrittsdaten, freiwillige Gesundheitsangaben sowie hochgeladene Bilder gehören.
+
+Diese Daten werden ausschließlich genutzt, um das Coaching durchzuführen, Trainings- und Ernährungsentscheidungen zu treffen, Fortschritte zu dokumentieren und die Betreuung individuell anzupassen.
+
+Eine Weitergabe an Dritte erfolgt nicht ohne deine ausdrückliche Zustimmung, sofern keine gesetzliche Pflicht dazu besteht.
+
+Du kannst jederzeit Auskunft über deine gespeicherten Daten verlangen. Nach Beendigung der Zusammenarbeit können deine Daten auf Wunsch gelöscht werden, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen.
+
+Gesundheitsbezogene Angaben erfolgen freiwillig und dienen ausschließlich der besseren Anpassung des Coachings. Sie ersetzen keine medizinische Beratung.`;
+
+const CONTRACT_TEXT = `Coaching-Vertrag
+
+Zwischen Gustav Kaufmann Coaching, nachfolgend Coach genannt, und dem registrierten Athleten, nachfolgend Kunde genannt, wird folgender Coaching-Vertrag geschlossen.
+
+§ 1 Vertragsgegenstand
+Gegenstand des Coachings ist die individuelle Betreuung im Bereich Training, Ernährung, Supplementierung, Fortschrittskontrolle und allgemeiner Coaching-Kommunikation. Der konkrete Leistungsumfang richtet sich nach der individuell vereinbarten Betreuung.
+
+§ 2 Leistungsumfang
+Der Coach kann insbesondere folgende Leistungen erbringen:
+• Erstellung oder Anpassung von Trainingsplänen
+• Erstellung oder Anpassung von Ernährungsplänen
+• Auswertung von Check-ins
+• Fortschrittsanalyse
+• Allgemeine Betreuung und Rückfragen im Rahmen des Coachings
+• Empfehlungen zu Trainingsstruktur, Ernährung, Supplementen und Routinen
+
+Eine medizinische Beratung findet nicht statt. Gesundheitsbezogene Hinweise sind allgemeiner Natur und ersetzen keine ärztliche Beratung, Diagnose oder Behandlung.
+
+§ 3 Mitwirkungspflichten des Kunden
+Der Kunde verpflichtet sich, wahrheitsgemäße Angaben zu machen und relevante Informationen zu Gesundheit, Verletzungen, Einschränkungen, Alltag, Training und Ernährung mitzuteilen. Der Kunde ist selbst dafür verantwortlich, bei gesundheitlichen Beschwerden oder Unsicherheiten ärztlichen Rat einzuholen.
+
+§ 4 Eigenverantwortung und Haftung
+Training und Ernährung erfolgen eigenverantwortlich. Der Coach übernimmt keine Haftung für gesundheitliche Schäden, die durch falsche Ausführung, unvollständige Angaben, eigenmächtige Änderungen oder Nichtbeachtung gesundheitlicher Einschränkungen entstehen.
+
+Der Kunde bestätigt, dass er körperlich grundsätzlich in der Lage ist, am Coaching teilzunehmen, oder medizinische Fragen vorab ärztlich abklärt.
+
+§ 5 Vergütung und Laufzeit
+Vergütung, Laufzeit, Zahlungsmodalitäten und Kündigungsbedingungen werden individuell vereinbart. Falls im Einzelfall keine gesonderte Vereinbarung hinterlegt ist, gelten die separat schriftlich vereinbarten Konditionen.
+
+§ 6 Widerruf
+Sofern ein gesetzliches Widerrufsrecht besteht, wird der Kunde über dieses gesondert informiert. Beginnt das Coaching auf ausdrücklichen Wunsch des Kunden bereits vor Ablauf einer Widerrufsfrist, kann für bereits erbrachte Leistungen eine anteilige Vergütung geschuldet sein.
+
+§ 7 Datenschutz
+Der Kunde willigt ein, dass die von ihm angegebenen Daten im Rahmen des Coachings gespeichert und verarbeitet werden. Eine Weitergabe an Dritte erfolgt nicht ohne ausdrückliche Zustimmung. Weitere Informationen ergeben sich aus der Datenschutzerklärung.
+
+§ 8 Digitale Zustimmung
+Durch Anklicken der Zustimmung und optional durch digitale Unterschrift bestätigt der Kunde, den Vertrag gelesen zu haben und mit den Bedingungen einverstanden zu sein.
+
+§ 9 Änderungen
+Änderungen oder Ergänzungen dieses Vertrages bedürfen mindestens der Textform.
+
+§ 10 Salvatorische Klausel
+Sollte eine Bestimmung dieses Vertrages unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.`;
+
+function CollapsibleCard({ title, children, defaultOpen = false }: {
+  title: string; children: React.ReactNode; defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-xl border border-[#1e2d42] bg-[#0f1624] overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left"
+      >
+        <span className="text-sm font-semibold text-[#f0f4ff]">{title}</span>
+        {open ? <ChevronUp size={16} className="text-[#5a7090]" /> : <ChevronDown size={16} className="text-[#5a7090]" />}
+      </button>
+      {open && (
+        <div className="px-4 pb-4 border-t border-[#1e2d42]">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SignatureCanvas({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+  const lastPos = useRef({ x: 0, y: 0 });
+
+  function getPos(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    if ("touches" in e) {
+      return {
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY,
+      };
+    }
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  }
+
+  function startDraw(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    e.preventDefault();
+    drawing.current = true;
+    lastPos.current = getPos(e);
+  }
+
+  function draw(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    e.preventDefault();
+    if (!drawing.current) return;
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastPos.current.x, lastPos.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = "#f0f4ff";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    lastPos.current = pos;
+  }
+
+  function endDraw() {
+    if (!drawing.current) return;
+    drawing.current = false;
+    const canvas = canvasRef.current!;
+    onChange(canvas.toDataURL("image/png"));
+  }
+
+  function clearCanvas() {
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    onChange("");
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="relative rounded-xl border border-[#2e4060] bg-[#0a0f1a] overflow-hidden" style={{ touchAction: "none" }}>
+        <canvas
+          ref={canvasRef}
+          width={560}
+          height={120}
+          className="w-full block cursor-crosshair"
+          style={{ height: "120px" }}
+          onMouseDown={startDraw}
+          onMouseMove={draw}
+          onMouseUp={endDraw}
+          onMouseLeave={endDraw}
+          onTouchStart={startDraw}
+          onTouchMove={draw}
+          onTouchEnd={endDraw}
+        />
+        {!value && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="text-xs text-[#3b4d6a]">Hier unterschreiben…</span>
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={clearCanvas}
+        className="self-end text-xs text-[#5a7090] hover:text-[#f0f4ff] transition-colors px-2 py-1 rounded border border-[#1e2d42] hover:border-[#3b82f6]/30"
+      >
+        Unterschrift löschen
+      </button>
+    </div>
+  );
+}
+
+function Step12({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="text-sm text-[#8fa3c0]">
+        Bitte lies die folgenden Dokumente sorgfältig durch und bestätige deine Zustimmung.
+      </p>
+
+      {/* Datenschutzerklärung */}
+      <CollapsibleCard title="Datenschutzerklärung">
+        <pre className="mt-3 text-xs text-[#8fa3c0] whitespace-pre-wrap leading-relaxed font-sans">
+          {PRIVACY_TEXT}
+        </pre>
+      </CollapsibleCard>
+      <div
+        className={cn("flex items-start gap-3 p-4 rounded-xl border transition-colors",
+          d.privacyAccepted ? "bg-[#3b82f6]/5 border-[#3b82f6]/30" : "bg-[#1e2d42]/40 border-[#2e4060]")}
+      >
+        <button type="button" onClick={() => u({ privacyAccepted: !d.privacyAccepted })}
+          className={cn("w-5 h-5 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-all",
+            d.privacyAccepted ? "bg-[#3b82f6] border-[#3b82f6]" : "border-[#2e4060] bg-[#0f1624]")}>
+          {d.privacyAccepted && <Check size={12} className="text-white" />}
+        </button>
+        <p className="text-sm text-[#8fa3c0]">
+          Ich habe die Datenschutzerklärung gelesen und stimme der Verarbeitung meiner Daten zu Coachingzwecken zu. <span className="text-[#ef4444]">*</span>
+        </p>
+      </div>
+
+      {/* Coaching-Vertrag */}
+      <CollapsibleCard title="Coaching-Vertrag (Muster)">
+        <pre className="mt-3 text-xs text-[#8fa3c0] whitespace-pre-wrap leading-relaxed font-sans">
+          {CONTRACT_TEXT}
+        </pre>
+      </CollapsibleCard>
+      <div
+        className={cn("flex items-start gap-3 p-4 rounded-xl border transition-colors",
+          d.contractAccepted ? "bg-[#3b82f6]/5 border-[#3b82f6]/30" : "bg-[#1e2d42]/40 border-[#2e4060]")}
+      >
+        <button type="button" onClick={() => u({ contractAccepted: !d.contractAccepted })}
+          className={cn("w-5 h-5 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-all",
+            d.contractAccepted ? "bg-[#3b82f6] border-[#3b82f6]" : "border-[#2e4060] bg-[#0f1624]")}>
+          {d.contractAccepted && <Check size={12} className="text-white" />}
+        </button>
+        <p className="text-sm text-[#8fa3c0]">
+          Ich habe den Coaching-Vertrag gelesen und akzeptiere die Bedingungen. <span className="text-[#ef4444]">*</span>
+        </p>
+      </div>
+
+      {/* Digitale Unterschrift */}
+      <div className="flex flex-col gap-3">
+        <p className="text-sm font-semibold text-[#f0f4ff]">Digitale Unterschrift <span className="text-xs text-[#5a7090] font-normal">(optional)</span></p>
+        <p className="text-xs text-[#5a7090]">Zeichne deine Unterschrift mit Maus, Touchpad oder Finger.</p>
+        <SignatureCanvas value={d.signatureDataUrl} onChange={(v) => u({ signatureDataUrl: v })} />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-[#5a7090]">oder: Vollständiger Name als digitale Bestätigung (optional)</label>
+          <input
+            type="text"
+            value={d.signedName}
+            onChange={(e) => u({ signedName: e.target.value })}
+            placeholder="Vor- und Nachname"
+            className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+          />
+        </div>
+      </div>
+
+      <p className="text-xs text-[#5a7090] text-center">
+        Vertragsversion: 2026-05-v1 · Pflichtfelder markiert mit <span className="text-[#ef4444]">*</span>
+      </p>
+    </div>
+  );
+}
+
 // ─── Build profile from wizard data ──────────────────────────────────────────
 
 function buildProfile(d: WizardData): AthleteProfile {
@@ -1077,16 +1324,14 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
       if (!data.email.trim() || !data.email.includes("@")) return "Bitte gib eine gültige E-Mail-Adresse ein.";
       if (data.pin.length < 4) return "Die PIN muss mindestens 4 Zeichen lang sein.";
       if (data.pin !== data.pinConfirm) return "Die PINs stimmen nicht überein.";
-      try {
-        const athletes = loadAthletes();
-        const exists = athletes.some((a) =>
-          (a.email || a.profile?.personal?.email || "").toLowerCase() === data.email.toLowerCase()
-        );
-        if (exists) return "Diese E-Mail-Adresse ist bereits registriert.";
-      } catch { /* ignore */ }
+      // Email uniqueness is validated async in registerAthlete — skip sync check here
     }
     if (step === 11) {
       if (!data.confirmed) return "Bitte bestätige, dass du die Angaben ausgefüllt hast.";
+    }
+    if (step === 12) {
+      if (!data.privacyAccepted || !data.contractAccepted)
+        return "Bitte bestätige zuerst Datenschutzerklärung und Coaching-Vertrag.";
     }
     return "";
   }
@@ -1115,7 +1360,7 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
     }
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     setSubmitting(true);
     setError("");
     try {
@@ -1126,7 +1371,8 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
         "Sehr fortgeschritten": "advanced",
         "Wettkampferfahren": "elite",
       };
-      const athlete = registerAthlete({
+      const now = new Date().toISOString();
+      const athlete = await registerAthlete({
         name: data.name.trim(),
         email: data.email.trim(),
         pin: data.pin,
@@ -1141,6 +1387,15 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
         goalPriorities: data.priorities,
         goalText: data.shortTermGoal || data.longTermGoal || undefined,
         profile: buildProfile(data),
+        legalConsent: {
+          privacyAccepted: data.privacyAccepted,
+          privacyAcceptedAt: now,
+          contractAccepted: data.contractAccepted,
+          contractAcceptedAt: now,
+          signatureDataUrl: data.signatureDataUrl || undefined,
+          signedName: data.signedName.trim() || undefined,
+          legalVersion: "2026-05-v1",
+        },
       });
       setCompletedAthleteId(athlete.id);
       setPhase("complete");
@@ -1282,6 +1537,7 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
     <Step9 key={9} d={data} u={update} />,
     <Step10 key={10} d={data} u={update} />,
     <Step11 key={11} d={data} u={update} />,
+    <Step12 key={12} d={data} u={update} />,
   ];
 
   return (
@@ -1327,8 +1583,11 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
                 <ArrowLeft size={15} /> Zurück
               </button>
             )}
-            <button onClick={handleNext} disabled={submitting}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] disabled:opacity-60 transition-colors">
+            <button
+              onClick={handleNext}
+              disabled={submitting || (step === STEPS.length && (!data.privacyAccepted || !data.contractAccepted))}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
               {step === STEPS.length
                 ? <><Check size={15} /> Registrierung abschließen</>
                 : <>Weiter geht&apos;s <ArrowRight size={15} /></>}

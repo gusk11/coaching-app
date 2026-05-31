@@ -315,7 +315,7 @@ export default function SupplementDatabase() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "coach") router.replace("/login");
-    setItems(loadSupplementDB());
+    loadSupplementDB().then(setItems);
   }, [router]);
 
   const filtered = items.filter((s) => {
@@ -328,13 +328,13 @@ export default function SupplementDatabase() {
     return matchCat && matchSearch;
   });
 
-  function handleSave(data: Partial<SupplementDBItem>) {
+  async function handleSave(data: Partial<SupplementDBItem>) {
     const prevItems = [...items];
     try {
       if (editing?.id) {
-        setItems(updateSupplementDBItem(editing.id, data));
+        setItems(await updateSupplementDBItem(editing.id, data));
       } else {
-        setItems(addSupplementDBItem(data as Omit<SupplementDBItem, "id" | "createdAt" | "updatedAt">));
+        setItems(await addSupplementDBItem(data as Omit<SupplementDBItem, "id" | "createdAt" | "updatedAt">));
       }
       setEditing(null);
       showToast("Supplement gespeichert.", "success");
@@ -344,13 +344,12 @@ export default function SupplementDatabase() {
     }
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     const prevItems = [...items];
-    // Optimistic: remove immediately after confirmation
     setItems((prev) => prev.filter((s) => s.id !== id));
     setConfirmDelete(null);
     try {
-      deleteSupplementDBItem(id);
+      await deleteSupplementDBItem(id);
     } catch {
       setItems(prevItems);
       showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");

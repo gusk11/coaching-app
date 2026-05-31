@@ -46,10 +46,11 @@ export default function AthleteDashboard() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "athlete" || !auth.athleteId) { router.replace("/login"); return; }
-    const athletes = loadAthletes();
-    const found = athletes.find((a) => a.id === auth.athleteId);
-    if (!found) { router.replace("/login"); return; }
-    setAthlete(found);
+    loadAthletes().then((athletes) => {
+      const found = athletes.find((a) => a.id === auth.athleteId);
+      if (!found) { router.replace("/login"); return; }
+      setAthlete(found);
+    });
   }, [router]);
 
   const today = useMemo(() => todayISO(), []);
@@ -93,17 +94,15 @@ export default function AthleteDashboard() {
   }
 
 
-  function handleCheckInSubmit(data: any) {
-    const updated = addDailyCheckIn(athlete!.id, data);
-    const freshAthlete = updated.find((a) => a.id === athlete!.id)!;
-    setAthlete(freshAthlete);
+  async function handleCheckInSubmit(data: any) {
+    const updated = await addDailyCheckIn(athlete!.id, data);
+    setAthlete(updated.find((a) => a.id === athlete!.id)!);
     setShowCheckIn(false);
   }
 
-  function handleBackfillSubmit(data: any) {
-    const updated = addDailyCheckIn(athlete!.id, data);
-    const freshAthlete = updated.find((a) => a.id === athlete!.id)!;
-    setAthlete(freshAthlete);
+  async function handleBackfillSubmit(data: any) {
+    const updated = await addDailyCheckIn(athlete!.id, data);
+    setAthlete(updated.find((a) => a.id === athlete!.id)!);
     setShowBackfill(false);
   }
 

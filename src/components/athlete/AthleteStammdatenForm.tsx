@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import {
   Athlete, DailyCheckConfig, DEFAULT_DAILY_CHECK_CONFIG,
-  ExperienceLevel, GoalType, ProgressImage, TrackingDevice,
+  ExperienceLevel, GoalType, LegalConsent, ProgressImage, TrackingDevice,
 } from "@/types";
 import { cn, getGoalLabel } from "@/lib/utils";
 import { Upload, Trash2, Pencil, Check, X } from "lucide-react";
@@ -110,6 +110,53 @@ function DataRow({ label, value }: { label: string; value?: string | number | nu
     <div className="flex justify-between items-start gap-3 py-2 border-b border-[#1e2d42]/60 last:border-0">
       <span className="text-xs text-[#5a7090] shrink-0">{label}</span>
       <span className="text-sm text-[#f0f4ff] text-right">{display}</span>
+    </div>
+  );
+}
+
+function LegalSection({ consent, coachMode = false }: { consent?: LegalConsent; coachMode?: boolean }) {
+  if (!consent) {
+    return (
+      <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-2">
+        <SectionHeader>Rechtliches</SectionHeader>
+        <p className="text-sm text-[#5a7090]">Keine Zustimmungsdaten vorhanden.</p>
+      </div>
+    );
+  }
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleString("de-DE", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+  return (
+    <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
+      <SectionHeader>Rechtliches</SectionHeader>
+      <DataRow
+        label="Datenschutzerklärung"
+        value={consent.privacyAccepted ? `Akzeptiert am ${fmtDate(consent.privacyAcceptedAt)}` : "Nicht akzeptiert"}
+      />
+      <DataRow
+        label="Coaching-Vertrag"
+        value={consent.contractAccepted ? `Akzeptiert am ${fmtDate(consent.contractAcceptedAt)}` : "Nicht akzeptiert"}
+      />
+      <DataRow label="Vertragsversion" value={consent.legalVersion} />
+      {consent.signedName && <DataRow label="Bestätigungsname" value={consent.signedName} />}
+      {coachMode && consent.signatureDataUrl && (
+        <div className="flex flex-col gap-1.5 pt-1">
+          <span className="text-xs text-[#5a7090]">Digitale Unterschrift</span>
+          <div className="rounded-xl border border-[#2e4060] bg-[#0a0f1a] overflow-hidden p-2">
+            <img src={consent.signatureDataUrl} alt="Unterschrift" className="max-h-[80px] w-auto" />
+          </div>
+        </div>
+      )}
+      {!coachMode && consent.signatureDataUrl && (
+        <div className="flex flex-col gap-1.5 pt-1">
+          <span className="text-xs text-[#5a7090]">Digitale Unterschrift</span>
+          <div className="rounded-xl border border-[#2e4060] bg-[#0a0f1a] overflow-hidden p-2">
+            <img src={consent.signatureDataUrl} alt="Unterschrift" className="max-h-[80px] w-auto" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -523,6 +570,9 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
           </div>
         ) : null}
 
+        {/* Rechtliches */}
+        {!editing && <LegalSection consent={athlete.legalConsent} />}
+
         {/* Bottom save/cancel */}
         {editing && (
           <div className="flex gap-3">
@@ -612,6 +662,9 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
           </div>
         </div>
       )}
+
+      {/* Rechtliches */}
+      <LegalSection consent={athlete.legalConsent} coachMode />
 
       <button type="button" onClick={handleSave}
         className="w-full py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors flex items-center justify-center gap-2"

@@ -120,22 +120,23 @@ export function AppShell({ children, role, title }: AppShellProps) {
     if (role !== "athlete") return;
     const auth = loadAuth();
     if (!auth.athleteId) return;
-    const athlete = loadAthletes().find((a) => a.id === auth.athleteId);
-    if (!athlete) return;
-
-    const today = todayISO();
-    const dailyDone = athlete.dailyCheckIns.some((c) => c.date === today);
-    const { start: weekStart } = getWeekDates(today);
-    const weeklyDone = athlete.weeklyCheckIns.some((w) => w.weekStart === weekStart);
-    const isWeeklyDay = isCheckInDay(athlete.checkInDay);
-
-    setHasPendingCheckins(!dailyDone || (isWeeklyDay && !weeklyDone));
+    loadAthletes().then((athletes) => {
+      const athlete = athletes.find((a) => a.id === auth.athleteId);
+      if (!athlete) return;
+      const today = todayISO();
+      const dailyDone = athlete.dailyCheckIns.some((c) => c.date === today);
+      const { start: weekStart } = getWeekDates(today);
+      const weeklyDone = athlete.weeklyCheckIns.some((w) => w.weekStart === weekStart);
+      const isWeeklyDay = isCheckInDay(athlete.checkInDay);
+      setHasPendingCheckins(!dailyDone || (isWeeklyDay && !weeklyDone));
+    });
   }, [role, pathname]);
 
   useEffect(() => {
     if (role !== "coach") return;
-    const count = loadLoginHelpRequests().filter((r) => r.status === "open").length;
-    setOpenLoginHelpCount(count);
+    loadLoginHelpRequests().then((requests) => {
+      setOpenLoginHelpCount(requests.filter((r) => r.status === "open").length);
+    });
   }, [role, pathname]);
 
   function handleLogout() {

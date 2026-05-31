@@ -121,12 +121,12 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
 
   function cancelDelete() { setConfirmDeleteId(null); }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!confirmDeleteId) return;
     const id = confirmDeleteId;
     setConfirmDeleteId(null);
     try {
-      const athletes = deleteTrainingLog(athleteId, id);
+      const athletes = await deleteTrainingLog(athleteId, id);
       onUpdate(athletes);
     } catch {
       showToast("Training konnte nicht gelöscht werden.", "error");
@@ -140,13 +140,13 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
 
   function cancelEdit() { setEditState(null); }
 
-  function saveEdit() {
+  async function saveEdit() {
     if (!editState) return;
     const original = trainingLogs.find((l) => l.id === editState.logId);
     if (!original) return;
     const updated = editStateToLog(editState, original);
     try {
-      const athletes = updateTrainingLog(athleteId, updated);
+      const athletes = await updateTrainingLog(athleteId, updated);
       onUpdate(athletes);
       setEditState(null);
       showToast("Training gespeichert.", "success");

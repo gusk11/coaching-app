@@ -18,9 +18,11 @@ export default function CalorieTrackerPage() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "athlete" || !auth.athleteId) { router.replace("/login"); return; }
-    const found = loadAthletes().find((a) => a.id === auth.athleteId);
-    if (!found) { router.replace("/login"); return; }
-    setAthlete(found);
+    loadAthletes().then((athletes) => {
+      const found = athletes.find((a) => a.id === auth.athleteId);
+      if (!found) { router.replace("/login"); return; }
+      setAthlete(found);
+    });
   }, [router]);
 
   if (!athlete) {
@@ -46,9 +48,9 @@ export default function CalorieTrackerPage() {
     setDate(d.toISOString().slice(0, 10));
   }
 
-  function handleSave(day: Parameters<typeof saveCalorieTrackerDay>[1]) {
+  async function handleSave(day: Parameters<typeof saveCalorieTrackerDay>[1]) {
     try {
-      const updated = saveCalorieTrackerDay(athlete!.id, day);
+      const updated = await saveCalorieTrackerDay(athlete!.id, day);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
     } catch {
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");

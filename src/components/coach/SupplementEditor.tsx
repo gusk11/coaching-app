@@ -42,7 +42,7 @@ export function SupplementEditor({ plan, athleteId, onSave }: Props) {
   const [individualDosage, setIndividualDosage] = useState("");
 
   useEffect(() => {
-    setSupplementDB(loadSupplementDB());
+    loadSupplementDB().then(setSupplementDB);
   }, []);
 
   const filteredDB = supplementDB.filter((item) =>

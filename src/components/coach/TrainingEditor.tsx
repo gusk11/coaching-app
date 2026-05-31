@@ -239,7 +239,7 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState<{ dayId: string; exId: string } | null>(null);
 
   useEffect(() => {
-    setDbExercises(loadExerciseDB());
+    loadExerciseDB().then(setDbExercises);
   }, []);
 
   function toggleDay(id: string) {

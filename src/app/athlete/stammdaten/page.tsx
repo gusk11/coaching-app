@@ -15,9 +15,11 @@ export default function AthleteStammdatenPage() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "athlete" || !auth.athleteId) { router.replace("/login"); return; }
-    const found = loadAthletes().find((a) => a.id === auth.athleteId);
-    if (!found) { router.replace("/login"); return; }
-    setAthlete(found);
+    loadAthletes().then((athletes) => {
+      const found = athletes.find((a) => a.id === auth.athleteId);
+      if (!found) { router.replace("/login"); return; }
+      setAthlete(found);
+    });
   }, [router]);
 
   if (!athlete) {
@@ -39,10 +41,10 @@ export default function AthleteStammdatenPage() {
     );
   }
 
-  function handleSave(updates: Partial<Athlete>) {
+  async function handleSave(updates: Partial<Athlete>) {
     const previous = athlete;
     try {
-      const updated = updateAthlete(athlete!.id, updates);
+      const updated = await updateAthlete(athlete!.id, updates);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
     } catch {
       setAthlete(previous);

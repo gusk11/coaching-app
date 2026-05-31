@@ -47,9 +47,11 @@ export default function CheckInsPage() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "athlete" || !auth.athleteId) { router.replace("/login"); return; }
-    const found = loadAthletes().find((a) => a.id === auth.athleteId);
-    if (!found) { router.replace("/login"); return; }
-    setAthlete(found);
+    loadAthletes().then((athletes) => {
+      const found = athletes.find((a) => a.id === auth.athleteId);
+      if (!found) { router.replace("/login"); return; }
+      setAthlete(found);
+    });
   }, [router]);
 
   if (!athlete) {
@@ -80,9 +82,9 @@ export default function CheckInsPage() {
   const alreadyDoneThisWeek = !!existingWeekly;
   const isWeeklyDay = isCheckInDay(athlete.checkInDay);
 
-  function handleDailySubmit(data: any) {
+  async function handleDailySubmit(data: any) {
     try {
-      const updated = addDailyCheckIn(athlete!.id, data);
+      const updated = await addDailyCheckIn(athlete!.id, data);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setShowCheckIn(false);
       showToast("Daily Check-in gespeichert.", "success");
@@ -91,9 +93,9 @@ export default function CheckInsPage() {
     }
   }
 
-  function handleBackfillSubmit(data: any) {
+  async function handleBackfillSubmit(data: any) {
     try {
-      const updated = addDailyCheckIn(athlete!.id, data);
+      const updated = await addDailyCheckIn(athlete!.id, data);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setShowBackfill(false);
       showToast("Check-in nachgetragen.", "success");
@@ -102,9 +104,9 @@ export default function CheckInsPage() {
     }
   }
 
-  function handleWeeklySubmit(data: any) {
+  async function handleWeeklySubmit(data: any) {
     try {
-      const updated = addWeeklyCheckIn(athlete!.id, data);
+      const updated = await addWeeklyCheckIn(athlete!.id, data);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setEditing(false);
       showToast("Weekly Check-in gespeichert.", "success");

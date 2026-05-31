@@ -1,106 +1,206 @@
 "use client";
+import { supabase } from "@/lib/supabase";
 import { athletes as initialAthletes } from "@/data/athletes";
 import { foodItems as baseFoodItems } from "@/data/foodItems";
 import { seedCustomFoods } from "@/data/seedCustomFoods";
 import { seedSupplementDB } from "@/data/seedSupplements";
 import { seedExerciseDB } from "@/data/seedExercises";
-import { Athlete, AthleteProfile, DailyCheckIn, WeeklyCheckIn, WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay, FoodItem, SupplementDBItem, ExerciseDBItem, GoalType, DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest } from "@/types";
-import { todayISO } from "./utils";
+import {
+  Athlete, AthleteProfile, LegalConsent, DailyCheckIn, WeeklyCheckIn,
+  WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay,
+  FoodItem, SupplementDBItem, ExerciseDBItem, GoalType,
+  DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest,
+} from "@/types";
 
-const STORAGE_KEY = "coachOS_athletes";
 const AUTH_KEY = "coachOS_auth";
-const CUSTOM_FOODS_KEY = "coachOS_customFoods";
-const DEACTIVATED_FOODS_KEY = "coachOS_deactivatedFoods";
-const SUPPLEMENT_DB_KEY = "coachOS_supplementDB";
-const EXERCISE_DB_KEY = "coachOS_exerciseDB";
 const CHECK_IN_DONE_KEY = "coachOS_checkInDone";
 const ACTIVE_SESSION_KEY = "coachOS_activeSession";
-const SEED_VERSION_KEY = "coachOS_seedVersion";
-// Bump this string whenever seed data changes to force a localStorage reset.
-const SEED_VERSION = "2026-05-30-v2";
 
-const FOOD_SEED_VERSION_KEY = "coachOS_foodSeedVersion";
-// Bump when foodItems.ts seed data changes to clear custom/deactivated food state.
-const FOOD_SEED_VERSION = "2026-05-30-v2";
+// ─── Row Mappers ──────────────────────────────────────────────────────────────
 
-const SUPPLEMENT_SEED_VERSION_KEY = "coachOS_supplementSeedVersion";
-const SUPPLEMENT_SEED_VERSION = "2026-05-30-v1";
-
-const EXERCISE_SEED_VERSION_KEY = "coachOS_exerciseSeedVersion";
-const EXERCISE_SEED_VERSION = "2026-05-30-v1";
-
-export function loadAthletes(): Athlete[] {
-  if (typeof window === "undefined") return initialAthletes;
-  try {
-    // Auto-reset if seed data has been updated
-    if (localStorage.getItem(SEED_VERSION_KEY) !== SEED_VERSION) {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION);
-    }
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const athletes: Athlete[] = stored ? JSON.parse(stored) : initialAthletes;
-    // Migrate legacy singular mealPlan → mealPlans[]
-    return athletes.map((a) => {
-      if (!a.mealPlans?.length && a.mealPlan) {
-        return { ...a, mealPlans: [a.mealPlan] };
-      }
-      return a;
-    });
-  } catch {
-    return initialAthletes;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToAthlete(row: any): Athlete {
+  // legalConsent is embedded in profile JSONB under __lc to avoid an extra column
+  const rawProfile = row.profile ?? undefined;
+  const legalConsent: LegalConsent | undefined = rawProfile?.__lc ?? undefined;
+  let profile: AthleteProfile | undefined;
+  if (rawProfile) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { __lc, ...rest } = rawProfile;
+    profile = Object.keys(rest).length ? (rest as AthleteProfile) : undefined;
   }
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email ?? undefined,
+    pin: row.pin,
+    avatarInitials: row.avatar_initials ?? "",
+    onboardingCompleted: row.onboarding_completed ?? false,
+    legalConsent,
+    profile,
+    profileImage: row.profile_image ?? undefined,
+    startWeight: row.start_weight ?? 0,
+    currentWeight: row.current_weight ?? 0,
+    targetWeight: row.target_weight ?? 0,
+    goalType: row.goal_type ?? "maintenance",
+    goalText: row.goal_text ?? undefined,
+    checkInDay: row.check_in_day ?? 1,
+    height: row.height ?? undefined,
+    startDate: row.start_date ?? undefined,
+    competitionDate: row.competition_date ?? undefined,
+    experienceLevel: row.experience_level ?? undefined,
+    trainingHistory: row.training_history ?? undefined,
+    injuries: row.injuries ?? undefined,
+    specialNotes: row.special_notes ?? undefined,
+    trackingDevice: row.tracking_device ?? undefined,
+    trackingDeviceCustom: row.tracking_device_custom ?? undefined,
+    dailyCheckConfig: row.daily_check_config ?? { ...DEFAULT_DAILY_CHECK_CONFIG },
+    coachNote: row.coach_note ?? "",
+    visibleNote: row.visible_note ?? "",
+    dailyCheckIns: row.daily_check_ins ?? [],
+    weeklyCheckIns: row.weekly_check_ins ?? [],
+    weeklyAdjustments: row.weekly_adjustments ?? [],
+    trainingLogs: row.training_logs ?? [],
+    calorieTrackerDays: row.calorie_tracker_days ?? [],
+    mealPlans: row.meal_plans ?? [],
+    trainingPlan: row.training_plan ?? undefined,
+    supplementPlan: row.supplement_plan ?? undefined,
+    notes: row.notes ?? [],
+    joinedAt: row.joined_at ?? new Date().toISOString().split("T")[0],
+    weeklyTrendTargetPercent: row.weekly_trend_target_percent ?? undefined,
+  };
 }
 
-export function saveAthletes(athletes: Athlete[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(athletes));
+function athleteToRow(a: Athlete): Record<string, unknown> {
+  // Embed legalConsent in profile JSONB under __lc
+  const profileWithLegal = a.legalConsent
+    ? { ...(a.profile ?? {}), __lc: a.legalConsent }
+    : (a.profile ?? null);
+  return {
+    id: a.id,
+    name: a.name,
+    email: a.email ?? null,
+    pin: a.pin,
+    avatar_initials: a.avatarInitials ?? null,
+    onboarding_completed: a.onboardingCompleted ?? false,
+    profile: profileWithLegal,
+    profile_image: a.profileImage ?? null,
+    start_weight: a.startWeight ?? null,
+    current_weight: a.currentWeight ?? null,
+    target_weight: a.targetWeight ?? null,
+    goal_type: a.goalType ?? null,
+    goal_text: a.goalText ?? null,
+    check_in_day: a.checkInDay ?? 1,
+    height: a.height ?? null,
+    start_date: a.startDate ?? null,
+    competition_date: a.competitionDate ?? null,
+    experience_level: a.experienceLevel ?? null,
+    training_history: a.trainingHistory ?? null,
+    injuries: a.injuries ?? null,
+    special_notes: a.specialNotes ?? null,
+    tracking_device: a.trackingDevice ?? null,
+    tracking_device_custom: a.trackingDeviceCustom ?? null,
+    daily_check_config: a.dailyCheckConfig ?? null,
+    coach_note: a.coachNote ?? "",
+    visible_note: a.visibleNote ?? "",
+    daily_check_ins: a.dailyCheckIns ?? [],
+    weekly_check_ins: a.weeklyCheckIns ?? [],
+    weekly_adjustments: a.weeklyAdjustments ?? [],
+    training_logs: a.trainingLogs ?? [],
+    calorie_tracker_days: a.calorieTrackerDays ?? [],
+    meal_plans: a.mealPlans ?? [],
+    training_plan: a.trainingPlan ?? null,
+    supplement_plan: a.supplementPlan ?? null,
+    notes: a.notes ?? [],
+    joined_at: a.joinedAt ?? null,
+    weekly_trend_target_percent: a.weeklyTrendTargetPercent ?? null,
+  };
 }
 
-export function addDailyCheckIn(
-  athleteId: string,
-  checkIn: Omit<DailyCheckIn, "id" | "athleteId">
-): Athlete[] {
-  const athletes = loadAthletes();
-  const updated = athletes.map((a) => {
-    if (a.id !== athleteId) return a;
-    const newCheckIn: DailyCheckIn = {
-      ...checkIn,
-      id: `dc-${athleteId}-${Date.now()}`,
-      athleteId,
-    };
-    const filtered = a.dailyCheckIns.filter((c) => c.date !== checkIn.date);
-    return {
-      ...a,
-      currentWeight: checkIn.weight,
-      dailyCheckIns: [...filtered, newCheckIn].sort((x, y) =>
-        x.date.localeCompare(y.date)
-      ),
-    };
-  });
-  saveAthletes(updated);
-  return updated;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToFoodItem(row: any): FoodItem {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category ?? "",
+    kcalPer100g: row.kcal_per_100g ?? 0,
+    proteinPer100g: row.protein_per_100g ?? 0,
+    carbsPer100g: row.carbs_per_100g ?? 0,
+    fatPer100g: row.fat_per_100g ?? 0,
+    fiberPer100g: row.fiber_per_100g ?? 0,
+    saltPer100g: row.salt_per_100g ?? 0,
+    defaultAmount: row.default_amount ?? undefined,
+    defaultAmountUnit: row.default_amount_unit ?? undefined,
+    servingLabel: row.serving_label ?? undefined,
+    notes: row.notes ?? undefined,
+    isCustomFood: true,
+    isActive: row.is_active ?? true,
+    createdAt: row.created_at ?? undefined,
+    updatedAt: row.updated_at ?? undefined,
+  };
 }
 
-export function addWeeklyCheckIn(
-  athleteId: string,
-  checkIn: Omit<WeeklyCheckIn, "id" | "athleteId">
-): Athlete[] {
-  const athletes = loadAthletes();
-  const updated = athletes.map((a) => {
-    if (a.id !== athleteId) return a;
-    const newCheckIn: WeeklyCheckIn = {
-      ...checkIn,
-      id: `wc-${athleteId}-${Date.now()}`,
-      athleteId,
-    };
-    const filtered = a.weeklyCheckIns.filter(
-      (c) => c.weekStart !== checkIn.weekStart
-    );
-    return { ...a, weeklyCheckIns: [...filtered, newCheckIn] };
-  });
-  saveAthletes(updated);
-  return updated;
+function foodItemToRow(f: FoodItem): Record<string, unknown> {
+  return {
+    id: f.id,
+    name: f.name,
+    category: f.category ?? null,
+    kcal_per_100g: f.kcalPer100g ?? null,
+    protein_per_100g: f.proteinPer100g ?? null,
+    carbs_per_100g: f.carbsPer100g ?? null,
+    fat_per_100g: f.fatPer100g ?? null,
+    fiber_per_100g: f.fiberPer100g ?? null,
+    salt_per_100g: f.saltPer100g ?? null,
+    default_amount: f.defaultAmount ?? null,
+    default_amount_unit: f.defaultAmountUnit ?? null,
+    serving_label: f.servingLabel ?? null,
+    notes: f.notes ?? null,
+    is_active: f.isActive ?? true,
+  };
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToSupplement(row: any): SupplementDBItem {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category ?? undefined,
+    standardDosage: row.standard_dosage ?? "",
+    timing: row.timing ?? "",
+    instructions: row.instructions ?? "",
+    notes: row.notes ?? undefined,
+    link: row.link ?? undefined,
+    createdAt: row.created_at ?? undefined,
+    updatedAt: row.updated_at ?? undefined,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToExercise(row: any): ExerciseDBItem {
+  return {
+    id: row.id,
+    name: row.name,
+    muscleGroup: row.muscle_group ?? "",
+    equipment: row.equipment ?? undefined,
+    notes: row.notes ?? undefined,
+    executionLink: row.execution_link ?? undefined,
+    createdAt: row.created_at ?? undefined,
+    updatedAt: row.updated_at ?? undefined,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToLoginHelpRequest(row: any): LoginHelpRequest {
+  return {
+    id: row.id,
+    enteredName: row.entered_name,
+    note: row.note ?? undefined,
+    requestedAt: row.requested_at,
+    status: row.status,
+  };
+}
+
+// ─── Auth (sync / localStorage) ──────────────────────────────────────────────
 
 export function loadAuth(): { role: string | null; athleteId: string | null } {
   if (typeof window === "undefined") return { role: null, athleteId: null };
@@ -122,19 +222,76 @@ export function clearAuth() {
   localStorage.removeItem(AUTH_KEY);
 }
 
-export function updateAthlete(id: string, updates: Partial<Athlete>): Athlete[] {
-  const athletes = loadAthletes();
-  const updated = athletes.map((a) => (a.id === id ? { ...a, ...updates } : a));
-  saveAthletes(updated);
-  return updated;
+// ─── Athletes ─────────────────────────────────────────────────────────────────
+
+export async function loadAthletes(): Promise<Athlete[]> {
+  const { data, error } = await supabase.from("athletes").select("*").order("name");
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    const rows = initialAthletes.map(athleteToRow);
+    const { error: seedError } = await supabase.from("athletes").insert(rows);
+    if (seedError) console.error("Seed athletes error:", seedError);
+    return initialAthletes;
+  }
+  return data.map(rowToAthlete);
 }
 
-export function addAthlete(athlete: Athlete): Athlete[] {
-  const athletes = loadAthletes();
-  const updated = [...athletes, athlete];
-  saveAthletes(updated);
-  return updated;
+export async function addAthlete(athlete: Athlete): Promise<Athlete[]> {
+  const { error } = await supabase.from("athletes").insert(athleteToRow(athlete));
+  if (error) throw error;
+  return loadAthletes();
 }
+
+export async function updateAthlete(id: string, updates: Partial<Athlete>): Promise<Athlete[]> {
+  const row: Record<string, unknown> = {};
+  if ("name" in updates) row.name = updates.name;
+  if ("email" in updates) row.email = updates.email ?? null;
+  if ("pin" in updates) row.pin = updates.pin;
+  if ("avatarInitials" in updates) row.avatar_initials = updates.avatarInitials ?? null;
+  if ("onboardingCompleted" in updates) row.onboarding_completed = updates.onboardingCompleted;
+  if ("legalConsent" in updates || "profile" in updates) {
+    // Merge legalConsent back into profile JSONB
+    const p = updates.profile ?? undefined;
+    const lc = updates.legalConsent ?? undefined;
+    row.profile = lc ? { ...(p ?? {}), __lc: lc } : (p ?? null);
+  }
+  if ("profileImage" in updates) row.profile_image = updates.profileImage ?? null;
+  if ("startWeight" in updates) row.start_weight = updates.startWeight ?? null;
+  if ("currentWeight" in updates) row.current_weight = updates.currentWeight ?? null;
+  if ("targetWeight" in updates) row.target_weight = updates.targetWeight ?? null;
+  if ("goalType" in updates) row.goal_type = updates.goalType ?? null;
+  if ("goalText" in updates) row.goal_text = updates.goalText ?? null;
+  if ("checkInDay" in updates) row.check_in_day = updates.checkInDay;
+  if ("height" in updates) row.height = updates.height ?? null;
+  if ("startDate" in updates) row.start_date = updates.startDate ?? null;
+  if ("competitionDate" in updates) row.competition_date = updates.competitionDate ?? null;
+  if ("experienceLevel" in updates) row.experience_level = updates.experienceLevel ?? null;
+  if ("trainingHistory" in updates) row.training_history = updates.trainingHistory ?? null;
+  if ("injuries" in updates) row.injuries = updates.injuries ?? null;
+  if ("specialNotes" in updates) row.special_notes = updates.specialNotes ?? null;
+  if ("trackingDevice" in updates) row.tracking_device = updates.trackingDevice ?? null;
+  if ("trackingDeviceCustom" in updates) row.tracking_device_custom = updates.trackingDeviceCustom ?? null;
+  if ("dailyCheckConfig" in updates) row.daily_check_config = updates.dailyCheckConfig ?? null;
+  if ("coachNote" in updates) row.coach_note = updates.coachNote;
+  if ("visibleNote" in updates) row.visible_note = updates.visibleNote;
+  if ("dailyCheckIns" in updates) row.daily_check_ins = updates.dailyCheckIns ?? [];
+  if ("weeklyCheckIns" in updates) row.weekly_check_ins = updates.weeklyCheckIns ?? [];
+  if ("weeklyAdjustments" in updates) row.weekly_adjustments = updates.weeklyAdjustments ?? [];
+  if ("trainingLogs" in updates) row.training_logs = updates.trainingLogs ?? [];
+  if ("calorieTrackerDays" in updates) row.calorie_tracker_days = updates.calorieTrackerDays ?? [];
+  if ("mealPlans" in updates) row.meal_plans = updates.mealPlans ?? [];
+  if ("trainingPlan" in updates) row.training_plan = updates.trainingPlan ?? null;
+  if ("supplementPlan" in updates) row.supplement_plan = updates.supplementPlan ?? null;
+  if ("notes" in updates) row.notes = updates.notes ?? [];
+  if ("joinedAt" in updates) row.joined_at = updates.joinedAt ?? null;
+  if ("weeklyTrendTargetPercent" in updates) row.weekly_trend_target_percent = updates.weeklyTrendTargetPercent ?? null;
+  row.updated_at = new Date().toISOString();
+  const { error } = await supabase.from("athletes").update(row).eq("id", id);
+  if (error) throw error;
+  return loadAthletes();
+}
+
+// ─── Registration & Login ─────────────────────────────────────────────────────
 
 function getInitials(name: string): string {
   return name.trim().split(/\s+/).map((w) => w[0]?.toUpperCase() ?? "").slice(0, 2).join("");
@@ -162,17 +319,18 @@ export interface RegistrationData {
   profile: AthleteProfile;
   goalPriorities?: string[];
   goalText?: string;
+  legalConsent?: LegalConsent;
 }
 
-export function registerAthlete(data: RegistrationData): Athlete {
-  const athletes = loadAthletes();
-  const emailExists = athletes.some(
-    (a) => (a.email || a.profile?.personal?.email || "").toLowerCase() === data.email.toLowerCase()
-  );
-  if (emailExists) throw new Error("E-Mail-Adresse bereits registriert.");
+export async function registerAthlete(data: RegistrationData): Promise<Athlete> {
+  const { data: existing, error: checkError } = await supabase
+    .from("athletes")
+    .select("id")
+    .ilike("email", data.email.trim());
+  if (checkError) throw checkError;
+  if (existing && existing.length > 0) throw new Error("E-Mail-Adresse bereits registriert.");
 
-  const now = new Date().toISOString();
-  const today = now.split("T")[0];
+  const today = new Date().toISOString().split("T")[0];
   const weight = data.currentWeight ?? 0;
   const newAthlete: Athlete = {
     id: `athlete-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -181,6 +339,7 @@ export function registerAthlete(data: RegistrationData): Athlete {
     pin: data.pin,
     avatarInitials: getInitials(data.name),
     onboardingCompleted: true,
+    legalConsent: data.legalConsent,
     profile: { ...data.profile, personal: { email: data.email.toLowerCase().trim(), birthDate: data.birthDate } },
     startWeight: weight,
     currentWeight: weight,
@@ -204,165 +363,208 @@ export function registerAthlete(data: RegistrationData): Athlete {
     notes: [],
     joinedAt: today,
   };
-  saveAthletes([...athletes, newAthlete]);
+  const { error } = await supabase.from("athletes").insert(athleteToRow(newAthlete));
+  if (error) throw error;
   return newAthlete;
 }
-
 
 function normalizeLoginName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, "");
 }
 
-export function findAthleteByLogin(nameOrEmail: string, pin: string): Athlete | null {
-  const athletes = loadAthletes();
+export async function findAthleteByLogin(nameOrEmail: string, pin: string): Promise<Athlete | null> {
+  const { data, error } = await supabase.from("athletes").select("*");
+  if (error) throw error;
+  if (!data) return null;
   const key = nameOrEmail.trim().toLowerCase();
   const keyNorm = normalizeLoginName(nameOrEmail);
-  return athletes.find((a) => {
+  return data.map(rowToAthlete).find((a) => {
     const emailMatch = (a.email || a.profile?.personal?.email || "").toLowerCase() === key;
     const nameMatch = normalizeLoginName(a.name) === keyNorm;
     return (emailMatch || nameMatch) && a.pin === pin;
   }) ?? null;
 }
 
-export function addWeeklyAdjustment(
+export async function updateAthleteCredentials(
+  athleteId: string,
+  updates: { name?: string; email?: string; pin?: string }
+): Promise<Athlete[]> {
+  const { data, error: fetchError } = await supabase
+    .from("athletes").select("*").eq("id", athleteId).single();
+  if (fetchError) throw fetchError;
+  const current = rowToAthlete(data);
+  const newName = updates.name?.trim() ?? current.name;
+  const newEmail = updates.email?.toLowerCase().trim() ?? current.email ?? "";
+  const newPin = updates.pin?.trim() ?? current.pin;
+  const newInitials = newName.split(/\s+/).map((w) => w[0]?.toUpperCase() ?? "").slice(0, 2).join("");
+  const updatedProfile = current.profile
+    ? { ...current.profile, personal: { ...current.profile.personal, email: newEmail || undefined } }
+    : undefined;
+  const profileWithLegal = current.legalConsent
+    ? { ...(updatedProfile ?? {}), __lc: current.legalConsent }
+    : (updatedProfile ?? null);
+  const { error } = await supabase.from("athletes").update({
+    name: newName,
+    email: newEmail || null,
+    pin: newPin,
+    avatar_initials: updates.name ? newInitials : current.avatarInitials,
+    profile: profileWithLegal,
+    updated_at: new Date().toISOString(),
+  }).eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
+// ─── JSONB array mutation helpers ─────────────────────────────────────────────
+
+async function getAthlete(id: string): Promise<Athlete> {
+  const { data, error } = await supabase.from("athletes").select("*").eq("id", id).single();
+  if (error) throw error;
+  return rowToAthlete(data);
+}
+
+export async function addDailyCheckIn(
+  athleteId: string,
+  checkIn: Omit<DailyCheckIn, "id" | "athleteId">
+): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const newCheckIn: DailyCheckIn = { ...checkIn, id: `dc-${athleteId}-${Date.now()}`, athleteId };
+  const filtered = a.dailyCheckIns.filter((c) => c.date !== checkIn.date);
+  const daily_check_ins = [...filtered, newCheckIn].sort((x, y) => x.date.localeCompare(y.date));
+  const { error } = await supabase.from("athletes")
+    .update({ daily_check_ins, current_weight: checkIn.weight, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
+export async function addWeeklyCheckIn(
+  athleteId: string,
+  checkIn: Omit<WeeklyCheckIn, "id" | "athleteId">
+): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const newCheckIn: WeeklyCheckIn = { ...checkIn, id: `wc-${athleteId}-${Date.now()}`, athleteId };
+  const filtered = a.weeklyCheckIns.filter((c) => c.weekStart !== checkIn.weekStart);
+  const weekly_check_ins = [...filtered, newCheckIn];
+  const { error } = await supabase.from("athletes")
+    .update({ weekly_check_ins, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
+export async function addWeeklyAdjustment(
   athleteId: string,
   adj: Omit<WeeklyAdjustment, "id" | "athleteId" | "createdAt">
-): Athlete[] {
-  const athletes = loadAthletes();
-  const updated = athletes.map((a) => {
-    if (a.id !== athleteId) return a;
-    const newAdj: WeeklyAdjustment = {
-      ...adj,
-      id: `wa-${athleteId}-${Date.now()}`,
-      athleteId,
-      createdAt: new Date().toISOString(),
-    };
-    return { ...a, weeklyAdjustments: [...(a.weeklyAdjustments ?? []), newAdj] };
-  });
-  saveAthletes(updated);
-  return updated;
+): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const newAdj: WeeklyAdjustment = {
+    ...adj,
+    id: `wa-${athleteId}-${Date.now()}`,
+    athleteId,
+    createdAt: new Date().toISOString(),
+  };
+  const weekly_adjustments = [...(a.weeklyAdjustments ?? []), newAdj];
+  const { error } = await supabase.from("athletes")
+    .update({ weekly_adjustments, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
 }
 
-export function deleteWeeklyAdjustment(athleteId: string, adjId: string): Athlete[] {
-  const athletes = loadAthletes();
-  const updated = athletes.map((a) =>
-    a.id !== athleteId
-      ? a
-      : { ...a, weeklyAdjustments: (a.weeklyAdjustments ?? []).filter((w) => w.id !== adjId) }
-  );
-  saveAthletes(updated);
-  return updated;
+export async function deleteWeeklyAdjustment(athleteId: string, adjId: string): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const weekly_adjustments = (a.weeklyAdjustments ?? []).filter((w) => w.id !== adjId);
+  const { error } = await supabase.from("athletes")
+    .update({ weekly_adjustments, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
 }
 
-export function saveCalorieTrackerDay(
+export async function saveCalorieTrackerDay(
   athleteId: string,
   day: Omit<CalorieTrackerDay, "id" | "athleteId">
-): Athlete[] {
-  const athletes = loadAthletes();
-  const updated = athletes.map((a) => {
-    if (a.id !== athleteId) return a;
-    const newDay: CalorieTrackerDay = {
-      ...day,
-      id: `ct-${athleteId}-${day.date}`,
-      athleteId,
-    };
-    const filtered = (a.calorieTrackerDays ?? []).filter((d) => d.date !== day.date);
-    return { ...a, calorieTrackerDays: [...filtered, newDay].sort((x, y) => x.date.localeCompare(y.date)) };
-  });
-  saveAthletes(updated);
-  return updated;
+): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const newDay: CalorieTrackerDay = { ...day, id: `ct-${athleteId}-${day.date}`, athleteId };
+  const filtered = (a.calorieTrackerDays ?? []).filter((d) => d.date !== day.date);
+  const calorie_tracker_days = [...filtered, newDay].sort((x, y) => x.date.localeCompare(y.date));
+  const { error } = await supabase.from("athletes")
+    .update({ calorie_tracker_days, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
 }
 
-export function saveTrainingLog(
+export async function saveTrainingLog(
   athleteId: string,
   log: Omit<TrainingLog, "id" | "athleteId">
-): Athlete[] {
-  const athletes = loadAthletes();
-  const updated = athletes.map((a) => {
-    if (a.id !== athleteId) return a;
-    const newLog: TrainingLog = {
-      ...log,
-      id: `tl-${athleteId}-${Date.now()}`,
-      athleteId,
-    };
-    const filtered = (a.trainingLogs ?? []).filter((l) => l.date !== log.date || l.trainingDayId !== log.trainingDayId);
-    return { ...a, trainingLogs: [...filtered, newLog].sort((x, y) => x.date.localeCompare(y.date)) };
-  });
-  saveAthletes(updated);
-  return updated;
+): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const newLog: TrainingLog = { ...log, id: `tl-${athleteId}-${Date.now()}`, athleteId };
+  const filtered = (a.trainingLogs ?? []).filter(
+    (l) => l.date !== log.date || l.trainingDayId !== log.trainingDayId
+  );
+  const training_logs = [...filtered, newLog].sort((x, y) => x.date.localeCompare(y.date));
+  const { error } = await supabase.from("athletes")
+    .update({ training_logs, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
 }
 
-export function deleteTrainingLog(athleteId: string, logId: string): Athlete[] {
-  const athletes = loadAthletes();
-  const updated = athletes.map((a) => {
-    if (a.id !== athleteId) return a;
-    return { ...a, trainingLogs: (a.trainingLogs ?? []).filter((l) => l.id !== logId) };
-  });
-  saveAthletes(updated);
-  return updated;
+export async function deleteTrainingLog(athleteId: string, logId: string): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const training_logs = (a.trainingLogs ?? []).filter((l) => l.id !== logId);
+  const { error } = await supabase.from("athletes")
+    .update({ training_logs, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
 }
 
-export function updateTrainingLog(athleteId: string, log: TrainingLog): Athlete[] {
-  const athletes = loadAthletes();
-  const updated = athletes.map((a) => {
-    if (a.id !== athleteId) return a;
-    const logs = (a.trainingLogs ?? []).map((l) => l.id === log.id ? log : l);
-    return { ...a, trainingLogs: logs.sort((x, y) => x.date.localeCompare(y.date)) };
-  });
-  saveAthletes(updated);
-  return updated;
+export async function updateTrainingLog(athleteId: string, log: TrainingLog): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const training_logs = (a.trainingLogs ?? [])
+    .map((l) => l.id === log.id ? log : l)
+    .sort((x, y) => x.date.localeCompare(y.date));
+  const { error } = await supabase.from("athletes")
+    .update({ training_logs, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
 }
 
 // ─── Food Database ────────────────────────────────────────────────────────────
 
-export function loadCustomFoods(): FoodItem[] {
-  if (typeof window === "undefined") return seedCustomFoods;
-  try {
-    if (localStorage.getItem(FOOD_SEED_VERSION_KEY) !== FOOD_SEED_VERSION) {
-      localStorage.setItem(CUSTOM_FOODS_KEY, JSON.stringify(seedCustomFoods));
-      localStorage.removeItem(DEACTIVATED_FOODS_KEY);
-      localStorage.setItem(FOOD_SEED_VERSION_KEY, FOOD_SEED_VERSION);
-    }
-    const stored = localStorage.getItem(CUSTOM_FOODS_KEY);
-    return stored ? JSON.parse(stored) : seedCustomFoods;
-  } catch {
+export async function loadCustomFoods(): Promise<FoodItem[]> {
+  const { data, error } = await supabase.from("custom_foods").select("*").order("name");
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    const rows = seedCustomFoods.map(foodItemToRow);
+    const { error: seedError } = await supabase.from("custom_foods").insert(rows);
+    if (seedError) console.error("Seed custom foods error:", seedError);
     return seedCustomFoods;
   }
+  return data.map(rowToFoodItem);
 }
 
-function saveCustomFoods(foods: FoodItem[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(CUSTOM_FOODS_KEY, JSON.stringify(foods));
+export async function loadDeactivatedFoods(): Promise<string[]> {
+  const { data, error } = await supabase.from("deactivated_foods").select("food_id");
+  if (error) throw error;
+  return (data ?? []).map((row: { food_id: string }) => row.food_id);
 }
 
-export function loadDeactivatedFoods(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(DEACTIVATED_FOODS_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveDeactivatedFoods(ids: string[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(DEACTIVATED_FOODS_KEY, JSON.stringify(ids));
-}
-
-/** Returns all active food items: base items (minus deactivated) + custom items */
-export function getAllFoodItems(): FoodItem[] {
-  const deactivated = loadDeactivatedFoods();
-  const custom = loadCustomFoods();
-  const base = baseFoodItems
-    .map((f) => ({ ...f, isActive: !deactivated.includes(f.id) }));
+export async function getAllFoodItems(): Promise<FoodItem[]> {
+  const [deactivated, custom] = await Promise.all([loadDeactivatedFoods(), loadCustomFoods()]);
+  const base = baseFoodItems.map((f) => ({ ...f, isActive: !deactivated.includes(f.id) }));
   return [...base, ...custom.filter((f) => f.isActive !== false)];
 }
 
-export function addCustomFood(
+export async function addCustomFood(
   food: Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">
-): FoodItem[] {
-  const foods = loadCustomFoods();
+): Promise<FoodItem[]> {
   const newFood: FoodItem = {
     ...food,
     id: `cf-${Date.now()}`,
@@ -370,245 +572,213 @@ export function addCustomFood(
     isActive: true,
     createdAt: new Date().toISOString(),
   };
-  const updated = [...foods, newFood];
-  saveCustomFoods(updated);
-  return updated;
+  const { error } = await supabase.from("custom_foods").insert(foodItemToRow(newFood));
+  if (error) throw error;
+  return loadCustomFoods();
 }
 
-export function updateCustomFood(id: string, updates: Partial<FoodItem>): FoodItem[] {
-  const foods = loadCustomFoods();
-  const updated = foods.map((f) =>
-    f.id === id ? { ...f, ...updates, updatedAt: new Date().toISOString() } : f
-  );
-  saveCustomFoods(updated);
-  return updated;
+export async function updateCustomFood(id: string, updates: Partial<FoodItem>): Promise<FoodItem[]> {
+  const row: Record<string, unknown> = {};
+  if ("name" in updates) row.name = updates.name;
+  if ("category" in updates) row.category = updates.category ?? null;
+  if ("kcalPer100g" in updates) row.kcal_per_100g = updates.kcalPer100g ?? null;
+  if ("proteinPer100g" in updates) row.protein_per_100g = updates.proteinPer100g ?? null;
+  if ("carbsPer100g" in updates) row.carbs_per_100g = updates.carbsPer100g ?? null;
+  if ("fatPer100g" in updates) row.fat_per_100g = updates.fatPer100g ?? null;
+  if ("fiberPer100g" in updates) row.fiber_per_100g = updates.fiberPer100g ?? null;
+  if ("saltPer100g" in updates) row.salt_per_100g = updates.saltPer100g ?? null;
+  if ("defaultAmount" in updates) row.default_amount = updates.defaultAmount ?? null;
+  if ("defaultAmountUnit" in updates) row.default_amount_unit = updates.defaultAmountUnit ?? null;
+  if ("servingLabel" in updates) row.serving_label = updates.servingLabel ?? null;
+  if ("notes" in updates) row.notes = updates.notes ?? null;
+  if ("isActive" in updates) row.is_active = updates.isActive;
+  row.updated_at = new Date().toISOString();
+  const { error } = await supabase.from("custom_foods").update(row).eq("id", id);
+  if (error) throw error;
+  return loadCustomFoods();
 }
 
-export function deleteCustomFood(id: string): FoodItem[] {
-  const foods = loadCustomFoods();
-  const updated = foods.filter((f) => f.id !== id);
-  saveCustomFoods(updated);
-  return updated;
+export async function deleteCustomFood(id: string): Promise<FoodItem[]> {
+  const { error } = await supabase.from("custom_foods").delete().eq("id", id);
+  if (error) throw error;
+  return loadCustomFoods();
 }
 
-/** Toggle active/inactive for any food item (base or custom) */
-export function toggleFoodActive(id: string, isCustom: boolean): { deactivated: string[]; customFoods: FoodItem[] } {
-  if (isCustom) {
-    const foods = loadCustomFoods();
-    const food = foods.find((f) => f.id === id);
-    const newActive = food ? food.isActive === false : false; // flip
-    const updated = foods.map((f) =>
-      f.id === id ? { ...f, isActive: newActive, updatedAt: new Date().toISOString() } : f
-    );
-    saveCustomFoods(updated);
-    return { deactivated: loadDeactivatedFoods(), customFoods: updated };
-  } else {
-    const deactivated = loadDeactivatedFoods();
-    const updated = deactivated.includes(id)
-      ? deactivated.filter((d) => d !== id)
-      : [...deactivated, id];
-    saveDeactivatedFoods(updated);
-    return { deactivated: updated, customFoods: loadCustomFoods() };
-  }
-}
-
-/** Permanently hide a base food item (adds to the hidden/deactivated list without toggle) */
-export function deleteBaseFoodItem(id: string): string[] {
-  const hidden = loadDeactivatedFoods();
+export async function deleteBaseFoodItem(id: string): Promise<string[]> {
+  const hidden = await loadDeactivatedFoods();
   if (hidden.includes(id)) return hidden;
-  const updated = [...hidden, id];
-  saveDeactivatedFoods(updated);
-  return updated;
+  const { error } = await supabase.from("deactivated_foods").insert({ food_id: id });
+  if (error) throw error;
+  return [...hidden, id];
+}
+
+export async function toggleFoodActive(
+  id: string,
+  isCustom: boolean
+): Promise<{ deactivated: string[]; customFoods: FoodItem[] }> {
+  if (isCustom) {
+    const { data, error: fetchError } = await supabase
+      .from("custom_foods").select("is_active").eq("id", id).single();
+    if (fetchError) throw fetchError;
+    const newActive = !(data?.is_active ?? true);
+    const { error } = await supabase.from("custom_foods")
+      .update({ is_active: newActive, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+  } else {
+    const hidden = await loadDeactivatedFoods();
+    if (hidden.includes(id)) {
+      const { error } = await supabase.from("deactivated_foods").delete().eq("food_id", id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("deactivated_foods").insert({ food_id: id });
+      if (error) throw error;
+    }
+  }
+  const [deactivated, customFoods] = await Promise.all([loadDeactivatedFoods(), loadCustomFoods()]);
+  return { deactivated, customFoods };
 }
 
 // ─── Supplement Database ──────────────────────────────────────────────────────
 
-export function loadSupplementDB(): SupplementDBItem[] {
-  if (typeof window === "undefined") return seedSupplementDB;
-  try {
-    if (localStorage.getItem(SUPPLEMENT_SEED_VERSION_KEY) !== SUPPLEMENT_SEED_VERSION) {
-      localStorage.setItem(SUPPLEMENT_DB_KEY, JSON.stringify(seedSupplementDB));
-      localStorage.setItem(SUPPLEMENT_SEED_VERSION_KEY, SUPPLEMENT_SEED_VERSION);
-    }
-    const stored = localStorage.getItem(SUPPLEMENT_DB_KEY);
-    return stored ? JSON.parse(stored) : seedSupplementDB;
-  } catch {
+export async function loadSupplementDB(): Promise<SupplementDBItem[]> {
+  const { data, error } = await supabase.from("supplement_db").select("*").order("name");
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    const rows = seedSupplementDB.map((s) => ({
+      id: s.id, name: s.name, category: s.category ?? null,
+      standard_dosage: s.standardDosage ?? null, timing: s.timing ?? null,
+      instructions: s.instructions ?? null, notes: s.notes ?? null, link: s.link ?? null,
+    }));
+    const { error: seedError } = await supabase.from("supplement_db").insert(rows);
+    if (seedError) console.error("Seed supplement_db error:", seedError);
     return seedSupplementDB;
   }
+  return data.map(rowToSupplement);
 }
 
-function saveSupplementDB(items: SupplementDBItem[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(SUPPLEMENT_DB_KEY, JSON.stringify(items));
-}
-
-export function addSupplementDBItem(
+export async function addSupplementDBItem(
   item: Omit<SupplementDBItem, "id" | "createdAt" | "updatedAt">
-): SupplementDBItem[] {
-  const items = loadSupplementDB();
-  const newItem: SupplementDBItem = {
-    ...item,
-    id: `supp-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-  };
-  const updated = [...items, newItem];
-  saveSupplementDB(updated);
-  return updated;
+): Promise<SupplementDBItem[]> {
+  const { error } = await supabase.from("supplement_db").insert({
+    id: `supp-${Date.now()}`, name: item.name, category: item.category ?? null,
+    standard_dosage: item.standardDosage ?? null, timing: item.timing ?? null,
+    instructions: item.instructions ?? null, notes: item.notes ?? null, link: item.link ?? null,
+  });
+  if (error) throw error;
+  return loadSupplementDB();
 }
 
-export function updateSupplementDBItem(
+export async function updateSupplementDBItem(
   id: string,
   updates: Partial<SupplementDBItem>
-): SupplementDBItem[] {
-  const items = loadSupplementDB();
-  const updated = items.map((s) =>
-    s.id === id ? { ...s, ...updates, updatedAt: new Date().toISOString() } : s
-  );
-  saveSupplementDB(updated);
-  return updated;
+): Promise<SupplementDBItem[]> {
+  const row: Record<string, unknown> = {};
+  if ("name" in updates) row.name = updates.name;
+  if ("category" in updates) row.category = updates.category ?? null;
+  if ("standardDosage" in updates) row.standard_dosage = updates.standardDosage ?? null;
+  if ("timing" in updates) row.timing = updates.timing ?? null;
+  if ("instructions" in updates) row.instructions = updates.instructions ?? null;
+  if ("notes" in updates) row.notes = updates.notes ?? null;
+  if ("link" in updates) row.link = updates.link ?? null;
+  row.updated_at = new Date().toISOString();
+  const { error } = await supabase.from("supplement_db").update(row).eq("id", id);
+  if (error) throw error;
+  return loadSupplementDB();
 }
 
-export function deleteSupplementDBItem(id: string): SupplementDBItem[] {
-  const items = loadSupplementDB();
-  const updated = items.filter((s) => s.id !== id);
-  saveSupplementDB(updated);
-  return updated;
+export async function deleteSupplementDBItem(id: string): Promise<SupplementDBItem[]> {
+  const { error } = await supabase.from("supplement_db").delete().eq("id", id);
+  if (error) throw error;
+  return loadSupplementDB();
 }
 
 // ─── Exercise Database ────────────────────────────────────────────────────────
 
-export function loadExerciseDB(): ExerciseDBItem[] {
-  if (typeof window === "undefined") return seedExerciseDB;
-  try {
-    if (localStorage.getItem(EXERCISE_SEED_VERSION_KEY) !== EXERCISE_SEED_VERSION) {
-      localStorage.setItem(EXERCISE_DB_KEY, JSON.stringify(seedExerciseDB));
-      localStorage.setItem(EXERCISE_SEED_VERSION_KEY, EXERCISE_SEED_VERSION);
-    }
-    const stored = localStorage.getItem(EXERCISE_DB_KEY);
-    return stored ? JSON.parse(stored) : seedExerciseDB;
-  } catch {
+export async function loadExerciseDB(): Promise<ExerciseDBItem[]> {
+  const { data, error } = await supabase.from("exercise_db").select("*").order("name");
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    const rows = seedExerciseDB.map((e) => ({
+      id: e.id, name: e.name, muscle_group: e.muscleGroup ?? null,
+      equipment: e.equipment ?? null, notes: e.notes ?? null, execution_link: e.executionLink ?? null,
+    }));
+    const { error: seedError } = await supabase.from("exercise_db").insert(rows);
+    if (seedError) console.error("Seed exercise_db error:", seedError);
     return seedExerciseDB;
   }
+  return data.map(rowToExercise);
 }
 
-function saveExerciseDB(items: ExerciseDBItem[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(EXERCISE_DB_KEY, JSON.stringify(items));
-}
-
-export function addExerciseDBItem(
+export async function addExerciseDBItem(
   item: Omit<ExerciseDBItem, "id" | "createdAt" | "updatedAt">
-): ExerciseDBItem[] {
-  const items = loadExerciseDB();
-  const newItem: ExerciseDBItem = {
-    ...item,
-    id: `ex-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-  };
-  const updated = [...items, newItem];
-  saveExerciseDB(updated);
-  return updated;
+): Promise<ExerciseDBItem[]> {
+  const { error } = await supabase.from("exercise_db").insert({
+    id: `ex-${Date.now()}`, name: item.name, muscle_group: item.muscleGroup ?? null,
+    equipment: item.equipment ?? null, notes: item.notes ?? null, execution_link: item.executionLink ?? null,
+  });
+  if (error) throw error;
+  return loadExerciseDB();
 }
 
-export function updateExerciseDBItem(
+export async function updateExerciseDBItem(
   id: string,
   updates: Partial<ExerciseDBItem>
-): ExerciseDBItem[] {
-  const items = loadExerciseDB();
-  const updated = items.map((e) =>
-    e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e
-  );
-  saveExerciseDB(updated);
-  return updated;
+): Promise<ExerciseDBItem[]> {
+  const row: Record<string, unknown> = {};
+  if ("name" in updates) row.name = updates.name;
+  if ("muscleGroup" in updates) row.muscle_group = updates.muscleGroup ?? null;
+  if ("equipment" in updates) row.equipment = updates.equipment ?? null;
+  if ("notes" in updates) row.notes = updates.notes ?? null;
+  if ("executionLink" in updates) row.execution_link = updates.executionLink ?? null;
+  row.updated_at = new Date().toISOString();
+  const { error } = await supabase.from("exercise_db").update(row).eq("id", id);
+  if (error) throw error;
+  return loadExerciseDB();
 }
 
-export function deleteExerciseDBItem(id: string): ExerciseDBItem[] {
-  const items = loadExerciseDB();
-  const updated = items.filter((e) => e.id !== id);
-  saveExerciseDB(updated);
-  return updated;
+export async function deleteExerciseDBItem(id: string): Promise<ExerciseDBItem[]> {
+  const { error } = await supabase.from("exercise_db").delete().eq("id", id);
+  if (error) throw error;
+  return loadExerciseDB();
 }
 
-// ─── Global Login Help Requests ──────────────────────────────────────────────
+// ─── Login Help Requests ──────────────────────────────────────────────────────
 
-const LOGIN_HELP_KEY = "coachOS_loginHelpRequests";
-
-export function loadLoginHelpRequests(): LoginHelpRequest[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(LOGIN_HELP_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
+export async function loadLoginHelpRequests(): Promise<LoginHelpRequest[]> {
+  const { data, error } = await supabase
+    .from("login_help_requests")
+    .select("*")
+    .order("requested_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(rowToLoginHelpRequest);
 }
 
-function saveLoginHelpRequests(requests: LoginHelpRequest[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(LOGIN_HELP_KEY, JSON.stringify(requests));
-}
-
-export function addLoginHelpRequest(enteredName: string, note?: string): LoginHelpRequest[] {
-  const requests = loadLoginHelpRequests();
-  const newRequest: LoginHelpRequest = {
+export async function addLoginHelpRequest(enteredName: string, note?: string): Promise<LoginHelpRequest[]> {
+  const { error } = await supabase.from("login_help_requests").insert({
     id: `lhr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    enteredName: enteredName.trim(),
-    note: note?.trim() || undefined,
-    requestedAt: new Date().toISOString(),
+    entered_name: enteredName.trim(),
+    note: note?.trim() || null,
     status: "open",
-  };
-  const updated = [...requests, newRequest];
-  saveLoginHelpRequests(updated);
-  return updated;
-}
-
-export function resolveLoginHelpRequest(id: string): LoginHelpRequest[] {
-  const requests = loadLoginHelpRequests();
-  const updated = requests.map((r) => r.id === id ? { ...r, status: "resolved" as const } : r);
-  saveLoginHelpRequests(updated);
-  return updated;
-}
-
-export function deleteLoginHelpRequest(id: string): LoginHelpRequest[] {
-  const requests = loadLoginHelpRequests();
-  const updated = requests.filter((r) => r.id !== id);
-  saveLoginHelpRequests(updated);
-  return updated;
-}
-
-// ─── Athlete Credential Update ────────────────────────────────────────────────
-
-export function updateAthleteCredentials(
-  athleteId: string,
-  updates: { name?: string; email?: string; pin?: string }
-): Athlete[] {
-  const athletes = loadAthletes();
-  const updated = athletes.map((a) => {
-    if (a.id !== athleteId) return a;
-    const newName = updates.name?.trim() ?? a.name;
-    const newEmail = updates.email?.toLowerCase().trim() ?? a.email ?? "";
-    const newPin = updates.pin?.trim() ?? a.pin;
-    const newInitials = newName
-      .split(/\s+/)
-      .map((w) => w[0]?.toUpperCase() ?? "")
-      .slice(0, 2)
-      .join("");
-    return {
-      ...a,
-      name: newName,
-      email: newEmail || undefined,
-      pin: newPin,
-      avatarInitials: updates.name ? newInitials : a.avatarInitials,
-      profile: a.profile
-        ? { ...a.profile, personal: { ...a.profile.personal, email: newEmail || undefined } }
-        : a.profile,
-    };
   });
-  saveAthletes(updated);
-  return updated;
+  if (error) throw error;
+  return loadLoginHelpRequests();
 }
 
-// ─── Coach Check-In Done Status ───────────────────────────────────────────────
+export async function resolveLoginHelpRequest(id: string): Promise<LoginHelpRequest[]> {
+  const { error } = await supabase
+    .from("login_help_requests").update({ status: "resolved" }).eq("id", id);
+  if (error) throw error;
+  return loadLoginHelpRequests();
+}
+
+export async function deleteLoginHelpRequest(id: string): Promise<LoginHelpRequest[]> {
+  const { error } = await supabase.from("login_help_requests").delete().eq("id", id);
+  if (error) throw error;
+  return loadLoginHelpRequests();
+}
+
+// ─── Check-In Done Status (sync / localStorage) ───────────────────────────────
 
 export function loadCheckInDone(): Record<string, boolean> {
   if (typeof window === "undefined") return {};
@@ -630,7 +800,7 @@ export function setCheckInDone(athleteId: string, date: string, done: boolean): 
   return updated;
 }
 
-// ─── Active Training Session ──────────────────────────────────────────────────
+// ─── Active Training Session (sync / localStorage) ────────────────────────────
 
 export interface ActiveSession {
   athleteId: string;
@@ -638,9 +808,9 @@ export interface ActiveSession {
   trainingDayId: string;
   exercises: TrainingExerciseLog[];
   note: string;
-  startedAt: string; // ISO timestamp
-  pausedAt: string | null; // ISO timestamp when paused, null if running
-  totalPausedMs: number; // accumulated pause duration from previous pauses
+  startedAt: string;
+  pausedAt: string | null;
+  totalPausedMs: number;
 }
 
 export function loadActiveSession(): ActiveSession | null {
@@ -649,11 +819,7 @@ export function loadActiveSession(): ActiveSession | null {
     const stored = localStorage.getItem(ACTIVE_SESSION_KEY);
     if (!stored) return null;
     const parsed = JSON.parse(stored);
-    return {
-      ...parsed,
-      pausedAt: parsed.pausedAt ?? null,
-      totalPausedMs: parsed.totalPausedMs ?? 0,
-    };
+    return { ...parsed, pausedAt: parsed.pausedAt ?? null, totalPausedMs: parsed.totalPausedMs ?? 0 };
   } catch {
     return null;
   }

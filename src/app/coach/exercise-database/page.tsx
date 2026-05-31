@@ -281,7 +281,7 @@ export default function ExerciseDatabase() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "coach") router.replace("/login");
-    setItems(loadExerciseDB());
+    loadExerciseDB().then(setItems);
   }, [router]);
 
   const filtered = items.filter((e) => {
@@ -295,13 +295,13 @@ export default function ExerciseDatabase() {
 
   const usedMuscleGroups = Array.from(new Set(items.map((e) => e.muscleGroup))).sort();
 
-  function handleSave(data: Partial<ExerciseDBItem>) {
+  async function handleSave(data: Partial<ExerciseDBItem>) {
     const prevItems = [...items];
     try {
       if (editing?.id) {
-        setItems(updateExerciseDBItem(editing.id, data));
+        setItems(await updateExerciseDBItem(editing.id, data));
       } else {
-        setItems(addExerciseDBItem(data as Omit<ExerciseDBItem, "id" | "createdAt" | "updatedAt">));
+        setItems(await addExerciseDBItem(data as Omit<ExerciseDBItem, "id" | "createdAt" | "updatedAt">));
       }
       setEditing(null);
       showToast("Übung gespeichert.", "success");
@@ -311,13 +311,12 @@ export default function ExerciseDatabase() {
     }
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     const prevItems = [...items];
-    // Optimistic: remove immediately after confirmation
     setItems((prev) => prev.filter((e) => e.id !== id));
     setConfirmDelete(null);
     try {
-      deleteExerciseDBItem(id);
+      await deleteExerciseDBItem(id);
     } catch {
       setItems(prevItems);
       showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");

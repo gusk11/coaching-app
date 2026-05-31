@@ -359,6 +359,16 @@ export interface Note {
   createdAt: string;
 }
 
+export interface LegalConsent {
+  privacyAccepted: boolean;
+  privacyAcceptedAt: string;
+  contractAccepted: boolean;
+  contractAcceptedAt: string;
+  signatureDataUrl?: string;
+  signedName?: string;
+  legalVersion: string;
+}
+
 export interface Athlete {
   id: string;
   name: string;
@@ -366,6 +376,7 @@ export interface Athlete {
   pin: string;
   avatarInitials: string;
   onboardingCompleted?: boolean;
+  legalConsent?: LegalConsent;
   profile?: AthleteProfile;
   /** Optional profile image — base64 dataUrl locally; swap url for remote URL when connecting cloud storage */
   profileImage?: ProgressImage;

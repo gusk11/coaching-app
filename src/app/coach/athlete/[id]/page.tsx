@@ -81,13 +81,15 @@ export default function CoachAthletePage() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "coach") { router.replace("/login"); return; }
-    const found = loadAthletes().find((a) => a.id === id);
-    if (!found) { router.replace("/coach/dashboard"); return; }
-    setAthlete(found);
-    setEditGoalType(found.goalType);
-    setEditGoalText(found.goalText ?? "");
-    setEditCoachNote(found.coachNote);
-    setEditVisibleNote(found.visibleNote);
+    loadAthletes().then((athletes) => {
+      const found = athletes.find((a) => a.id === id);
+      if (!found) { router.replace("/coach/dashboard"); return; }
+      setAthlete(found);
+      setEditGoalType(found.goalType);
+      setEditGoalText(found.goalText ?? "");
+      setEditCoachNote(found.coachNote);
+      setEditVisibleNote(found.visibleNote);
+    });
   }, [router, id]);
 
   const analysis = useMemo(() => athlete ? analyzeWeek(athlete) : null, [athlete]);
@@ -143,10 +145,10 @@ export default function CoachAthletePage() {
   }
 
 
-  function saveGoalEdit() {
+  async function saveGoalEdit() {
     const previous = athlete;
     try {
-      const updated = updateAthlete(athlete!.id, {
+      const updated = await updateAthlete(athlete!.id, {
         goalType: editGoalType,
         goalText: editGoalText.trim() || undefined,
         coachNote: editCoachNote,
@@ -161,12 +163,12 @@ export default function CoachAthletePage() {
     }
   }
 
-  function saveTargetWeight() {
+  async function saveTargetWeight() {
     const parsed = parseFloat(editTargetWeightInput);
     if (isNaN(parsed) || parsed <= 0) return;
     const previous = athlete;
     try {
-      const updated = updateAthlete(athlete!.id, { targetWeight: parsed });
+      const updated = await updateAthlete(athlete!.id, { targetWeight: parsed });
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setEditingTargetWeight(false);
     } catch {
@@ -175,11 +177,11 @@ export default function CoachAthletePage() {
     }
   }
 
-  function saveTrendTarget() {
+  async function saveTrendTarget() {
     const parsed = parseFloat(editTrendTargetInput);
     const previous = athlete;
     try {
-      const updated = updateAthlete(athlete!.id, {
+      const updated = await updateAthlete(athlete!.id, {
         weeklyTrendTargetPercent: isNaN(parsed) ? undefined : parsed,
       });
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
@@ -190,7 +192,7 @@ export default function CoachAthletePage() {
     }
   }
 
-  function saveMealPlan(plan: MealPlan) {
+  async function saveMealPlan(plan: MealPlan) {
     const previous = athlete;
     try {
       const currentPlans = athlete!.mealPlans ?? [];
@@ -198,7 +200,7 @@ export default function CoachAthletePage() {
       const newPlans = exists
         ? currentPlans.map(p => p.id === plan.id ? plan : p)
         : [...currentPlans, plan];
-      const updated = updateAthlete(athlete!.id, { mealPlans: newPlans });
+      const updated = await updateAthlete(athlete!.id, { mealPlans: newPlans });
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       showToast("Ernährungsplan gespeichert.", "success");
     } catch {
@@ -207,12 +209,12 @@ export default function CoachAthletePage() {
     }
   }
 
-  function deleteMealPlan(planId: string) {
+  async function deleteMealPlan(planId: string) {
     const previous = athlete;
     const optimisticPlans = (athlete!.mealPlans ?? []).filter(p => p.id !== planId);
     setAthlete((prev) => prev ? { ...prev, mealPlans: optimisticPlans } : prev);
     try {
-      const updated = updateAthlete(athlete!.id, { mealPlans: optimisticPlans });
+      const updated = await updateAthlete(athlete!.id, { mealPlans: optimisticPlans });
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
     } catch {
       setAthlete(previous);
@@ -220,10 +222,10 @@ export default function CoachAthletePage() {
     }
   }
 
-  function saveTrainingPlan(plan: TrainingPlan) {
+  async function saveTrainingPlan(plan: TrainingPlan) {
     const previous = athlete;
     try {
-      const updated = updateAthlete(athlete!.id, { trainingPlan: plan });
+      const updated = await updateAthlete(athlete!.id, { trainingPlan: plan });
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setEditingTraining(false);
       showToast("Trainingsplan gespeichert.", "success");
@@ -233,10 +235,10 @@ export default function CoachAthletePage() {
     }
   }
 
-  function saveSupplementPlan(plan: SupplementPlan) {
+  async function saveSupplementPlan(plan: SupplementPlan) {
     const previous = athlete;
     try {
-      const updated = updateAthlete(athlete!.id, { supplementPlan: plan });
+      const updated = await updateAthlete(athlete!.id, { supplementPlan: plan });
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setEditingSupplements(false);
       showToast("Supplement-Plan gespeichert.", "success");
@@ -246,10 +248,10 @@ export default function CoachAthletePage() {
     }
   }
 
-  function saveAthleteProfile(updates: Partial<Athlete>) {
+  async function saveAthleteProfile(updates: Partial<Athlete>) {
     const previous = athlete;
     try {
-      const updated = updateAthlete(athlete!.id, updates);
+      const updated = await updateAthlete(athlete!.id, updates);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       showToast("Profil gespeichert.", "success");
     } catch {
@@ -271,7 +273,7 @@ export default function CoachAthletePage() {
     setEditingCredentials(true);
   }
 
-  function saveCredentials() {
+  async function saveCredentials() {
     setEditCredError("");
     if (!editCredName.trim()) { setEditCredError("Name darf nicht leer sein."); return; }
     if (!editCredPin.trim()) { setEditCredError("PIN darf nicht leer sein."); return; }
@@ -280,7 +282,7 @@ export default function CoachAthletePage() {
     }
     const previous = athlete;
     try {
-      const updated = updateAthleteCredentials(athlete!.id, {
+      const updated = await updateAthleteCredentials(athlete!.id, {
         name: editCredName,
         email: editCredEmail || undefined,
         pin: editCredPin,
@@ -688,6 +690,47 @@ export default function CoachAthletePage() {
                 </div>
               )}
             </div>
+
+            {/* Rechtliches */}
+            {athlete.legalConsent ? (
+              <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
+                <p className="text-xs text-[#5a7090] uppercase tracking-widest">Rechtliches &amp; Zustimmung</p>
+                {[
+                  {
+                    label: "Datenschutzerklärung",
+                    value: athlete.legalConsent.privacyAccepted
+                      ? `Akzeptiert am ${new Date(athlete.legalConsent.privacyAcceptedAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`
+                      : "Nicht akzeptiert",
+                  },
+                  {
+                    label: "Coaching-Vertrag",
+                    value: athlete.legalConsent.contractAccepted
+                      ? `Akzeptiert am ${new Date(athlete.legalConsent.contractAcceptedAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`
+                      : "Nicht akzeptiert",
+                  },
+                  { label: "Vertragsversion", value: athlete.legalConsent.legalVersion },
+                  ...(athlete.legalConsent.signedName ? [{ label: "Bestätigungsname", value: athlete.legalConsent.signedName }] : []),
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex justify-between items-start gap-3 py-2 border-b border-[#1e2d42]/60 last:border-0">
+                    <span className="text-xs text-[#5a7090] shrink-0">{label}</span>
+                    <span className="text-xs text-[#f0f4ff] text-right">{value}</span>
+                  </div>
+                ))}
+                {athlete.legalConsent.signatureDataUrl && (
+                  <div className="flex flex-col gap-1.5 pt-1">
+                    <span className="text-xs text-[#5a7090]">Digitale Unterschrift</span>
+                    <div className="rounded-xl border border-[#2e4060] bg-[#0a0f1a] overflow-hidden p-2">
+                      <img src={athlete.legalConsent.signatureDataUrl} alt="Unterschrift" className="max-h-[80px] w-auto" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
+                <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Rechtliches &amp; Zustimmung</p>
+                <p className="text-sm text-[#5a7090]">Keine Zustimmungsdaten vorhanden.</p>
+              </div>
+            )}
           </motion.div>
         )}
 

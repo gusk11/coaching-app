@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { CalorieTrackerDay, CalorieTrackerEntry, CalorieTrackerMeal, FoodItem, MealPlan } from "@/types";
 import { getAllFoodItems } from "@/lib/store";
 import { Plus, Trash2, Search, ChevronDown, ChevronUp, CheckCircle2, X, Check } from "lucide-react";
@@ -370,7 +370,8 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
   const [showImportModal, setShowImportModal] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const allFoods = useMemo(() => getAllFoodItems(), []);
+  const [allFoods, setAllFoods] = useState<FoodItem[]>([]);
+  useEffect(() => { getAllFoodItems().then(setAllFoods); }, []);
   const dayTotals = useMemo(() => sumEntries(meals.flatMap((m) => m.entries)), [meals]);
 
   function addMeal() {

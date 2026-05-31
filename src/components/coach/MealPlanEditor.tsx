@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MealPlan, Meal, MealEntry, FoodItem } from "@/types";
 import { getAllFoodItems } from "@/lib/store";
 import { Trash2, Plus, ChevronDown, ChevronUp, Pencil, ArrowLeft } from "lucide-react";
@@ -35,8 +35,14 @@ function customFoodItem(name: string, kcal: number, protein: number, carbs: numb
 
 function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
   const [mode, setMode] = useState<"db" | "custom">("db");
-  const dbFoodItems = getAllFoodItems();
-  const [selectedId, setSelectedId] = useState(dbFoodItems[0]?.id ?? "");
+  const [dbFoodItems, setDbFoodItems] = useState<FoodItem[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  useEffect(() => {
+    getAllFoodItems().then((foods) => {
+      setDbFoodItems(foods);
+      setSelectedId((prev) => prev || foods[0]?.id || "");
+    });
+  }, []);
   const [amount, setAmount] = useState(100);
   const [customName, setCustomName] = useState("");
   const [customKcal, setCustomKcal] = useState(0);
@@ -47,7 +53,7 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
 
   function handleAdd() {
     if (mode === "db") {
-      const fi = getAllFoodItems().find((f) => f.id === selectedId);
+      const fi = dbFoodItems.find((f) => f.id === selectedId);
       if (!fi) return;
       onAdd({ foodItemId: fi.id, foodItem: fi, amountG: amount });
     } else {
