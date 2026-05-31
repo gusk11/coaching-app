@@ -114,6 +114,7 @@ export function AppShell({ children, role, title }: AppShellProps) {
   const pathname = usePathname();
   const nav = role === "athlete" ? athleteNav : coachNav;
   const [hasPendingCheckins, setHasPendingCheckins] = useState(false);
+  const [hasPendingIntroVideo, setHasPendingIntroVideo] = useState(false);
   const [openLoginHelpCount, setOpenLoginHelpCount] = useState(0);
 
   useEffect(() => {
@@ -129,8 +130,16 @@ export function AppShell({ children, role, title }: AppShellProps) {
       const weeklyDone = athlete.weeklyCheckIns.some((w) => w.weekStart === weekStart);
       const isWeeklyDay = isCheckInDay(athlete.checkInDay);
       setHasPendingCheckins(!dailyDone || (isWeeklyDay && !weeklyDone));
+      const introSeen = !!localStorage.getItem(`coachOS_introVideoSeen_${auth.athleteId}`);
+      setHasPendingIntroVideo(athlete.onboardingCompleted === true && !introSeen);
     });
   }, [role, pathname]);
+
+  useEffect(() => {
+    const handler = () => setHasPendingIntroVideo(false);
+    window.addEventListener("introVideoSeen", handler);
+    return () => window.removeEventListener("introVideoSeen", handler);
+  }, []);
 
   useEffect(() => {
     if (role !== "coach") return;
@@ -158,7 +167,13 @@ export function AppShell({ children, role, title }: AppShellProps) {
             {nav.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
               const showPending = !active && role === "athlete" && item.href === "/athlete/checkins" && hasPendingCheckins;
-              const alertCount = !active && role === "coach" && item.href === "/coach/dashboard" ? openLoginHelpCount : 0;
+              const alertCount = !active
+                ? role === "coach" && item.href === "/coach/dashboard"
+                  ? openLoginHelpCount
+                  : role === "athlete" && item.href === "/athlete/dashboard" && hasPendingIntroVideo
+                  ? 1
+                  : 0
+                : 0;
               return (
                 <NavItemButton
                   key={item.href}
@@ -210,7 +225,13 @@ export function AppShell({ children, role, title }: AppShellProps) {
               {nav.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
                 const showPending = !active && role === "athlete" && item.href === "/athlete/checkins" && hasPendingCheckins;
-                const alertCount = !active && role === "coach" && item.href === "/coach/dashboard" ? openLoginHelpCount : 0;
+                const alertCount = !active
+                  ? role === "coach" && item.href === "/coach/dashboard"
+                    ? openLoginHelpCount
+                    : role === "athlete" && item.href === "/athlete/dashboard" && hasPendingIntroVideo
+                    ? 1
+                    : 0
+                  : 0;
                 return (
                   <NavItemButton
                     key={item.href}
