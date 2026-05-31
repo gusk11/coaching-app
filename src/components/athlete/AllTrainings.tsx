@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { TrainingLog } from "@/types";
 import { Athlete } from "@/types";
 import { ChevronDown, Plus, Trash2, X } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { updateTrainingLog, deleteTrainingLog } from "@/lib/store";
+import { showToast } from "@/components/ui/Toast";
 
 interface Props {
   trainingLogs: TrainingLog[];
@@ -97,7 +98,10 @@ function editStateToLog(state: EditState, original: TrainingLog): TrainingLog {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlete" }: Props) {
-  const sorted = [...trainingLogs].sort((a, b) => b.date.localeCompare(a.date));
+  const sorted = useMemo(
+    () => [...trainingLogs].sort((a, b) => b.date.localeCompare(a.date)),
+    [trainingLogs]
+  );
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
   const [editState, setEditState] = useState<EditState | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -119,9 +123,14 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
 
   function confirmDelete() {
     if (!confirmDeleteId) return;
-    const athletes = deleteTrainingLog(athleteId, confirmDeleteId);
+    const id = confirmDeleteId;
     setConfirmDeleteId(null);
-    onUpdate(athletes);
+    try {
+      const athletes = deleteTrainingLog(athleteId, id);
+      onUpdate(athletes);
+    } catch {
+      showToast("Training konnte nicht gelöscht werden.", "error");
+    }
   }
 
   function startEdit(log: TrainingLog) {
@@ -136,9 +145,14 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
     const original = trainingLogs.find((l) => l.id === editState.logId);
     if (!original) return;
     const updated = editStateToLog(editState, original);
-    const athletes = updateTrainingLog(athleteId, updated);
-    onUpdate(athletes);
-    setEditState(null);
+    try {
+      const athletes = updateTrainingLog(athleteId, updated);
+      onUpdate(athletes);
+      setEditState(null);
+      showToast("Training gespeichert.", "success");
+    } catch {
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   // ── Edit state mutators ────────────────────────────────────────────────────

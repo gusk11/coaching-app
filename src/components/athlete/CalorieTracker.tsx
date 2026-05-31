@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { CalorieTrackerDay, CalorieTrackerEntry, CalorieTrackerMeal, FoodItem, MealPlan } from "@/types";
 import { getAllFoodItems } from "@/lib/store";
 import { Plus, Trash2, Search, ChevronDown, ChevronUp, CheckCircle2, X, Check } from "lucide-react";
@@ -75,18 +75,25 @@ function sumEntries(entries: CalorieTrackerEntry[]): Totals {
 function FoodSearchPanel({
   onSelect,
   onClose,
+  allFoods,
 }: {
   onSelect: (amountG: number, foodId: string) => void;
   onClose: () => void;
+  allFoods: FoodItem[];
 }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<FoodItem | null>(null);
   const [amount, setAmount] = useState(100);
 
-  const allFoods = getAllFoodItems();
-  const filtered = allFoods.filter((f) =>
-    f.name.toLowerCase().includes(query.toLowerCase()) ||
-    f.category.toLowerCase().includes(query.toLowerCase())
+  const filtered = useMemo(
+    () => {
+      const q = query.toLowerCase();
+      return allFoods.filter((f) =>
+        f.name.toLowerCase().includes(q) ||
+        f.category.toLowerCase().includes(q)
+      );
+    },
+    [allFoods, query]
   );
 
   const amountG = selected ? toInternalAmountG(amount, selected) : 0;
@@ -363,7 +370,8 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
   const [showImportModal, setShowImportModal] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const dayTotals = sumEntries(meals.flatMap((m) => m.entries));
+  const allFoods = useMemo(() => getAllFoodItems(), []);
+  const dayTotals = useMemo(() => sumEntries(meals.flatMap((m) => m.entries)), [meals]);
 
   function addMeal() {
     const id = uid();
@@ -398,7 +406,7 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
   }
 
   function addFoodToMeal(mealId: string, amountG: number, foodId: string) {
-    const food = getAllFoodItems().find((f) => f.id === foodId);
+    const food = allFoods.find((f) => f.id === foodId);
     if (!food) return;
     const macros = calcEntry(food, amountG);
     const entry: CalorieTrackerEntry = {
@@ -528,6 +536,7 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
                       <FoodSearchPanel
                         onSelect={(amountG, foodId) => addFoodToMeal(meal.id, amountG, foodId)}
                         onClose={() => setFoodSearchMealId(null)}
+                        allFoods={allFoods}
                       />
                     </div>
                   ) : freeEntryMealId === meal.id ? (

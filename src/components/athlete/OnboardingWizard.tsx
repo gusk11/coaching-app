@@ -1,8 +1,8 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { registerAthlete, loadAthletes } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Play, X } from "lucide-react";
 import { AthleteProfile } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -134,6 +134,12 @@ const STEPS = [
   "Supplemente", "Trainingserfahrung", "Verfügbarkeit",
   "Ziele & Coaching", "Abschluss",
 ];
+
+// Intro-Video: videoUrl setzen sobald vorhanden, sonst Platzhalter
+const INTRO_DURATION = 25; // Sekunden — später durch echte Videodauer ersetzen
+const TOTAL_STEPS = STEPS.length + 1; // 1 Intro + 11 Fragebogen
+
+type Phase = "intro" | "questionnaire" | "complete";
 
 // ─── Shared UI primitives ──────────────────────────────────────────────────────
 
@@ -1039,11 +1045,26 @@ interface Props {
 }
 
 export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
+  const [phase, setPhase] = useState<Phase>("intro");
   const [step, setStep] = useState(1);
   const [data, setData] = useState<WizardData>({ ...DEFAULT, ...initialData });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [introElapsed, setIntroElapsed] = useState(0);
+  const [completedAthleteId, setCompletedAthleteId] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (phase !== "intro" || introElapsed >= INTRO_DURATION) return;
+    const id = setInterval(() => setIntroElapsed((e) => Math.min(e + 1, INTRO_DURATION)), 1000);
+    return () => clearInterval(id);
+  }, [phase, introElapsed]);
+
+  const introTimerDone = introElapsed >= INTRO_DURATION;
+  const introProgress = Math.round((introElapsed / INTRO_DURATION) * 100);
+  const globalStep = phase === "intro" ? 1 : step + 1;
+  const headerProgress = Math.round((globalStep / TOTAL_STEPS) * 100);
+  const headerStepName = phase === "intro" ? "Willkommen" : STEPS[step - 1];
 
   function update(patch: Partial<WizardData>) {
     setData((prev) => ({ ...prev, ...patch }));
@@ -1056,7 +1077,6 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
       if (!data.email.trim() || !data.email.includes("@")) return "Bitte gib eine gültige E-Mail-Adresse ein.";
       if (data.pin.length < 4) return "Die PIN muss mindestens 4 Zeichen lang sein.";
       if (data.pin !== data.pinConfirm) return "Die PINs stimmen nicht überein.";
-      // Check for duplicate email
       try {
         const athletes = loadAthletes();
         const exists = athletes.some((a) =>
@@ -1122,13 +1142,134 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
         goalText: data.shortTermGoal || data.longTermGoal || undefined,
         profile: buildProfile(data),
       });
-      onComplete(athlete.id);
+      setCompletedAthleteId(athlete.id);
+      setPhase("complete");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Ein Fehler ist aufgetreten.");
       setSubmitting(false);
     }
   }
 
+  // ── Intro-Phase ──────────────────────────────────────────────────────────────
+  if (phase === "intro") {
+    return (
+      <div className="h-screen bg-[#0a0f1a] flex flex-col overflow-hidden">
+        <div className="shrink-0 bg-[#0a0f1a] border-b border-[#1e2d42] px-4 py-3">
+          <div className="max-w-lg mx-auto">
+            <div className="flex items-center justify-between mb-3">
+              <button onClick={onCancel}
+                className="flex items-center gap-1.5 text-xs text-[#5a7090] hover:text-[#f0f4ff] transition-colors">
+                <X size={14} /> Abbrechen
+              </button>
+              <span className="text-xs text-[#5a7090]">Schritt 1 von {TOTAL_STEPS}</span>
+              <div className="w-16" />
+            </div>
+            <div className="w-full bg-[#1e2d42] rounded-full h-1.5">
+              <div className="bg-[#3b82f6] h-1.5 rounded-full transition-all duration-300"
+                style={{ width: `${Math.round(100 / TOTAL_STEPS)}%` }} />
+            </div>
+            <p className="text-base font-semibold text-[#f0f4ff] mt-3">Willkommen</p>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="max-w-lg mx-auto flex flex-col gap-6">
+            {/* Video-Platzhalter */}
+            <div className="bg-[#0f1624] border border-[#1e2d42] rounded-2xl overflow-hidden relative"
+              style={{ aspectRatio: "16/9" }}>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/30 flex items-center justify-center">
+                  <Play size={28} className="text-[#60a5fa] translate-x-0.5" />
+                </div>
+                <div className="text-center px-4">
+                  <p className="text-base font-semibold text-[#f0f4ff]">Willkommen im Coaching</p>
+                  <p className="text-sm text-[#5a7090] mt-1">Kurzes Onboarding-Video</p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-[#5a7090] text-center px-2">
+              Bitte schau dir das kurze Video vollständig an, bevor du fortfährst.
+            </p>
+
+            {/* Timer-Fortschritt */}
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-xs text-[#5a7090]">
+                <span>{introTimerDone ? "Video abgeschlossen" : "Video läuft…"}</span>
+                <span>{introElapsed}s / {INTRO_DURATION}s</span>
+              </div>
+              <div className="w-full bg-[#1e2d42] rounded-full h-1.5">
+                <div className="bg-[#3b82f6] h-1.5 rounded-full transition-all duration-1000"
+                  style={{ width: `${introProgress}%` }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="shrink-0 bg-[#0a0f1a] border-t border-[#1e2d42] px-4 py-4">
+          <div className="max-w-lg mx-auto">
+            <button
+              disabled={!introTimerDone}
+              onClick={() => setPhase("questionnaire")}
+              className={cn(
+                "w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all",
+                introTimerDone
+                  ? "bg-[#3b82f6] text-white hover:bg-[#2563eb]"
+                  : "bg-[#1e2d42] text-[#3b4d6a] cursor-not-allowed"
+              )}
+            >
+              {introTimerDone
+                ? <>Weiter geht&apos;s <ArrowRight size={15} /></>
+                : `Bitte warten… (${INTRO_DURATION - introElapsed}s)`}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Abschluss-Phase ──────────────────────────────────────────────────────────
+  if (phase === "complete") {
+    return (
+      <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center p-4">
+        <div className="w-full max-w-lg flex flex-col gap-5">
+          <div className="bg-[#0f1624] border border-[#1e2d42] rounded-2xl p-6 flex flex-col gap-6">
+            <div className="text-center">
+              <div className="w-14 h-14 rounded-full bg-[#10b981]/15 border border-[#10b981]/30 flex items-center justify-center mx-auto mb-4">
+                <Check size={24} className="text-[#10b981]" />
+              </div>
+              <h1 className="text-xl font-bold text-[#f0f4ff]">Onboarding abgeschlossen</h1>
+              <p className="text-sm text-[#5a7090] mt-2">Dein Profil wurde erfolgreich erstellt.</p>
+            </div>
+
+            {/* Abschluss-Video-Platzhalter */}
+            <div className="bg-[#0a0f1a] border border-[#1e2d42] rounded-xl overflow-hidden relative"
+              style={{ aspectRatio: "16/9" }}>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-[#1e2d42] border border-[#2e4060] flex items-center justify-center">
+                  <Play size={20} className="text-[#5a7090] translate-x-0.5" />
+                </div>
+                <p className="text-sm text-[#4a6080]">Abschlussvideo wird hier eingefügt</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-[#5a7090] text-center">
+              Ich prüfe jetzt deine Angaben und richte dein Coaching-Profil weiter ein.
+            </p>
+
+            <button
+              onClick={() => onComplete(completedAthleteId)}
+              className="w-full py-3.5 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors"
+            >
+              Zum Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Fragebogen-Phase ─────────────────────────────────────────────────────────
   const stepContent = [
     <Step1 key={1} d={data} u={update} />,
     <Step2 key={2} d={data} u={update} />,
@@ -1143,11 +1284,9 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
     <Step11 key={11} d={data} u={update} />,
   ];
 
-  const progress = Math.round((step / STEPS.length) * 100);
-
   return (
     <div className="h-screen bg-[#0a0f1a] flex flex-col overflow-hidden">
-      {/* Header — shrink-0 hält es fest oben */}
+      {/* Header */}
       <div className="shrink-0 bg-[#0a0f1a] border-b border-[#1e2d42] px-4 py-3">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-3">
@@ -1155,17 +1294,16 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
               className="flex items-center gap-1.5 text-xs text-[#5a7090] hover:text-[#f0f4ff] transition-colors">
               <X size={14} /> Abbrechen
             </button>
-            <span className="text-xs text-[#5a7090]">Schritt {step} von {STEPS.length}</span>
+            <span className="text-xs text-[#5a7090]">Schritt {globalStep} von {TOTAL_STEPS}</span>
             <div className="w-16" />
           </div>
-          {/* Progress bar */}
           <div className="w-full bg-[#1e2d42] rounded-full h-1.5">
             <div
               className="bg-[#3b82f6] h-1.5 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${headerProgress}%` }}
             />
           </div>
-          <p className="text-base font-semibold text-[#f0f4ff] mt-3">{STEPS[step - 1]}</p>
+          <p className="text-base font-semibold text-[#f0f4ff] mt-3">{headerStepName}</p>
         </div>
       </div>
 
@@ -1176,7 +1314,7 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
         </div>
       </div>
 
-      {/* Footer — shrink-0 hält es fest unten */}
+      {/* Footer */}
       <div className="shrink-0 bg-[#0a0f1a] border-t border-[#1e2d42] px-4 py-4">
         <div className="max-w-lg mx-auto flex flex-col gap-3">
           {error && (
@@ -1193,7 +1331,7 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
               className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] disabled:opacity-60 transition-colors">
               {step === STEPS.length
                 ? <><Check size={15} /> Registrierung abschließen</>
-                : <>{step === 1 ? "Los geht's" : "Weiter"} <ArrowRight size={15} /></>}
+                : <>Weiter geht&apos;s <ArrowRight size={15} /></>}
             </button>
           </div>
         </div>

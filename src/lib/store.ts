@@ -4,7 +4,7 @@ import { foodItems as baseFoodItems } from "@/data/foodItems";
 import { seedCustomFoods } from "@/data/seedCustomFoods";
 import { seedSupplementDB } from "@/data/seedSupplements";
 import { seedExerciseDB } from "@/data/seedExercises";
-import { Athlete, AthleteProfile, DailyCheckIn, WeeklyCheckIn, WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay, FoodItem, SupplementDBItem, ExerciseDBItem, GoalType, DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
+import { Athlete, AthleteProfile, DailyCheckIn, WeeklyCheckIn, WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay, FoodItem, SupplementDBItem, ExerciseDBItem, GoalType, DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest } from "@/types";
 import { todayISO } from "./utils";
 
 const STORAGE_KEY = "coachOS_athletes";
@@ -208,12 +208,18 @@ export function registerAthlete(data: RegistrationData): Athlete {
   return newAthlete;
 }
 
+
+function normalizeLoginName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, "");
+}
+
 export function findAthleteByLogin(nameOrEmail: string, pin: string): Athlete | null {
   const athletes = loadAthletes();
   const key = nameOrEmail.trim().toLowerCase();
+  const keyNorm = normalizeLoginName(nameOrEmail);
   return athletes.find((a) => {
     const emailMatch = (a.email || a.profile?.personal?.email || "").toLowerCase() === key;
-    const nameMatch = a.name.toLowerCase() === key;
+    const nameMatch = normalizeLoginName(a.name) === keyNorm;
     return (emailMatch || nameMatch) && a.pin === pin;
   }) ?? null;
 }
@@ -520,6 +526,85 @@ export function deleteExerciseDBItem(id: string): ExerciseDBItem[] {
   const items = loadExerciseDB();
   const updated = items.filter((e) => e.id !== id);
   saveExerciseDB(updated);
+  return updated;
+}
+
+// ─── Global Login Help Requests ──────────────────────────────────────────────
+
+const LOGIN_HELP_KEY = "coachOS_loginHelpRequests";
+
+export function loadLoginHelpRequests(): LoginHelpRequest[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(LOGIN_HELP_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLoginHelpRequests(requests: LoginHelpRequest[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LOGIN_HELP_KEY, JSON.stringify(requests));
+}
+
+export function addLoginHelpRequest(enteredName: string, note?: string): LoginHelpRequest[] {
+  const requests = loadLoginHelpRequests();
+  const newRequest: LoginHelpRequest = {
+    id: `lhr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    enteredName: enteredName.trim(),
+    note: note?.trim() || undefined,
+    requestedAt: new Date().toISOString(),
+    status: "open",
+  };
+  const updated = [...requests, newRequest];
+  saveLoginHelpRequests(updated);
+  return updated;
+}
+
+export function resolveLoginHelpRequest(id: string): LoginHelpRequest[] {
+  const requests = loadLoginHelpRequests();
+  const updated = requests.map((r) => r.id === id ? { ...r, status: "resolved" as const } : r);
+  saveLoginHelpRequests(updated);
+  return updated;
+}
+
+export function deleteLoginHelpRequest(id: string): LoginHelpRequest[] {
+  const requests = loadLoginHelpRequests();
+  const updated = requests.filter((r) => r.id !== id);
+  saveLoginHelpRequests(updated);
+  return updated;
+}
+
+// ─── Athlete Credential Update ────────────────────────────────────────────────
+
+export function updateAthleteCredentials(
+  athleteId: string,
+  updates: { name?: string; email?: string; pin?: string }
+): Athlete[] {
+  const athletes = loadAthletes();
+  const updated = athletes.map((a) => {
+    if (a.id !== athleteId) return a;
+    const newName = updates.name?.trim() ?? a.name;
+    const newEmail = updates.email?.toLowerCase().trim() ?? a.email ?? "";
+    const newPin = updates.pin?.trim() ?? a.pin;
+    const newInitials = newName
+      .split(/\s+/)
+      .map((w) => w[0]?.toUpperCase() ?? "")
+      .slice(0, 2)
+      .join("");
+    return {
+      ...a,
+      name: newName,
+      email: newEmail || undefined,
+      pin: newPin,
+      avatarInitials: updates.name ? newInitials : a.avatarInitials,
+      profile: a.profile
+        ? { ...a.profile, personal: { ...a.profile.personal, email: newEmail || undefined } }
+        : a.profile,
+    };
+  });
+  saveAthletes(updated);
   return updated;
 }
 

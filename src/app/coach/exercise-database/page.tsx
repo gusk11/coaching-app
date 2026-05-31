@@ -10,6 +10,7 @@ import {
 } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { useRouter } from "next/navigation";
+import { showToast } from "@/components/ui/Toast";
 import { Plus, Pencil, Trash2, X, Check, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { modalOverlay, modalContent } from "@/lib/motion";
@@ -295,22 +296,32 @@ export default function ExerciseDatabase() {
   const usedMuscleGroups = Array.from(new Set(items.map((e) => e.muscleGroup))).sort();
 
   function handleSave(data: Partial<ExerciseDBItem>) {
-    if (editing?.id) {
-      const updated = updateExerciseDBItem(editing.id, data);
-      setItems(updated);
-    } else {
-      const updated = addExerciseDBItem(
-        data as Omit<ExerciseDBItem, "id" | "createdAt" | "updatedAt">
-      );
-      setItems(updated);
+    const prevItems = [...items];
+    try {
+      if (editing?.id) {
+        setItems(updateExerciseDBItem(editing.id, data));
+      } else {
+        setItems(addExerciseDBItem(data as Omit<ExerciseDBItem, "id" | "createdAt" | "updatedAt">));
+      }
+      setEditing(null);
+      showToast("Übung gespeichert.", "success");
+    } catch {
+      setItems(prevItems);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
     }
-    setEditing(null);
   }
 
   function handleDelete(id: string) {
-    const updated = deleteExerciseDBItem(id);
-    setItems(updated);
+    const prevItems = [...items];
+    // Optimistic: remove immediately after confirmation
+    setItems((prev) => prev.filter((e) => e.id !== id));
     setConfirmDelete(null);
+    try {
+      deleteExerciseDBItem(id);
+    } catch {
+      setItems(prevItems);
+      showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");
+    }
   }
 
   return (

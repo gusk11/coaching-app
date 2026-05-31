@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { loadAuth, loadAthletes, updateAthlete } from "@/lib/store";
+import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials } from "@/lib/store";
+import { showToast } from "@/components/ui/Toast";
 import { Athlete, GoalType, MealPlan, TrainingPlan, SupplementPlan } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/ui/StatCard";
@@ -70,6 +71,13 @@ export default function CoachAthletePage() {
   const [editingTraining, setEditingTraining] = useState(false);
   const [editingSupplements, setEditingSupplements] = useState(false);
 
+  // Credential editing
+  const [editingCredentials, setEditingCredentials] = useState(false);
+  const [editCredName, setEditCredName] = useState("");
+  const [editCredEmail, setEditCredEmail] = useState("");
+  const [editCredPin, setEditCredPin] = useState("");
+  const [editCredError, setEditCredError] = useState("");
+
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "coach") { router.replace("/login"); return; }
@@ -81,6 +89,25 @@ export default function CoachAthletePage() {
     setEditCoachNote(found.coachNote);
     setEditVisibleNote(found.visibleNote);
   }, [router, id]);
+
+  const analysis = useMemo(() => athlete ? analyzeWeek(athlete) : null, [athlete]);
+  const dist = useMemo(() => athlete ? calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight) : 0, [athlete]);
+  const progress = useMemo(() => athlete ? calculateGoalProgressPercent(athlete.startWeight, athlete.currentWeight, athlete.targetWeight) : 0, [athlete]);
+  const trendColor = useMemo(() => athlete && analysis ? getTrendColor(analysis.trend, athlete.goalType) : "text-[#8fa3c0]", [analysis, athlete]);
+  const trendPercent = useMemo(() => {
+    if (!analysis || !athlete) return null;
+    return analysis.currentWeekAvg > 0 && analysis.previousWeekAvg > 0 && athlete.currentWeight > 0
+      ? Math.round((analysis.changeKg / athlete.currentWeight) * 10000) / 100
+      : null;
+  }, [analysis, athlete]);
+  const sortedDailyCheckIns = useMemo(
+    () => [...(athlete?.dailyCheckIns ?? [])].sort((a, b) => b.date.localeCompare(a.date)),
+    [athlete?.dailyCheckIns]
+  );
+  const sortedWeeklyCheckIns = useMemo(
+    () => [...(athlete?.weeklyCheckIns ?? [])].sort((a, b) => b.weekStart.localeCompare(a.weekStart)),
+    [athlete?.weeklyCheckIns]
+  );
 
   if (!athlete) {
     return (
@@ -115,81 +142,156 @@ export default function CoachAthletePage() {
     );
   }
 
-  const analysis = analyzeWeek(athlete);
-  const dist = calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight);
-  const progress = calculateGoalProgressPercent(athlete.startWeight, athlete.currentWeight, athlete.targetWeight);
-  const trendColor = getTrendColor(analysis.trend, athlete.goalType);
-  const trendPercent =
-    analysis.currentWeekAvg > 0 && analysis.previousWeekAvg > 0 && athlete.currentWeight > 0
-      ? Math.round((analysis.changeKg / athlete.currentWeight) * 10000) / 100
-      : null;
 
   function saveGoalEdit() {
-    const updated = updateAthlete(athlete!.id, {
-      goalType: editGoalType,
-      goalText: editGoalText.trim() || undefined,
-      coachNote: editCoachNote,
-      visibleNote: editVisibleNote,
-    });
-    const fresh = updated.find((a) => a.id === athlete!.id)!;
-    setAthlete(fresh);
-    setEditingGoal(false);
+    const previous = athlete;
+    try {
+      const updated = updateAthlete(athlete!.id, {
+        goalType: editGoalType,
+        goalText: editGoalText.trim() || undefined,
+        coachNote: editCoachNote,
+        visibleNote: editVisibleNote,
+      });
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setEditingGoal(false);
+      showToast("Ziel gespeichert.", "success");
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   function saveTargetWeight() {
     const parsed = parseFloat(editTargetWeightInput);
     if (isNaN(parsed) || parsed <= 0) return;
-    const updated = updateAthlete(athlete!.id, { targetWeight: parsed });
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    setEditingTargetWeight(false);
+    const previous = athlete;
+    try {
+      const updated = updateAthlete(athlete!.id, { targetWeight: parsed });
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setEditingTargetWeight(false);
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   function saveTrendTarget() {
     const parsed = parseFloat(editTrendTargetInput);
-    const updated = updateAthlete(athlete!.id, {
-      weeklyTrendTargetPercent: isNaN(parsed) ? undefined : parsed,
-    });
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    setEditingTrendTarget(false);
+    const previous = athlete;
+    try {
+      const updated = updateAthlete(athlete!.id, {
+        weeklyTrendTargetPercent: isNaN(parsed) ? undefined : parsed,
+      });
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setEditingTrendTarget(false);
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   function saveMealPlan(plan: MealPlan) {
-    const currentPlans = athlete!.mealPlans ?? [];
-    const exists = currentPlans.some(p => p.id === plan.id);
-    const newPlans = exists
-      ? currentPlans.map(p => p.id === plan.id ? plan : p)
-      : [...currentPlans, plan];
-    const updated = updateAthlete(athlete!.id, { mealPlans: newPlans });
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    const previous = athlete;
+    try {
+      const currentPlans = athlete!.mealPlans ?? [];
+      const exists = currentPlans.some(p => p.id === plan.id);
+      const newPlans = exists
+        ? currentPlans.map(p => p.id === plan.id ? plan : p)
+        : [...currentPlans, plan];
+      const updated = updateAthlete(athlete!.id, { mealPlans: newPlans });
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      showToast("Ernährungsplan gespeichert.", "success");
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   function deleteMealPlan(planId: string) {
-    const currentPlans = athlete!.mealPlans ?? [];
-    const newPlans = currentPlans.filter(p => p.id !== planId);
-    const updated = updateAthlete(athlete!.id, { mealPlans: newPlans });
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    const previous = athlete;
+    const optimisticPlans = (athlete!.mealPlans ?? []).filter(p => p.id !== planId);
+    setAthlete((prev) => prev ? { ...prev, mealPlans: optimisticPlans } : prev);
+    try {
+      const updated = updateAthlete(athlete!.id, { mealPlans: optimisticPlans });
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");
+    }
   }
 
   function saveTrainingPlan(plan: TrainingPlan) {
-    const updated = updateAthlete(athlete!.id, { trainingPlan: plan });
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    setEditingTraining(false);
+    const previous = athlete;
+    try {
+      const updated = updateAthlete(athlete!.id, { trainingPlan: plan });
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setEditingTraining(false);
+      showToast("Trainingsplan gespeichert.", "success");
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   function saveSupplementPlan(plan: SupplementPlan) {
-    const updated = updateAthlete(athlete!.id, { supplementPlan: plan });
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    setEditingSupplements(false);
+    const previous = athlete;
+    try {
+      const updated = updateAthlete(athlete!.id, { supplementPlan: plan });
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setEditingSupplements(false);
+      showToast("Supplement-Plan gespeichert.", "success");
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   function saveAthleteProfile(updates: Partial<Athlete>) {
-    const updated = updateAthlete(athlete!.id, updates);
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    const previous = athlete;
+    try {
+      const updated = updateAthlete(athlete!.id, updates);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      showToast("Profil gespeichert.", "success");
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   function handleUpdateTrainingLogs(athletes: Athlete[]) {
     const updated = athletes.find((a) => a.id === athlete!.id);
     if (updated) setAthlete(updated);
+  }
+
+  function openCredentialEdit() {
+    setEditCredName(athlete!.name);
+    setEditCredEmail(athlete!.email ?? "");
+    setEditCredPin(athlete!.pin);
+    setEditCredError("");
+    setEditingCredentials(true);
+  }
+
+  function saveCredentials() {
+    setEditCredError("");
+    if (!editCredName.trim()) { setEditCredError("Name darf nicht leer sein."); return; }
+    if (!editCredPin.trim()) { setEditCredError("PIN darf nicht leer sein."); return; }
+    if (editCredEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editCredEmail.trim())) {
+      setEditCredError("Ungültiges E-Mail-Format."); return;
+    }
+    const previous = athlete;
+    try {
+      const updated = updateAthleteCredentials(athlete!.id, {
+        name: editCredName,
+        email: editCredEmail || undefined,
+        pin: editCredPin,
+      });
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setEditingCredentials(false);
+      showToast("Anmeldedaten aktualisiert.", "success");
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Speichern.", "error");
+    }
   }
 
   return (
@@ -304,7 +406,7 @@ export default function CoachAthletePage() {
                 <span className="text-xs font-medium text-[#5a7090] uppercase tracking-widest">Wochentrend</span>
                 <div className={cn("flex items-baseline gap-1 mt-1 flex-wrap", trendColor)}>
                   <span className="text-xl font-bold leading-none">
-                    {getTrendIcon(analysis.trend)} {analysis.changeKg > 0 ? "+" : ""}{analysis.changeKg} kg
+                    {getTrendIcon(analysis!.trend)} {analysis!.changeKg > 0 ? "+" : ""}{analysis!.changeKg} kg
                   </span>
                   {trendPercent !== null && (
                     <span className="text-sm font-semibold">
@@ -505,6 +607,87 @@ export default function CoachAthletePage() {
 
             {/* Athlete profile (formerly own tab) */}
             <AthleteProfileEditor athlete={athlete} onSave={saveAthleteProfile} />
+
+            {/* Anmeldedaten */}
+            <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-[#5a7090] uppercase tracking-widest">Anmeldedaten</p>
+                {!editingCredentials ? (
+                  <button
+                    onClick={openCredentialEdit}
+                    className="flex items-center gap-1 text-xs text-[#8fa3c0] hover:text-[#60a5fa] transition-colors"
+                  >
+                    <Pencil size={12} /> Bearbeiten
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveCredentials}
+                      className="flex items-center gap-1 text-xs text-[#10b981] hover:text-[#34d399] transition-colors"
+                    >
+                      <Check size={12} /> Speichern
+                    </button>
+                    <button
+                      onClick={() => { setEditingCredentials(false); setEditCredError(""); }}
+                      className="flex items-center gap-1 text-xs text-[#5a7090] hover:text-[#f0f4ff] transition-colors"
+                    >
+                      <X size={12} /> Abbrechen
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {!editingCredentials ? (
+                <div className="grid grid-cols-1 gap-0 text-sm">
+                  <div className="flex justify-between items-center py-2 border-b border-[#1e2d42]">
+                    <span className="text-[#5a7090]">Name</span>
+                    <span className="text-[#f0f4ff] font-medium">{athlete.name}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-[#1e2d42]">
+                    <span className="text-[#5a7090]">E-Mail</span>
+                    <span className="text-[#f0f4ff] font-mono text-xs">{athlete.email || "–"}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-[#5a7090]">PIN</span>
+                    <span className="text-[#f0f4ff] font-mono tracking-widest">{athlete.pin}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-[#5a7090]">Name *</label>
+                    <input
+                      value={editCredName}
+                      onChange={(e) => setEditCredName(e.target.value)}
+                      placeholder="Vollständiger Name"
+                      className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-[#5a7090]">E-Mail</label>
+                    <input
+                      type="email"
+                      value={editCredEmail}
+                      onChange={(e) => setEditCredEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-[#5a7090]">PIN *</label>
+                    <input
+                      value={editCredPin}
+                      onChange={(e) => setEditCredPin(e.target.value)}
+                      placeholder="PIN"
+                      className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm font-mono focus:outline-none focus:border-[#3b82f6] transition-colors"
+                    />
+                  </div>
+                  {editCredError && (
+                    <p className="text-xs text-[#ef4444]">{editCredError}</p>
+                  )}
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
@@ -546,9 +729,7 @@ export default function CoachAthletePage() {
             {/* Daily Checks list */}
             {checkInSubTab === "daily" && (
               <motion.div className="flex flex-col gap-3" variants={listContainer} initial="hidden" animate="visible">
-                {[...athlete.dailyCheckIns]
-                  .sort((a, b) => b.date.localeCompare(a.date))
-                  .map((ci) => (
+                {sortedDailyCheckIns.map((ci) => (
                     <motion.button
                       variants={listItem}
                       key={ci.id}
@@ -628,9 +809,7 @@ export default function CoachAthletePage() {
             {/* Weekly Checks list */}
             {checkInSubTab === "weekly" && (
               <motion.div className="flex flex-col gap-3" variants={listContainer} initial="hidden" animate="visible">
-                {[...athlete.weeklyCheckIns]
-                  .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
-                  .map((ci) => {
+                {sortedWeeklyCheckIns.map((ci) => {
                     const weekStart = new Date(ci.weekStart + "T12:00:00");
                     const weekEnd = new Date(weekStart);
                     weekEnd.setDate(weekStart.getDate() + 6);

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ToastContainer } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
   title: "CoachOS — Fitness Coaching Platform",
@@ -20,6 +21,7 @@ export default function RootLayout({
     <html lang="de" className="h-full">
       <body className="min-h-full bg-[#0a0f1a] text-[#f0f4ff] antialiased">
         {children}
+        <ToastContainer />
       </body>
     </html>
   );

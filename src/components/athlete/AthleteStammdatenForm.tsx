@@ -7,6 +7,7 @@ import {
 import { cn, getGoalLabel } from "@/lib/utils";
 import { Upload, Trash2, Pencil, Check, X } from "lucide-react";
 import { ProfileDisplaySections } from "@/components/athlete/ProfileSections";
+import { showToast } from "@/components/ui/Toast";
 
 const MAX_PROFILE_IMAGE_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -256,11 +257,15 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
   }
 
   function handleSave() {
-    onSave(buildUpdates());
-    if (mode === "athlete") {
-      setEditing(false);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+    try {
+      onSave(buildUpdates());
+      if (mode === "athlete") {
+        setEditing(false);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      }
+    } catch {
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
     }
   }
 
@@ -283,16 +288,34 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
         uploadedAt: new Date().toISOString(), size: file.size, type: file.type,
       };
       setProfileImage(img);
-      if (mode === "athlete") onSave({ profileImage: img });
+      if (mode === "athlete") {
+        try {
+          onSave({ profileImage: img });
+        } catch {
+          setProfileImage(athlete.profileImage);
+          showToast("Profilbild konnte nicht gespeichert werden.", "error");
+        }
+      }
+    };
+    reader.onerror = () => {
+      setImageError("Bild konnte nicht geladen werden.");
     };
     reader.readAsDataURL(file);
   }
 
   function handleRemoveImage() {
+    const previous = profileImage;
     setProfileImage(undefined);
     setImageError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
-    if (mode === "athlete") onSave({ profileImage: undefined });
+    if (mode === "athlete") {
+      try {
+        onSave({ profileImage: undefined });
+      } catch {
+        setProfileImage(previous);
+        showToast("Profilbild konnte nicht entfernt werden.", "error");
+      }
+    }
   }
 
   function toggleConfig(key: keyof DailyCheckConfig) {
@@ -411,16 +434,6 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
                 </div>
               </div>
               <FieldInput label="Zielbeschreibung (optional)" value={goalText} onChange={setGoalText} placeholder="z. B. Wettkampf Mai 2026" />
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-[#5a7090]">Erfahrungslevel</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {EXPERIENCE_OPTIONS.map((o) => (
-                    <SelBtn key={o.value} active={experienceLevel === o.value} onClick={() => setExperienceLevel(o.value)}>{o.label}</SelBtn>
-                  ))}
-                </div>
-              </div>
-              <FieldInput label="Verletzungen / Einschränkungen" value={injuries} onChange={setInjuries} placeholder="z. B. linkes Knie, keine tiefen Kniebeugen" rows={2} />
-              <FieldInput label="Trainingshistorie" value={trainingHistory} onChange={setTrainingHistory} placeholder="z. B. 5 Jahre Kraftsport, früher Fußball" rows={2} />
             </>
           ) : (
             <>
@@ -430,9 +443,6 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
               <DataRow label="Zielgewicht" value={`${athlete.targetWeight} kg`} />
               <DataRow label="Ziel" value={getGoalLabel(athlete.goalType)} />
               {athlete.goalText && <DataRow label="Zielbeschreibung" value={athlete.goalText} />}
-              <DataRow label="Erfahrungslevel" value={athlete.experienceLevel ? EXPERIENCE_LABELS[athlete.experienceLevel] : undefined} />
-              {athlete.injuries && <DataRow label="Verletzungen / Einschränkungen" value={athlete.injuries} />}
-              {athlete.trainingHistory && <DataRow label="Trainingshistorie" value={athlete.trainingHistory} />}
             </>
           )}
         </div>
@@ -454,40 +464,22 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
           )}
         </div>
 
-        {/* Tracking */}
+        {/* Check-in */}
         <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-4">
-          <SectionHeader>Tracking</SectionHeader>
+          <SectionHeader>Check-in</SectionHeader>
           {editing ? (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-[#5a7090]">Trackinggerät</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {TRACKING_DEVICE_OPTIONS.map((o) => (
-                    <SelBtn key={o.value} active={trackingDevice === o.value} onClick={() => setTrackingDevice(o.value)}>{o.label}</SelBtn>
-                  ))}
-                </div>
-                {trackingDevice === "other" && (
-                  <div className="mt-1">
-                    <FieldInput label="Gerät angeben" value={trackingDeviceCustom} onChange={setTrackingDeviceCustom} placeholder="z. B. Polar Vantage" />
-                  </div>
-                )}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-[#5a7090]">Check-in-Tag</label>
+              <div className="flex flex-wrap gap-2">
+                {CHECKIN_DAY_OPTIONS.map((o) => (
+                  <SelBtn key={o.value} active={checkInDay === o.value} onClick={() => setCheckInDay(o.value)} className="min-w-[44px] text-center">
+                    {o.label}
+                  </SelBtn>
+                ))}
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-[#5a7090]">Check-in-Tag</label>
-                <div className="flex flex-wrap gap-2">
-                  {CHECKIN_DAY_OPTIONS.map((o) => (
-                    <SelBtn key={o.value} active={checkInDay === o.value} onClick={() => setCheckInDay(o.value)} className="min-w-[44px] text-center">
-                      {o.label}
-                    </SelBtn>
-                  ))}
-                </div>
-              </div>
-            </>
+            </div>
           ) : (
-            <>
-              <DataRow label="Trackinggerät" value={trackingLabel} />
-              <DataRow label="Check-in-Tag" value={CHECKIN_DAY_LABELS[athlete.checkInDay]} />
-            </>
+            <DataRow label="Check-in-Tag" value={CHECKIN_DAY_LABELS[athlete.checkInDay]} />
           )}
         </div>
 
@@ -510,19 +502,26 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
         </div>
 
         {/* Coaching-Profil (Onboarding-Daten) */}
-        {athlete.profile && (
+        {athlete.profile ? (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <p className="text-xs text-[#5a7090] uppercase tracking-widest">Coaching-Profil</p>
             </div>
-            <ProfileDisplaySections profile={athlete.profile} />
+            <ProfileDisplaySections profile={athlete.profile} trackingDeviceLabel={trackingLabel} />
           </div>
-        )}
-        {!athlete.profile && !editing && (
-          <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
-            <p className="text-sm text-[#5a7090]">Kein Coaching-Fragebogen ausgefüllt.</p>
+        ) : !editing ? (
+          <div className="flex flex-col gap-3">
+            {trackingLabel && (
+              <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
+                <p className="text-xs text-[#5a7090] uppercase tracking-widest">Alltag / Tracking</p>
+                <DataRow label="Trackinggerät" value={trackingLabel} />
+              </div>
+            )}
+            <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
+              <p className="text-sm text-[#5a7090]">Kein Coaching-Fragebogen ausgefüllt.</p>
+            </div>
           </div>
-        )}
+        ) : null}
 
         {/* Bottom save/cancel */}
         {editing && (
@@ -544,6 +543,12 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
   }
 
   // ── COACH MODE (always-edit form) ─────────────────────────────────────────────
+  const coachTrackingLabel = athlete.trackingDevice
+    ? (athlete.trackingDevice === "other" && athlete.trackingDeviceCustom
+        ? athlete.trackingDeviceCustom
+        : TRACKING_DEVICE_LABELS[athlete.trackingDevice])
+    : undefined;
+
   return (
     <div className="flex flex-col gap-5">
       {/* Profilbild */}
@@ -572,30 +577,7 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
           <FieldInput label="Startdatum Coaching" value={startDate} onChange={setStartDate} type="date" />
           <FieldInput label="Wettkampfdatum (optional)" value={competitionDate} onChange={setCompetitionDate} type="date" />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-[#5a7090]">Erfahrungslevel</label>
-          <div className="grid grid-cols-2 gap-2">
-            {EXPERIENCE_OPTIONS.map((o) => (
-              <SelBtn key={o.value} active={experienceLevel === o.value} onClick={() => setExperienceLevel(o.value)}>{o.label}</SelBtn>
-            ))}
-          </div>
-        </div>
-        <FieldInput label="Trainingshistorie" value={trainingHistory} onChange={setTrainingHistory} placeholder="z.B. 5 Jahre Kraftsport, früher Fußball" rows={2} />
-        <FieldInput label="Verletzungen / Einschränkungen" value={injuries} onChange={setInjuries} placeholder="z.B. linkes Knie, keine tiefen Kniebeugen" rows={2} />
         <FieldInput label="Besonderheiten / Coach-Notizen" value={specialNotes} onChange={setSpecialNotes} placeholder="Interne Anmerkungen zum Athleten" rows={2} />
-      </div>
-
-      {/* Trackinggerät */}
-      <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
-        <p className="text-xs text-[#5a7090] uppercase tracking-widest">Trackinggerät</p>
-        <div className="grid grid-cols-2 gap-2">
-          {TRACKING_DEVICE_OPTIONS.map((o) => (
-            <SelBtn key={o.value} active={trackingDevice === o.value} onClick={() => setTrackingDevice(o.value)}>{o.label}</SelBtn>
-          ))}
-        </div>
-        {trackingDevice === "other" && (
-          <FieldInput label="Gerät angeben" value={trackingDeviceCustom} onChange={setTrackingDeviceCustom} placeholder="z.B. Polar Vantage" />
-        )}
       </div>
 
       {/* Daily Check-in Felder */}
@@ -606,15 +588,28 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
       </div>
 
       {/* Coaching-Profil (Onboarding-Fragebogen) */}
-      {athlete.profile && (
+      {athlete.profile ? (
         <div className="flex flex-col gap-3">
           <p className="text-xs text-[#5a7090] uppercase tracking-widest">Coaching-Fragebogen</p>
-          <ProfileDisplaySections profile={athlete.profile} />
+          <ProfileDisplaySections profile={athlete.profile} trackingDeviceLabel={coachTrackingLabel} />
         </div>
-      )}
-      {!athlete.profile && (
-        <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
-          <p className="text-sm text-[#5a7090]">Kein Coaching-Fragebogen ausgefüllt. Der Athlet muss sich über den Registrierungs-Prozess anmelden.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {coachTrackingLabel && (
+            <>
+              <p className="text-xs text-[#5a7090] uppercase tracking-widest">Coaching-Fragebogen</p>
+              <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-2">
+                <p className="text-xs text-[#8fa3c0] font-semibold uppercase tracking-widest">Alltag / Tracking</p>
+                <div className="flex justify-between items-start py-1.5">
+                  <span className="text-xs text-[#5a7090]">Trackinggerät</span>
+                  <span className="text-xs text-[#c0cfe0]">{coachTrackingLabel}</span>
+                </div>
+              </div>
+            </>
+          )}
+          <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
+            <p className="text-sm text-[#5a7090]">Kein Coaching-Fragebogen ausgefüllt. Der Athlet muss sich über den Registrierungs-Prozess anmelden.</p>
+          </div>
         </div>
       )}
 

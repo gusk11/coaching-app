@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
 import { loadAuth, loadAthletes, saveTrainingLog } from "@/lib/store";
+import { showToast } from "@/components/ui/Toast";
 import { AppShell } from "@/components/layout/AppShell";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { TrainingLogger } from "@/components/athlete/TrainingLogger";
@@ -45,8 +46,13 @@ export default function AthleteTraining() {
   const today = todayISO();
 
   function handleSaveLog(log: Parameters<typeof saveTrainingLog>[1]) {
-    const updated = saveTrainingLog(athlete!.id, log);
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    try {
+      const updated = saveTrainingLog(athlete!.id, log);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      showToast("Training gespeichert.", "success");
+    } catch {
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   function handleUpdateLogs(athletes: Athlete[]) {

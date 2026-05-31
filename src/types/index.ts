@@ -407,6 +407,14 @@ export interface Athlete {
   weeklyTrendTargetPercent?: number;
 }
 
+export interface LoginHelpRequest {
+  id: string;
+  enteredName: string;
+  note?: string;
+  requestedAt: string;
+  status: "open" | "resolved";
+}
+
 // ─── Athlete Onboarding Profile ───────────────────────────────────────────────
 
 export interface AthleteProfile {

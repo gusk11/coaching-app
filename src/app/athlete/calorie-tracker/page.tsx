@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Athlete } from "@/types";
 import { loadAuth, loadAthletes, saveCalorieTrackerDay } from "@/lib/store";
+import { showToast } from "@/components/ui/Toast";
 import { AppShell } from "@/components/layout/AppShell";
 import { CalorieTracker } from "@/components/athlete/CalorieTracker";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -46,8 +47,12 @@ export default function CalorieTrackerPage() {
   }
 
   function handleSave(day: Parameters<typeof saveCalorieTrackerDay>[1]) {
-    const updated = saveCalorieTrackerDay(athlete!.id, day);
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    try {
+      const updated = saveCalorieTrackerDay(athlete!.id, day);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    } catch {
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   const displayDate = new Date(date).toLocaleDateString("de-DE", {

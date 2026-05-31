@@ -13,6 +13,7 @@ import {
 import { AppShell } from "@/components/layout/AppShell";
 import { useRouter } from "next/navigation";
 import { loadAuth } from "@/lib/store";
+import { showToast } from "@/components/ui/Toast";
 import { Plus, Pencil, Trash2, X, Check, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { modalOverlay, modalContent, listContainer, listItem } from "@/lib/motion";
@@ -311,30 +312,54 @@ export default function FoodDatabase() {
   });
 
   function handleSave(data: Partial<FoodItem>) {
-    if (editing?.id) {
-      if (editing.isCustomFood) {
-        setCustomFoods(updateCustomFood(editing.id, data));
+    const prevCustom = [...customFoods];
+    const prevHidden = [...hiddenBaseIds];
+    try {
+      if (editing?.id) {
+        if (editing.isCustomFood) {
+          setCustomFoods(updateCustomFood(editing.id, data));
+        } else {
+          // Base food: hide the original, create an editable custom copy
+          setHiddenBaseIds(deleteBaseFoodItem(editing.id));
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id, isCustomFood, createdAt, updatedAt, ...foodData } = { ...editing, ...data };
+          setCustomFoods(addCustomFood(foodData as Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">));
+        }
       } else {
-        // Base food: hide the original, create an editable custom copy
-        setHiddenBaseIds(deleteBaseFoodItem(editing.id));
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id, isCustomFood, createdAt, updatedAt, ...foodData } = { ...editing, ...data };
-        setCustomFoods(addCustomFood(foodData as Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">));
+        setCustomFoods(addCustomFood(data as Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">));
       }
-    } else {
-      setCustomFoods(addCustomFood(data as Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">));
+      setEditing(null);
+      showToast("Lebensmittel gespeichert.", "success");
+    } catch {
+      setCustomFoods(prevCustom);
+      setHiddenBaseIds(prevHidden);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
     }
-    setEditing(null);
   }
 
   function handleDeleteConfirmed() {
     if (!deleteTarget) return;
-    if (deleteTarget.isCustomFood) {
-      setCustomFoods(deleteCustomFood(deleteTarget.id));
+    const target = deleteTarget;
+    const prevCustom = [...customFoods];
+    const prevHidden = [...hiddenBaseIds];
+    // Optimistic: remove from UI immediately after confirmation
+    if (target.isCustomFood) {
+      setCustomFoods((prev) => prev.filter((f) => f.id !== target.id));
     } else {
-      setHiddenBaseIds(deleteBaseFoodItem(deleteTarget.id));
+      setHiddenBaseIds((prev) => [...prev, target.id]);
     }
     setDeleteTarget(null);
+    try {
+      if (target.isCustomFood) {
+        deleteCustomFood(target.id);
+      } else {
+        deleteBaseFoodItem(target.id);
+      }
+    } catch {
+      setCustomFoods(prevCustom);
+      setHiddenBaseIds(prevHidden);
+      showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");
+    }
   }
 
   return (

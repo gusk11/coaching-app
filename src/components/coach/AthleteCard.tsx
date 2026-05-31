@@ -67,7 +67,7 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {isCheckInToday && (
               <span className={cn(
                 "text-[10px] font-medium px-2 py-0.5 rounded-full border",

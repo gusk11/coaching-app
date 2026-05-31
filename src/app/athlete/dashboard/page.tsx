@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
 import { loadAuth, loadAthletes, addDailyCheckIn } from "@/lib/store";
@@ -52,6 +52,23 @@ export default function AthleteDashboard() {
     setAthlete(found);
   }, [router]);
 
+  const today = useMemo(() => todayISO(), []);
+  const weekStart = useMemo(() => getWeekDates(today).start, [today]);
+  const analysis = useMemo(() => athlete ? analyzeWeek(athlete) : null, [athlete]);
+  const dist = useMemo(() => athlete ? calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight) : 0, [athlete]);
+  const progress = useMemo(() => athlete ? calculateGoalProgressPercent(athlete.startWeight, athlete.currentWeight, athlete.targetWeight) : 0, [athlete]);
+  const lastCI = useMemo(() => athlete ? getLastCheckIn(athlete.dailyCheckIns) : undefined, [athlete?.dailyCheckIns]);
+  const alreadyCheckedIn = useMemo(() => lastCI?.date === today, [lastCI, today]);
+  const trendColor = useMemo(() => athlete && analysis ? getTrendColor(analysis.trend, athlete.goalType) : "text-[#8fa3c0]", [analysis, athlete]);
+  const visibleAdjustments = useMemo(
+    () => (athlete?.weeklyAdjustments ?? []).filter((a) => a.weekStart === weekStart && a.visibleToAthlete),
+    [athlete?.weeklyAdjustments, weekStart]
+  );
+  const backfillExisting = useMemo(
+    () => athlete?.dailyCheckIns.find((c) => c.date === backfillDate),
+    [athlete?.dailyCheckIns, backfillDate]
+  );
+
   if (!athlete) {
     return (
       <AppShell role="athlete">
@@ -75,16 +92,6 @@ export default function AthleteDashboard() {
     );
   }
 
-  const today = todayISO();
-  const { start: weekStart } = getWeekDates(today);
-  const analysis = analyzeWeek(athlete);
-  const dist = calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight);
-  const progress = calculateGoalProgressPercent(athlete.startWeight, athlete.currentWeight, athlete.targetWeight);
-  const lastCI = getLastCheckIn(athlete.dailyCheckIns);
-  const alreadyCheckedIn = lastCI?.date === today;
-  const trendColor = getTrendColor(analysis.trend, athlete.goalType);
-
-  const backfillExisting = athlete.dailyCheckIns.find((c) => c.date === backfillDate);
 
   function handleCheckInSubmit(data: any) {
     const updated = addDailyCheckIn(athlete!.id, data);
@@ -102,10 +109,6 @@ export default function AthleteDashboard() {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Guten Morgen" : hour < 17 ? "Guten Tag" : "Guten Abend";
-
-  const visibleAdjustments = (athlete.weeklyAdjustments ?? []).filter(
-    (a) => a.weekStart === weekStart && a.visibleToAthlete
-  );
 
   return (
     <AppShell role="athlete">
@@ -270,11 +273,11 @@ export default function AthleteDashboard() {
             <StatCard
               label="Wochentrend"
               value={
-                analysis.changeKg != null && athlete.currentWeight
+                analysis?.changeKg != null && athlete.currentWeight
                   ? (
                     <span className="flex items-baseline gap-1.5 flex-wrap">
-                      <span>{getTrendIcon(analysis.trend)} {analysis.changeKg > 0 ? "+" : ""}{analysis.changeKg} kg</span>
-                      <span className="text-base font-medium opacity-70">({analysis.changeKg > 0 ? "+" : ""}{((analysis.changeKg / athlete.currentWeight) * 100).toFixed(2)} %)</span>
+                      <span>{getTrendIcon(analysis!.trend)} {analysis!.changeKg > 0 ? "+" : ""}{analysis!.changeKg} kg</span>
+                      <span className="text-base font-medium opacity-70">({analysis!.changeKg > 0 ? "+" : ""}{((analysis!.changeKg / athlete.currentWeight) * 100).toFixed(2)} %)</span>
                     </span>
                   )
                   : "–"

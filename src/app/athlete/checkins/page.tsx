@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
 import { loadAuth, loadAthletes, addDailyCheckIn, addWeeklyCheckIn } from "@/lib/store";
+import { showToast } from "@/components/ui/Toast";
 import { DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { DailyCheckInForm } from "@/components/athlete/DailyCheckInForm";
@@ -80,21 +81,36 @@ export default function CheckInsPage() {
   const isWeeklyDay = isCheckInDay(athlete.checkInDay);
 
   function handleDailySubmit(data: any) {
-    const updated = addDailyCheckIn(athlete!.id, data);
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    setShowCheckIn(false);
+    try {
+      const updated = addDailyCheckIn(athlete!.id, data);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setShowCheckIn(false);
+      showToast("Daily Check-in gespeichert.", "success");
+    } catch {
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   function handleBackfillSubmit(data: any) {
-    const updated = addDailyCheckIn(athlete!.id, data);
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    setShowBackfill(false);
+    try {
+      const updated = addDailyCheckIn(athlete!.id, data);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setShowBackfill(false);
+      showToast("Check-in nachgetragen.", "success");
+    } catch {
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   function handleWeeklySubmit(data: any) {
-    const updated = addWeeklyCheckIn(athlete!.id, data);
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    setEditing(false);
+    try {
+      const updated = addWeeklyCheckIn(athlete!.id, data);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setEditing(false);
+      showToast("Weekly Check-in gespeichert.", "success");
+    } catch {
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   return (

@@ -1,14 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { loadAuth, loadAthletes, addAthlete, loadCheckInDone, setCheckInDone } from "@/lib/store";
-import { Athlete, GoalType } from "@/types";
+import { loadAuth, loadAthletes, addAthlete, loadCheckInDone, setCheckInDone, loadLoginHelpRequests, resolveLoginHelpRequest, deleteLoginHelpRequest } from "@/lib/store";
+import { showToast } from "@/components/ui/Toast";
+import { Athlete, GoalType, LoginHelpRequest } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { AthleteCard } from "@/components/coach/AthleteCard";
 import { analyzeWeek } from "@/lib/utils";
 import { StatCard } from "@/components/ui/StatCard";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { UserPlus, X } from "lucide-react";
+import { UserPlus, X, Check, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { listContainer, listItem, modalOverlay, modalContent } from "@/lib/motion";
 
@@ -31,6 +32,8 @@ export default function CoachDashboard() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [checkInDone, setCheckInDoneState] = useState<Record<string, boolean>>({});
+  const [loginHelpRequests, setLoginHelpRequests] = useState<LoginHelpRequest[]>([]);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // New athlete form state
   const [newName, setNewName] = useState("");
@@ -48,29 +51,60 @@ export default function CoachDashboard() {
     if (auth.role !== "coach") { router.replace("/login"); return; }
     setAthletes(loadAthletes());
     setCheckInDoneState(loadCheckInDone());
+    setLoginHelpRequests(loadLoginHelpRequests());
     setIsLoaded(true);
   }, [router]);
 
-  const todayDayOfWeek = new Date().getDay() as 0|1|2|3|4|5|6;
-  const todayStr = todayDateString();
+  const todayDayOfWeek = useMemo(() => new Date().getDay() as 0|1|2|3|4|5|6, []);
+  const todayStr = useMemo(() => todayDateString(), []);
 
   const totalAthletes = athletes.length;
-  const athletesWithCheckInToday = athletes.filter((a) => a.checkInDay === todayDayOfWeek);
+
+  const athletesWithCheckInToday = useMemo(
+    () => athletes.filter((a) => a.checkInDay === todayDayOfWeek),
+    [athletes, todayDayOfWeek]
+  );
+
   const checkInsToday = athletesWithCheckInToday.length;
-  const checkInsProcessed = athletesWithCheckInToday.filter(
-    (a) => checkInDone[`${a.id}_${todayStr}`] === true
-  ).length;
 
-  const sortedAthletes = [
-    ...athletesWithCheckInToday,
-    ...athletes.filter((a) => a.checkInDay !== todayDayOfWeek),
-  ];
+  const checkInsProcessed = useMemo(
+    () => athletesWithCheckInToday.filter((a) => checkInDone[`${a.id}_${todayStr}`] === true).length,
+    [athletesWithCheckInToday, checkInDone, todayStr]
+  );
 
-  function handleToggleDone(athleteId: string) {
+  const sortedAthletes = useMemo(
+    () => [
+      ...athletesWithCheckInToday,
+      ...athletes.filter((a) => a.checkInDay !== todayDayOfWeek),
+    ],
+    [athletes, athletesWithCheckInToday, todayDayOfWeek]
+  );
+
+  const handleToggleDone = useCallback((athleteId: string) => {
     const key = `${athleteId}_${todayStr}`;
     const current = checkInDone[key] ?? false;
-    const updated = setCheckInDone(athleteId, todayStr, !current);
-    setCheckInDoneState(updated);
+    // Optimistic: apply change immediately
+    const optimistic = { ...checkInDone, [key]: !current };
+    setCheckInDoneState(optimistic);
+    try {
+      const persisted = setCheckInDone(athleteId, todayStr, !current);
+      setCheckInDoneState(persisted);
+    } catch {
+      // Revert on error
+      setCheckInDoneState(checkInDone);
+      showToast("Check-in konnte nicht aktualisiert werden.", "error");
+    }
+  }, [checkInDone, todayStr]);
+
+  function handleResolveLoginHelp(id: string) {
+    const updated = resolveLoginHelpRequest(id);
+    setLoginHelpRequests(updated);
+  }
+
+  function handleDeleteLoginHelp(id: string) {
+    const updated = deleteLoginHelpRequest(id);
+    setLoginHelpRequests(updated);
+    setConfirmDeleteId(null);
   }
 
   function handleCreateAthlete(e: React.FormEvent) {
@@ -136,6 +170,67 @@ export default function CoachDashboard() {
           <UserPlus size={16} />
           Neuen Athleten anlegen
         </button>
+
+        {/* Login help requests */}
+        {loginHelpRequests.some((r) => r.status === "open") && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-[#f0f4ff] flex items-center gap-2">
+                Anmeldedaten vergessen
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#ef4444] text-white text-[10px] font-bold flex items-center justify-center">
+                  {loginHelpRequests.filter((r) => r.status === "open").length}
+                </span>
+              </p>
+            </div>
+            {loginHelpRequests.filter((r) => r.status === "open").map((req) => (
+              <div key={req.id} className="rounded-2xl bg-[#1a0a0a] border border-[#ef4444]/20 p-4 flex flex-col gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-sm font-semibold text-[#f0f4ff]">{req.enteredName}</p>
+                    {req.note && <p className="text-xs text-[#8fa3c0]">{req.note}</p>}
+                    <p className="text-[10px] text-[#5a7090] mt-1">
+                      {new Date(req.requestedAt).toLocaleString("de-DE", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-[#ef4444]/10 text-[#f87171] border-[#ef4444]/20 shrink-0 mt-0.5">
+                    Offen
+                  </span>
+                </div>
+                <div className="flex gap-2 mt-1">
+                  <button
+                    onClick={() => handleResolveLoginHelp(req.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#10b981]/10 border border-[#10b981]/30 text-[#10b981] text-xs font-medium hover:bg-[#10b981]/20 transition-colors"
+                  >
+                    <Check size={12} /> Als erledigt markieren
+                  </button>
+                  {confirmDeleteId === req.id ? (
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => handleDeleteLoginHelp(req.id)}
+                        className="px-3 py-1.5 rounded-lg bg-[#ef4444]/15 border border-[#ef4444]/30 text-[#f87171] text-xs font-medium hover:bg-[#ef4444]/25 transition-colors"
+                      >
+                        Bestätigen
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="px-3 py-1.5 rounded-lg border border-[#1e2d42] text-[#5a7090] text-xs hover:text-[#8fa3c0] transition-colors"
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeleteId(req.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#1e2d42] text-[#5a7090] text-xs hover:text-[#ef4444] hover:border-[#ef4444]/30 transition-colors"
+                    >
+                      <Trash2 size={12} /> Löschen
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Athlete cards */}
         {!isLoaded ? (

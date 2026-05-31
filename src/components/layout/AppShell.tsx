@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { clearAuth, loadAuth, loadAthletes } from "@/lib/store";
+import { clearAuth, loadAuth, loadAthletes, loadLoginHelpRequests } from "@/lib/store";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import {
@@ -38,15 +38,18 @@ function NavItemButton({
   item,
   active,
   showPending,
+  alertCount,
   variant,
   onClick,
 }: {
   item: NavItem;
   active: boolean;
   showPending: boolean;
+  alertCount?: number;
   variant: "desktop" | "mobile";
   onClick: () => void;
 }) {
+  const hasAlert = !!alertCount && alertCount > 0;
   if (variant === "desktop") {
     return (
       <button
@@ -55,15 +58,22 @@ function NavItemButton({
           "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all w-full text-left",
           active
             ? "bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20"
+            : hasAlert
+            ? "text-[#f87171] bg-[#450a0a]/30 hover:bg-[#450a0a]/50"
             : showPending
             ? "text-[#f59e0b] bg-[#451a03]/30 hover:bg-[#451a03]/50"
             : "text-[#8fa3c0] hover:bg-[#141d2e] hover:text-[#f0f4ff]"
         )}
       >
-        <span className={active ? "text-[#3b82f6]" : showPending ? "text-[#f59e0b]" : ""}>{item.icon}</span>
+        <span className={active ? "text-[#3b82f6]" : hasAlert ? "text-[#f87171]" : showPending ? "text-[#f59e0b]" : ""}>{item.icon}</span>
         {item.label}
         {active && <ChevronRight size={14} className="ml-auto text-[#3b82f6]" />}
-        {showPending && <span className="ml-auto w-2 h-2 rounded-full bg-[#f59e0b] shrink-0" />}
+        {hasAlert && (
+          <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-[#ef4444] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+            {alertCount}
+          </span>
+        )}
+        {!hasAlert && showPending && <span className="ml-auto w-2 h-2 rounded-full bg-[#f59e0b] shrink-0" />}
       </button>
     );
   }
@@ -71,9 +81,11 @@ function NavItemButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all",
+        "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all relative",
         active
           ? "bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20"
+          : hasAlert
+          ? "text-[#f87171] bg-[#450a0a]/30"
           : showPending
           ? "text-[#f59e0b] bg-[#451a03]/30"
           : "text-[#5a7090] hover:text-[#8fa3c0]"
@@ -81,7 +93,12 @@ function NavItemButton({
     >
       {item.icon}
       {item.label}
-      {showPending && <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] shrink-0" />}
+      {hasAlert && (
+        <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#ef4444] text-white text-[9px] font-bold flex items-center justify-center shrink-0">
+          {alertCount}
+        </span>
+      )}
+      {!hasAlert && showPending && <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] shrink-0" />}
     </button>
   );
 }
@@ -97,6 +114,7 @@ export function AppShell({ children, role, title }: AppShellProps) {
   const pathname = usePathname();
   const nav = role === "athlete" ? athleteNav : coachNav;
   const [hasPendingCheckins, setHasPendingCheckins] = useState(false);
+  const [openLoginHelpCount, setOpenLoginHelpCount] = useState(0);
 
   useEffect(() => {
     if (role !== "athlete") return;
@@ -112,6 +130,12 @@ export function AppShell({ children, role, title }: AppShellProps) {
     const isWeeklyDay = isCheckInDay(athlete.checkInDay);
 
     setHasPendingCheckins(!dailyDone || (isWeeklyDay && !weeklyDone));
+  }, [role, pathname]);
+
+  useEffect(() => {
+    if (role !== "coach") return;
+    const count = loadLoginHelpRequests().filter((r) => r.status === "open").length;
+    setOpenLoginHelpCount(count);
   }, [role, pathname]);
 
   function handleLogout() {
@@ -133,12 +157,14 @@ export function AppShell({ children, role, title }: AppShellProps) {
             {nav.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
               const showPending = !active && role === "athlete" && item.href === "/athlete/checkins" && hasPendingCheckins;
+              const alertCount = !active && role === "coach" && item.href === "/coach/dashboard" ? openLoginHelpCount : 0;
               return (
                 <NavItemButton
                   key={item.href}
                   item={item}
                   active={active}
                   showPending={showPending}
+                  alertCount={alertCount}
                   variant="desktop"
                   onClick={() => router.push(item.href)}
                 />
@@ -183,12 +209,14 @@ export function AppShell({ children, role, title }: AppShellProps) {
               {nav.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
                 const showPending = !active && role === "athlete" && item.href === "/athlete/checkins" && hasPendingCheckins;
+                const alertCount = !active && role === "coach" && item.href === "/coach/dashboard" ? openLoginHelpCount : 0;
                 return (
                   <NavItemButton
                     key={item.href}
                     item={item}
                     active={active}
                     showPending={showPending}
+                    alertCount={alertCount}
                     variant="mobile"
                     onClick={() => router.push(item.href)}
                   />

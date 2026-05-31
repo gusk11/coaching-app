@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ResponsiveContainer, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -170,37 +170,44 @@ export function ProgressAnalytics({ checkIns }: Props) {
   const [rangeMode, setRangeMode] = useState<RangeMode>("30");
   const [monthCount, setMonthCount] = useState<number>(3);
 
-  const sorted = [...checkIns].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = useMemo(
+    () => [...checkIns].sort((a, b) => a.date.localeCompare(b.date)),
+    [checkIns]
+  );
 
-  let filtered: DailyCheckIn[];
-  if (rangeMode === "all") {
-    filtered = sorted;
-  } else if (rangeMode === "months") {
-    const cutoff = new Date();
-    cutoff.setMonth(cutoff.getMonth() - monthCount);
-    const cutoffStr = cutoff.toISOString().split("T")[0];
-    filtered = sorted.filter((ci) => ci.date >= cutoffStr);
-  } else {
+  const filtered = useMemo((): DailyCheckIn[] => {
+    if (rangeMode === "all") return sorted;
+    if (rangeMode === "months") {
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - monthCount);
+      const cutoffStr = cutoff.toISOString().split("T")[0];
+      return sorted.filter((ci) => ci.date >= cutoffStr);
+    }
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - Number(rangeMode));
     const cutoffStr = cutoff.toISOString().split("T")[0];
-    filtered = sorted.filter((ci) => ci.date >= cutoffStr);
-  }
+    return sorted.filter((ci) => ci.date >= cutoffStr);
+  }, [sorted, rangeMode, monthCount]);
 
-  const selectedMetric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0];
+  const selectedMetric = useMemo(
+    () => METRICS.find((m) => m.key === metricKey) ?? METRICS[0],
+    [metricKey]
+  );
 
-  const lineData =
-    selectedMetric.type === "line"
+  const lineData = useMemo(
+    () => selectedMetric.type === "line"
       ? (filtered
           .map((ci) => {
             const val = selectedMetric.getValue!(ci);
             return val !== null ? { date: formatDateShort(ci.date), value: val } : null;
           })
           .filter(Boolean) as { date: string; value: number }[])
-      : [];
+      : [],
+    [filtered, selectedMetric]
+  );
 
-  const bpData =
-    selectedMetric.type === "bloodPressure"
+  const bpData = useMemo(
+    () => selectedMetric.type === "bloodPressure"
       ? filtered
           .filter((ci) => ci.bloodPressure != null)
           .map((ci) => ({
@@ -208,57 +215,64 @@ export function ProgressAnalytics({ checkIns }: Props) {
             Systolisch: ci.bloodPressure!.systolic,
             Diastolisch: ci.bloodPressure!.diastolic,
           }))
-      : [];
+      : [],
+    [filtered, selectedMetric]
+  );
 
-  const complianceData =
-    selectedMetric.type === "compliance"
+  const complianceData = useMemo(
+    () => selectedMetric.type === "compliance"
       ? filtered.map((ci) => ({
           date: formatDateShort(ci.date),
           value: selectedMetric.getValue!(ci) ?? 0,
         }))
-      : [];
+      : [],
+    [filtered, selectedMetric]
+  );
 
-  // Y-axis domains
-  const lineYDomain: [number, number] | undefined =
-    lineData.length > 0 && selectedMetric.yDomain
-      ? selectedMetric.yDomain(lineData.map((d) => d.value))
-      : undefined;
+  const lineYDomain = useMemo(
+    (): [number, number] | undefined =>
+      lineData.length > 0 && selectedMetric.yDomain
+        ? selectedMetric.yDomain(lineData.map((d) => d.value))
+        : undefined,
+    [lineData, selectedMetric]
+  );
 
-  const bpYDomain: [number, number] | undefined =
-    bpData.length > 0
-      ? dynamicDomain(bpData.flatMap((d) => [d.Systolisch, d.Diastolisch]), 10)
-      : undefined;
+  const bpYDomain = useMemo(
+    (): [number, number] | undefined =>
+      bpData.length > 0
+        ? dynamicDomain(bpData.flatMap((d) => [d.Systolisch, d.Diastolisch]), 10)
+        : undefined,
+    [bpData]
+  );
 
-  // Summary stats
-  let lineStats: { label: string; value: string }[] = [];
-  if (selectedMetric.type === "line" && lineData.length > 1) {
+  const lineStats = useMemo((): { label: string; value: string }[] => {
+    if (selectedMetric.type !== "line" || lineData.length <= 1) return [];
     const vals = lineData.map((d) => d.value);
-    lineStats = [
+    return [
       { label: "Ø Wert", value: (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1) + (selectedMetric.unit ?? "") },
       { label: "Min", value: Math.min(...vals).toFixed(1) + (selectedMetric.unit ?? "") },
       { label: "Max", value: Math.max(...vals).toFixed(1) + (selectedMetric.unit ?? "") },
     ];
-  }
+  }, [selectedMetric, lineData]);
 
-  let complianceStats: { label: string; value: string }[] = [];
-  if (selectedMetric.type === "compliance") {
+  const complianceStats = useMemo((): { label: string; value: string }[] => {
+    if (selectedMetric.type !== "compliance") return [];
     if (complianceData.length === 0) {
-      complianceStats = [
+      return [
         { label: "Compliance-Rate", value: "–" },
         { label: "Tage gesamt", value: "0" },
         { label: "Tage absolviert", value: "0" },
       ];
-    } else {
-      const done = complianceData.filter((d) => d.value > 0).length;
-      complianceStats = [
-        { label: "Compliance-Rate", value: `${Math.round((done / complianceData.length) * 100)} %` },
-        { label: "Tage gesamt", value: String(complianceData.length) },
-        { label: "Tage absolviert", value: String(done) },
-      ];
     }
-  }
+    const done = complianceData.filter((d) => d.value > 0).length;
+    return [
+      { label: "Compliance-Rate", value: `${Math.round((done / complianceData.length) * 100)} %` },
+      { label: "Tage gesamt", value: String(complianceData.length) },
+      { label: "Tage absolviert", value: String(done) },
+    ];
+  }, [selectedMetric, complianceData]);
 
-  const dotVisible = filtered.length <= 30;
+  const dotVisible = useMemo(() => filtered.length <= 30, [filtered]);
 
   const btnClass = (active: boolean) =>
     `px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${

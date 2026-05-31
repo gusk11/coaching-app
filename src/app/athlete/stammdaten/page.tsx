@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
 import { loadAuth, loadAthletes, updateAthlete } from "@/lib/store";
+import { showToast } from "@/components/ui/Toast";
 import { AppShell } from "@/components/layout/AppShell";
 import { AthleteStammdatenForm } from "@/components/athlete/AthleteStammdatenForm";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -39,8 +40,14 @@ export default function AthleteStammdatenPage() {
   }
 
   function handleSave(updates: Partial<Athlete>) {
-    const updated = updateAthlete(athlete!.id, updates);
-    setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    const previous = athlete;
+    try {
+      const updated = updateAthlete(athlete!.id, updates);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
   }
 
   return (

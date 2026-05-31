@@ -10,6 +10,7 @@ import {
 } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { useRouter } from "next/navigation";
+import { showToast } from "@/components/ui/Toast";
 import { Plus, Pencil, Trash2, X, Check, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { modalOverlay, modalContent } from "@/lib/motion";
@@ -328,22 +329,32 @@ export default function SupplementDatabase() {
   });
 
   function handleSave(data: Partial<SupplementDBItem>) {
-    if (editing?.id) {
-      const updated = updateSupplementDBItem(editing.id, data);
-      setItems(updated);
-    } else {
-      const updated = addSupplementDBItem(
-        data as Omit<SupplementDBItem, "id" | "createdAt" | "updatedAt">
-      );
-      setItems(updated);
+    const prevItems = [...items];
+    try {
+      if (editing?.id) {
+        setItems(updateSupplementDBItem(editing.id, data));
+      } else {
+        setItems(addSupplementDBItem(data as Omit<SupplementDBItem, "id" | "createdAt" | "updatedAt">));
+      }
+      setEditing(null);
+      showToast("Supplement gespeichert.", "success");
+    } catch {
+      setItems(prevItems);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
     }
-    setEditing(null);
   }
 
   function handleDelete(id: string) {
-    const updated = deleteSupplementDBItem(id);
-    setItems(updated);
+    const prevItems = [...items];
+    // Optimistic: remove immediately after confirmation
+    setItems((prev) => prev.filter((s) => s.id !== id));
     setConfirmDelete(null);
+    try {
+      deleteSupplementDBItem(id);
+    } catch {
+      setItems(prevItems);
+      showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");
+    }
   }
 
   return (

@@ -56,7 +56,7 @@ function EditRow({ label, value, onChange, rows, type }: {
 
 // ─── Display-only component ───────────────────────────────────────────────────
 
-export function ProfileDisplaySections({ profile }: { profile: AthleteProfile }) {
+export function ProfileDisplaySections({ profile, trackingDeviceLabel }: { profile: AthleteProfile; trackingDeviceLabel?: string }) {
   const p = profile;
 
   const dayLabels: Record<number, string> = {
@@ -69,6 +69,13 @@ export function ProfileDisplaySections({ profile }: { profile: AthleteProfile })
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Tracking device (top-level field, shown here to avoid duplication in Stammdaten) */}
+      {trackingDeviceLabel && (
+        <Section title="Alltag / Tracking" defaultOpen>
+          <Row label="Trackinggerät" value={trackingDeviceLabel} />
+        </Section>
+      )}
+
       {/* Lifestyle */}
       <Section title="Alltag & Lifestyle">
         <Row label="Beruf/Alltag" value={p.lifestyle?.occupation} />
