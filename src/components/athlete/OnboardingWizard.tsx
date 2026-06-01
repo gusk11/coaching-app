@@ -1471,44 +1471,16 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
               />
             </div>
 
-            <p className="text-sm text-[#5a7090] text-center px-2">
-              Bitte schau dir das kurze Video vollständig an, bevor du fortfährst.
-            </p>
-
-            {/* Timer-Fortschritt */}
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs text-[#5a7090]">
-                <span>
-                  {introTimerDone ? "Video abgeschlossen"
-                    : introPlaying ? "Video läuft…"
-                    : introElapsed > 0 ? "Video pausiert"
-                    : "Warte auf Start…"}
-                </span>
-                <span>{introElapsed}s / {INTRO_DURATION}s</span>
-              </div>
-              <div className="w-full bg-[#1e2d42] rounded-full h-1.5">
-                <div className="bg-[#3b82f6] h-1.5 rounded-full transition-all duration-1000"
-                  style={{ width: `${introProgress}%` }} />
-              </div>
-            </div>
           </div>
         </div>
 
         <div className="shrink-0 bg-[#0a0f1a] border-t border-[#1e2d42] px-4 py-4">
           <div className="max-w-lg mx-auto">
             <button
-              disabled={!introTimerDone}
               onClick={() => setPhase("questionnaire")}
-              className={cn(
-                "w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all",
-                introTimerDone
-                  ? "bg-[#3b82f6] text-white hover:bg-[#2563eb]"
-                  : "bg-[#1e2d42] text-[#3b4d6a] cursor-not-allowed"
-              )}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all bg-[#3b82f6] text-white hover:bg-[#2563eb]"
             >
-              {introTimerDone
-                ? <>Weiter geht&apos;s <ArrowRight size={15} /></>
-                : `Bitte warten… (${INTRO_DURATION - introElapsed}s)`}
+              Weiter geht&apos;s <ArrowRight size={15} />
             </button>
           </div>
         </div>
@@ -1541,22 +1513,6 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
                 allowFullScreen
                 className="absolute inset-0 w-full h-full border-0"
               />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs text-[#5a7090]">
-                <span>
-                  {outroTimerDone ? "Video abgeschlossen"
-                    : outroPlaying ? "Video läuft…"
-                    : outroElapsed > 0 ? "Video pausiert"
-                    : "Warte auf Start…"}
-                </span>
-                <span>{outroElapsed}s / {OUTRO_DURATION}s</span>
-              </div>
-              <div className="w-full bg-[#1e2d42] rounded-full h-1.5">
-                <div className="bg-[#3b82f6] h-1.5 rounded-full transition-all duration-1000"
-                  style={{ width: `${outroProgress}%` }} />
-              </div>
             </div>
 
             <p className="text-sm text-[#5a7090] text-center">
