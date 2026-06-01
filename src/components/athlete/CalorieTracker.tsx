@@ -83,7 +83,8 @@ function FoodSearchPanel({
 }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<FoodItem | null>(null);
-  const [amount, setAmount] = useState(100);
+  const [amountInput, setAmountInput] = useState("");
+  const [amountError, setAmountError] = useState("");
 
   const filtered = useMemo(
     () => {
@@ -96,8 +97,10 @@ function FoodSearchPanel({
     [allFoods, query]
   );
 
-  const amountG = selected ? toInternalAmountG(amount, selected) : 0;
-  const preview = selected ? calcEntry(selected, amountG) : null;
+  const parsedAmount = parseFloat(amountInput);
+  const isValidAmount = !isNaN(parsedAmount) && parsedAmount > 0;
+  const amountG = isValidAmount && selected ? toInternalAmountG(parsedAmount, selected) : 0;
+  const preview = isValidAmount && selected ? calcEntry(selected, amountG) : null;
   const unit = selected ? getServingUnit(selected) : "g";
 
   const inputCls =
@@ -124,7 +127,8 @@ function FoodSearchPanel({
                 type="button"
                 onClick={() => {
                   setSelected(f);
-                  setAmount(f.defaultAmount ?? (isStückFood(f) ? 1 : 100));
+                  setAmountInput(String(f.defaultAmount ?? (isStückFood(f) ? 1 : 100)));
+                  setAmountError("");
                 }}
                 className="text-left px-3 py-2 rounded-xl hover:bg-[#141d2e] transition-colors"
               >
@@ -155,10 +159,11 @@ function FoodSearchPanel({
                 type="number"
                 min={0}
                 step={1}
-                value={amount}
-                onChange={(e) => setAmount(Number(e.target.value))}
+                value={amountInput}
+                onChange={(e) => { setAmountInput(e.target.value); setAmountError(""); }}
                 className={inputCls}
               />
+              {amountError && <p className="text-xs text-[#ef4444] mt-1">{amountError}</p>}
             </div>
             <div className="pb-2">
               <span className="text-sm text-[#8fa3c0]">{unit}</span>
@@ -167,7 +172,7 @@ function FoodSearchPanel({
 
           {preview && (
             <div className="p-3 rounded-xl bg-[#0f1624] border border-[#1e2d42] text-xs text-[#8fa3c0] flex flex-wrap gap-x-3 gap-y-1">
-              <span className="text-[#f0f4ff] font-semibold">{amount} {unit}</span>
+              <span className="text-[#f0f4ff] font-semibold">{amountInput} {unit}</span>
               <span>{preview.kcal} kcal</span>
               <span>P {preview.protein}g</span>
               <span>K {preview.carbs}g</span>
@@ -181,7 +186,14 @@ function FoodSearchPanel({
             <button type="button" onClick={onClose} className="flex-1 py-2 rounded-xl border border-[#1e2d42] text-xs text-[#5a7090]">Abbrechen</button>
             <button
               type="button"
-              onClick={() => { onSelect(amountG, selected.id); onClose(); }}
+              onClick={() => {
+                if (!isValidAmount) {
+                  setAmountError("Bitte Menge größer als 0 eingeben.");
+                  return;
+                }
+                onSelect(amountG, selected.id);
+                onClose();
+              }}
               className="flex-1 py-2 rounded-xl bg-[#3b82f6] text-white text-xs font-medium hover:bg-[#2563eb] transition-colors"
             >
               Hinzufügen
@@ -203,12 +215,13 @@ function FreeEntryPanel({
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
-  const [kcal, setKcal] = useState(0);
-  const [protein, setProtein] = useState(0);
-  const [carbs, setCarbs] = useState(0);
-  const [fat, setFat] = useState(0);
-  const [fiber, setFiber] = useState(0);
-  const [salt, setSalt] = useState(0);
+  const [kcalInput, setKcalInput] = useState("0");
+  const [proteinInput, setProteinInput] = useState("0");
+  const [carbsInput, setCarbsInput] = useState("0");
+  const [fatInput, setFatInput] = useState("0");
+  const [fiberInput, setFiberInput] = useState("0");
+  const [saltInput, setSaltInput] = useState("0");
+  const [nutrientError, setNutrientError] = useState("");
 
   const inputCls =
     "bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors";
@@ -219,12 +232,12 @@ function FreeEntryPanel({
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className={inputCls} />
       <div className="grid grid-cols-2 gap-2">
         {[
-          { label: "kcal", val: kcal, set: setKcal },
-          { label: "Protein (g)", val: protein, set: setProtein },
-          { label: "Kohlenhydrate (g)", val: carbs, set: setCarbs },
-          { label: "Fett (g)", val: fat, set: setFat },
-          { label: "Ballaststoffe (g)", val: fiber, set: setFiber },
-          { label: "Salz (g)", val: salt, set: setSalt },
+          { label: "kcal", val: kcalInput, set: setKcalInput },
+          { label: "Protein (g)", val: proteinInput, set: setProteinInput },
+          { label: "Kohlenhydrate (g)", val: carbsInput, set: setCarbsInput },
+          { label: "Fett (g)", val: fatInput, set: setFatInput },
+          { label: "Ballaststoffe (g)", val: fiberInput, set: setFiberInput },
+          { label: "Salz (g)", val: saltInput, set: setSaltInput },
         ].map((f) => (
           <div key={f.label} className="flex flex-col gap-1">
             <label className="text-xs text-[#5a7090]">{f.label}</label>
@@ -233,18 +246,40 @@ function FreeEntryPanel({
               min={0}
               step={0.1}
               value={f.val}
-              onChange={(e) => f.set(Number(e.target.value))}
+              onChange={(e) => { f.set(e.target.value); setNutrientError(""); }}
               className={inputCls}
             />
           </div>
         ))}
       </div>
+      {nutrientError && <p className="text-xs text-[#ef4444]">{nutrientError}</p>}
       <div className="flex gap-2">
         <button type="button" onClick={onClose} className="flex-1 py-2 rounded-xl border border-[#1e2d42] text-xs text-[#5a7090]">Abbrechen</button>
         <button
           type="button"
           disabled={!name.trim()}
-          onClick={() => { onAdd({ name: name.trim(), amountG: 0, kcal, protein, carbs, fat, fiber, salt }); onClose(); }}
+          onClick={() => {
+            const inputs = [kcalInput, proteinInput, carbsInput, fatInput, fiberInput, saltInput];
+            for (const v of inputs) {
+              const n = v === "" ? 0 : parseFloat(v);
+              if (isNaN(n) || n < 0) {
+                setNutrientError("Bitte gültigen Wert eingeben.");
+                return;
+              }
+            }
+            const parseN = (v: string) => v === "" ? 0 : (parseFloat(v) || 0);
+            onAdd({
+              name: name.trim(),
+              amountG: 0,
+              kcal: parseN(kcalInput),
+              protein: parseN(proteinInput),
+              carbs: parseN(carbsInput),
+              fat: parseN(fatInput),
+              fiber: parseN(fiberInput),
+              salt: parseN(saltInput),
+            });
+            onClose();
+          }}
           className="flex-1 py-2 rounded-xl bg-[#3b82f6] text-white text-xs font-medium hover:bg-[#2563eb] transition-colors disabled:opacity-40"
         >
           Hinzufügen

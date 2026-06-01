@@ -1300,20 +1300,39 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [introElapsed, setIntroElapsed] = useState(0);
   const [outroElapsed, setOutroElapsed] = useState(0);
+  const [introPlaying, setIntroPlaying] = useState(false);
+  const [outroPlaying, setOutroPlaying] = useState(false);
   const [completedAthleteId, setCompletedAthleteId] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const introIframeRef = useRef<HTMLIFrameElement>(null);
+  const outroIframeRef = useRef<HTMLIFrameElement>(null);
+
+  // YouTube IFrame API sendet onStateChange via postMessage: info=1 (playing), info=2 (paused/ended)
+  useEffect(() => {
+    function handleMessage(e: MessageEvent) {
+      try {
+        const msg = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+        if (msg?.event !== "onStateChange") return;
+        const playing = msg.info === 1;
+        if (introIframeRef.current?.contentWindow === e.source) setIntroPlaying(playing);
+        if (outroIframeRef.current?.contentWindow === e.source) setOutroPlaying(playing);
+      } catch { /* kein YouTube-Event */ }
+    }
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   useEffect(() => {
-    if (phase !== "intro" || introElapsed >= INTRO_DURATION) return;
+    if (phase !== "intro" || !introPlaying || introElapsed >= INTRO_DURATION) return;
     const id = setInterval(() => setIntroElapsed((e) => Math.min(e + 1, INTRO_DURATION)), 1000);
     return () => clearInterval(id);
-  }, [phase, introElapsed]);
+  }, [phase, introPlaying, introElapsed]);
 
   useEffect(() => {
-    if (phase !== "complete" || outroElapsed >= OUTRO_DURATION) return;
+    if (phase !== "complete" || !outroPlaying || outroElapsed >= OUTRO_DURATION) return;
     const id = setInterval(() => setOutroElapsed((e) => Math.min(e + 1, OUTRO_DURATION)), 1000);
     return () => clearInterval(id);
-  }, [phase, outroElapsed]);
+  }, [phase, outroPlaying, outroElapsed]);
 
   const introTimerDone = introElapsed >= INTRO_DURATION;
   const introProgress = Math.round((introElapsed / INTRO_DURATION) * 100);
@@ -1443,7 +1462,8 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
             <div className="bg-[#0f1624] border border-[#1e2d42] rounded-2xl overflow-hidden relative mx-auto w-full max-w-[320px]"
               style={{ aspectRatio: "9/16" }}>
               <iframe
-                src="https://www.youtube.com/embed/ElZV49jyn9s"
+                ref={introIframeRef}
+                src="https://www.youtube.com/embed/ElZV49jyn9s?enablejsapi=1"
                 title="Onboarding Video – Vorher"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -1458,7 +1478,12 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
             {/* Timer-Fortschritt */}
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs text-[#5a7090]">
-                <span>{introTimerDone ? "Video abgeschlossen" : "Video läuft…"}</span>
+                <span>
+                  {introTimerDone ? "Video abgeschlossen"
+                    : introPlaying ? "Video läuft…"
+                    : introElapsed > 0 ? "Video pausiert"
+                    : "Warte auf Start…"}
+                </span>
                 <span>{introElapsed}s / {INTRO_DURATION}s</span>
               </div>
               <div className="w-full bg-[#1e2d42] rounded-full h-1.5">
@@ -1509,7 +1534,8 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
             <div className="bg-[#0a0f1a] border border-[#1e2d42] rounded-xl overflow-hidden relative mx-auto w-full max-w-[320px]"
               style={{ aspectRatio: "9/16" }}>
               <iframe
-                src="https://www.youtube.com/embed/PaQm9oeclJ0"
+                ref={outroIframeRef}
+                src="https://www.youtube.com/embed/PaQm9oeclJ0?enablejsapi=1"
                 title="Onboarding Video – Nachher"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -1519,7 +1545,12 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
 
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs text-[#5a7090]">
-                <span>{outroTimerDone ? "Video abgeschlossen" : "Video läuft…"}</span>
+                <span>
+                  {outroTimerDone ? "Video abgeschlossen"
+                    : outroPlaying ? "Video läuft…"
+                    : outroElapsed > 0 ? "Video pausiert"
+                    : "Warte auf Start…"}
+                </span>
                 <span>{outroElapsed}s / {OUTRO_DURATION}s</span>
               </div>
               <div className="w-full bg-[#1e2d42] rounded-full h-1.5">

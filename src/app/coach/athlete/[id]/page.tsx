@@ -691,46 +691,6 @@ export default function CoachAthletePage() {
               )}
             </div>
 
-            {/* Rechtliches */}
-            {athlete.legalConsent ? (
-              <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
-                <p className="text-xs text-[#5a7090] uppercase tracking-widest">Rechtliches &amp; Zustimmung</p>
-                {[
-                  {
-                    label: "Datenschutzerklärung",
-                    value: athlete.legalConsent.privacyAccepted
-                      ? `Akzeptiert am ${new Date(athlete.legalConsent.privacyAcceptedAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`
-                      : "Nicht akzeptiert",
-                  },
-                  {
-                    label: "Coaching-Vertrag",
-                    value: athlete.legalConsent.contractAccepted
-                      ? `Akzeptiert am ${new Date(athlete.legalConsent.contractAcceptedAt).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`
-                      : "Nicht akzeptiert",
-                  },
-                  { label: "Vertragsversion", value: athlete.legalConsent.legalVersion },
-                  ...(athlete.legalConsent.signedName ? [{ label: "Bestätigungsname", value: athlete.legalConsent.signedName }] : []),
-                ].map(({ label, value }) => (
-                  <div key={label} className="flex justify-between items-start gap-3 py-2 border-b border-[#1e2d42]/60 last:border-0">
-                    <span className="text-xs text-[#5a7090] shrink-0">{label}</span>
-                    <span className="text-xs text-[#f0f4ff] text-right">{value}</span>
-                  </div>
-                ))}
-                {athlete.legalConsent.signatureDataUrl && (
-                  <div className="flex flex-col gap-1.5 pt-1">
-                    <span className="text-xs text-[#5a7090]">Digitale Unterschrift</span>
-                    <div className="rounded-xl border border-[#2e4060] bg-[#0a0f1a] overflow-hidden p-2">
-                      <img src={athlete.legalConsent.signatureDataUrl} alt="Unterschrift" className="max-h-[80px] w-auto" />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
-                <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Rechtliches &amp; Zustimmung</p>
-                <p className="text-sm text-[#5a7090]">Keine Zustimmungsdaten vorhanden.</p>
-              </div>
-            )}
           </motion.div>
         )}
 

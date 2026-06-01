@@ -43,27 +43,44 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
       setSelectedId((prev) => prev || foods[0]?.id || "");
     });
   }, []);
-  const [amount, setAmount] = useState(100);
+  const [amountInput, setAmountInput] = useState("100");
+  const [amountError, setAmountError] = useState("");
   const [customName, setCustomName] = useState("");
-  const [customKcal, setCustomKcal] = useState(0);
-  const [customProtein, setCustomProtein] = useState(0);
-  const [customCarbs, setCustomCarbs] = useState(0);
-  const [customFat, setCustomFat] = useState(0);
+  const [customKcalInput, setCustomKcalInput] = useState("0");
+  const [customProteinInput, setCustomProteinInput] = useState("0");
+  const [customCarbsInput, setCustomCarbsInput] = useState("0");
+  const [customFatInput, setCustomFatInput] = useState("0");
+  const [customNutrientError, setCustomNutrientError] = useState("");
   const [open, setOpen] = useState(false);
 
   function handleAdd() {
+    const parsedAmount = parseFloat(amountInput);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setAmountError("Bitte Menge größer als 0 eingeben.");
+      return;
+    }
     if (mode === "db") {
       const fi = dbFoodItems.find((f) => f.id === selectedId);
       if (!fi) return;
-      onAdd({ foodItemId: fi.id, foodItem: fi, amountG: amount });
+      onAdd({ foodItemId: fi.id, foodItem: fi, amountG: parsedAmount });
     } else {
       if (!customName.trim()) return;
-      const fi = customFoodItem(customName.trim(), customKcal, customProtein, customCarbs, customFat);
-      onAdd({ foodItemId: fi.id, foodItem: fi, amountG: amount });
-      setCustomName(""); setCustomKcal(0); setCustomProtein(0); setCustomCarbs(0); setCustomFat(0);
+      const nutInputs = [customKcalInput, customProteinInput, customCarbsInput, customFatInput];
+      for (const v of nutInputs) {
+        const n = v === "" ? 0 : parseFloat(v);
+        if (isNaN(n) || n < 0) {
+          setCustomNutrientError("Bitte gültigen Wert eingeben.");
+          return;
+        }
+      }
+      const parseN = (v: string) => v === "" ? 0 : (parseFloat(v) || 0);
+      const fi = customFoodItem(customName.trim(), parseN(customKcalInput), parseN(customProteinInput), parseN(customCarbsInput), parseN(customFatInput));
+      onAdd({ foodItemId: fi.id, foodItem: fi, amountG: parsedAmount });
+      setCustomName(""); setCustomKcalInput("0"); setCustomProteinInput("0"); setCustomCarbsInput("0"); setCustomFatInput("0"); setCustomNutrientError("");
     }
     setOpen(false);
-    setAmount(100);
+    setAmountInput("100");
+    setAmountError("");
   }
 
   if (!open) {
@@ -99,8 +116,9 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-[#5a7090]">Menge (g)</label>
-            <input type="number" min={1} value={amount} onChange={(e) => setAmount(Number(e.target.value))}
+            <input type="number" min={0} value={amountInput} onChange={(e) => { setAmountInput(e.target.value); setAmountError(""); }}
               className="bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6]" />
+            {amountError && <p className="text-[10px] text-[#ef4444] mt-0.5">{amountError}</p>}
           </div>
         </div>
       ) : (
@@ -113,25 +131,27 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs text-[#5a7090]">Menge (g)</label>
-              <input type="number" min={1} value={amount} onChange={(e) => setAmount(Number(e.target.value))}
+              <input type="number" min={0} value={amountInput} onChange={(e) => { setAmountInput(e.target.value); setAmountError(""); }}
                 className="bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6]" />
+              {amountError && <p className="text-[10px] text-[#ef4444] mt-0.5">{amountError}</p>}
             </div>
           </div>
           <p className="text-xs text-[#5a7090]">Makros pro 100g (optional)</p>
           <div className="grid grid-cols-4 gap-1.5">
             {[
-              { label: "kcal", val: customKcal, set: setCustomKcal },
-              { label: "P (g)", val: customProtein, set: setCustomProtein },
-              { label: "K (g)", val: customCarbs, set: setCustomCarbs },
-              { label: "F (g)", val: customFat, set: setCustomFat },
+              { label: "kcal", val: customKcalInput, set: setCustomKcalInput },
+              { label: "P (g)", val: customProteinInput, set: setCustomProteinInput },
+              { label: "K (g)", val: customCarbsInput, set: setCustomCarbsInput },
+              { label: "F (g)", val: customFatInput, set: setCustomFatInput },
             ].map((f) => (
               <div key={f.label} className="flex flex-col gap-0.5">
                 <label className="text-xs text-[#5a7090]">{f.label}</label>
-                <input type="number" min={0} value={f.val} onChange={(e) => f.set(Number(e.target.value))}
+                <input type="number" min={0} value={f.val} onChange={(e) => { f.set(e.target.value); setCustomNutrientError(""); }}
                   className="bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6]" />
               </div>
             ))}
           </div>
+          {customNutrientError && <p className="text-[10px] text-[#ef4444]">{customNutrientError}</p>}
         </div>
       )}
 
@@ -163,6 +183,21 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
   const [coachNote, setCoachNote] = useState(plan.coachNote ?? "");
   const [meals, setMeals] = useState<Meal[]>(plan.meals);
   const [expandedMeals, setExpandedMeals] = useState<Set<string>>(new Set(plan.meals.map((m) => m.id)));
+  const [entryAmountInputs, setEntryAmountInputs] = useState<Record<string, string>>(() => {
+    const m: Record<string, string> = {};
+    plan.meals.forEach((meal) => {
+      meal.entries.forEach((entry) => {
+        m[`${meal.id}:${entry.foodItemId}`] = String(entry.amountG);
+      });
+    });
+    return m;
+  });
+  const [amountErrors, setAmountErrors] = useState<Record<string, boolean>>({});
+  const [saveError, setSaveError] = useState("");
+
+  function getAmountKey(mealId: string, foodItemId: string) {
+    return `${mealId}:${foodItemId}`;
+  }
 
   function toggleMeal(id: string) {
     setExpandedMeals((prev) => {
@@ -179,6 +214,19 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
   }
 
   function deleteMeal(id: string) {
+    const meal = meals.find((m) => m.id === id);
+    if (meal) {
+      setEntryAmountInputs((prev) => {
+        const next = { ...prev };
+        meal.entries.forEach((e) => { delete next[getAmountKey(id, e.foodItemId)]; });
+        return next;
+      });
+      setAmountErrors((prev) => {
+        const next = { ...prev };
+        meal.entries.forEach((e) => { delete next[getAmountKey(id, e.foodItemId)]; });
+        return next;
+      });
+    }
     setMeals((prev) => prev.filter((m) => m.id !== id));
   }
 
@@ -188,6 +236,7 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
 
   function addEntry(mealId: string, entry: MealEntry) {
     setMeals((prev) => prev.map((m) => (m.id === mealId ? { ...m, entries: [...m.entries, entry] } : m)));
+    setEntryAmountInputs((prev) => ({ ...prev, [getAmountKey(mealId, entry.foodItemId)]: String(entry.amountG) }));
   }
 
   function updateEntryAmount(mealId: string, foodItemId: string, amount: number) {
@@ -198,13 +247,48 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
     ));
   }
 
+  function handleAmountChange(mealId: string, foodItemId: string, value: string) {
+    const key = getAmountKey(mealId, foodItemId);
+    setEntryAmountInputs((prev) => ({ ...prev, [key]: value }));
+    setSaveError("");
+    const n = parseFloat(value);
+    if (!isNaN(n) && n > 0) {
+      setAmountErrors((prev) => ({ ...prev, [key]: false }));
+      updateEntryAmount(mealId, foodItemId, n);
+    } else {
+      setAmountErrors((prev) => ({ ...prev, [key]: value !== "" }));
+    }
+  }
+
   function deleteEntry(mealId: string, foodItemId: string) {
     setMeals((prev) => prev.map((m) =>
       m.id === mealId ? { ...m, entries: m.entries.filter((e) => e.foodItemId !== foodItemId) } : m
     ));
+    const key = getAmountKey(mealId, foodItemId);
+    setEntryAmountInputs((prev) => { const next = { ...prev }; delete next[key]; return next; });
+    setAmountErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
   }
 
   function handleSave() {
+    const newErrors: Record<string, boolean> = {};
+    let hasError = false;
+    for (const meal of meals) {
+      for (const entry of meal.entries) {
+        const key = getAmountKey(meal.id, entry.foodItemId);
+        const inputStr = entryAmountInputs[key] ?? String(entry.amountG);
+        const n = parseFloat(inputStr);
+        if (isNaN(n) || n <= 0) {
+          newErrors[key] = true;
+          hasError = true;
+        }
+      }
+    }
+    if (hasError) {
+      setAmountErrors(newErrors);
+      setSaveError("Bitte Menge größer als 0 eingeben.");
+      return;
+    }
+    setSaveError("");
     onSave({ ...plan, title, coachNote, meals });
   }
 
@@ -281,6 +365,9 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
             {expanded && (
               <div className="p-4 flex flex-col gap-2">
                 {meal.entries.map((entry) => {
+                  const amtKey = getAmountKey(meal.id, entry.foodItemId);
+                  const amountStr = entryAmountInputs[amtKey] ?? String(entry.amountG);
+                  const hasAmountError = amountErrors[amtKey] === true;
                   const r = entry.amountG / 100;
                   const em = {
                     kcal: entry.foodItem.kcalPer100g * r,
@@ -299,9 +386,12 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <input type="number" min={1} value={entry.amountG}
-                          onChange={(e) => updateEntryAmount(meal.id, entry.foodItemId, Number(e.target.value))}
-                          className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1 text-[#f0f4ff] text-xs w-16 focus:outline-none focus:border-[#3b82f6] text-right" />
+                        <div className="flex flex-col items-end">
+                          <input type="number" min={0} value={amountStr}
+                            onChange={(e) => handleAmountChange(meal.id, entry.foodItemId, e.target.value)}
+                            className={`bg-[#0f1624] border rounded-lg px-2 py-1 text-[#f0f4ff] text-xs w-16 focus:outline-none text-right transition-colors ${hasAmountError ? "border-[#ef4444] focus:border-[#ef4444]" : "border-[#1e2d42] focus:border-[#3b82f6]"}`} />
+                          {hasAmountError && <span className="text-[10px] text-[#ef4444]">{">"} 0</span>}
+                        </div>
                         <span className="text-xs text-[#5a7090]">g</span>
                         <Tooltip label="Eintrag entfernen">
                           <button type="button" onClick={() => deleteEntry(meal.id, entry.foodItemId)} aria-label="Eintrag entfernen"
@@ -330,6 +420,9 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
         <Plus size={15} /> Mahlzeit hinzufügen
       </button>
 
+      {saveError && (
+        <p className="text-xs text-[#ef4444] text-center -mt-2">{saveError}</p>
+      )}
       <button type="button" onClick={handleSave}
         className="w-full py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors">
         Plan speichern

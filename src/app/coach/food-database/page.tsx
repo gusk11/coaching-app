@@ -31,6 +31,9 @@ const ALLOWED_CATEGORIES = [
 const SERVING_OPTIONS = ["100 g", "1 Stück"] as const;
 type ServingOption = typeof SERVING_OPTIONS[number];
 
+type NutrientKey = "kcalPer100g" | "proteinPer100g" | "carbsPer100g" | "fatPer100g" | "fiberPer100g" | "saltPer100g";
+const NUTRIENT_KEYS: NutrientKey[] = ["kcalPer100g", "proteinPer100g", "carbsPer100g", "fatPer100g", "fiberPer100g", "saltPer100g"];
+
 // ─── Empty form ───────────────────────────────────────────────────────────────
 function emptyForm(): Partial<FoodItem> {
   return {
@@ -63,6 +66,19 @@ function FoodForm({
   onClose: () => void;
 }) {
   const [form, setForm] = useState<Partial<FoodItem>>(initial ?? emptyForm());
+  const [nutrientInputs, setNutrientInputs] = useState<Record<NutrientKey, string>>(() => {
+    const src = initial ?? emptyForm();
+    return {
+      kcalPer100g: String(src.kcalPer100g ?? 0),
+      proteinPer100g: String(src.proteinPer100g ?? 0),
+      carbsPer100g: String(src.carbsPer100g ?? 0),
+      fatPer100g: String(src.fatPer100g ?? 0),
+      fiberPer100g: String(src.fiberPer100g ?? 0),
+      saltPer100g: String(src.saltPer100g ?? 0),
+    };
+  });
+  const [nutrientError, setNutrientError] = useState("");
+
   function set(field: keyof FoodItem, value: string | number) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -70,7 +86,18 @@ function FoodForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name?.trim()) return;
-    onSave({ ...form, category: form.category || "Weitere" });
+    const parsedNutrients: Partial<Record<NutrientKey, number>> = {};
+    for (const key of NUTRIENT_KEYS) {
+      const s = nutrientInputs[key];
+      const n = s === "" ? 0 : parseFloat(s);
+      if (isNaN(n) || n < 0) {
+        setNutrientError("Bitte gültigen Wert eingeben.");
+        return;
+      }
+      parsedNutrients[key] = n;
+    }
+    setNutrientError("");
+    onSave({ ...form, ...parsedNutrients, category: form.category || "Weitere" });
   }
 
   const inputCls =
@@ -173,13 +200,17 @@ function FoodForm({
                     type="number"
                     min={0}
                     step={0.01}
-                    value={(form[field] as number) ?? 0}
-                    onChange={(e) => set(field, parseFloat(e.target.value) || 0)}
+                    value={nutrientInputs[field as NutrientKey] ?? "0"}
+                    onChange={(e) => {
+                      setNutrientInputs((prev) => ({ ...prev, [field]: e.target.value }));
+                      setNutrientError("");
+                    }}
                     className={inputCls}
                   />
                 </div>
               ))}
             </div>
+            {nutrientError && <p className="text-xs text-[#ef4444] mt-1">{nutrientError}</p>}
           </div>
 
           {/* Notes */}
