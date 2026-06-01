@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { MealPlan, Meal, MealEntry, FoodItem } from "@/types";
 import { getAllFoodItems } from "@/lib/store";
-import { Trash2, Plus, ChevronDown, ChevronUp, Pencil, ArrowLeft } from "lucide-react";
+import { Trash2, Plus, ChevronDown, ChevronUp, Pencil, ArrowLeft, Search, X } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { calculateMealMacros, calculateDayMacros, roundMacro, roundSalt } from "@/lib/utils";
 
@@ -36,12 +36,10 @@ function customFoodItem(name: string, kcal: number, protein: number, carbs: numb
 function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
   const [mode, setMode] = useState<"db" | "custom">("db");
   const [dbFoodItems, setDbFoodItems] = useState<FoodItem[]>([]);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
+  const [foodSearch, setFoodSearch] = useState("");
   useEffect(() => {
-    getAllFoodItems().then((foods) => {
-      setDbFoodItems(foods);
-      setSelectedId((prev) => prev || foods[0]?.id || "");
-    });
+    getAllFoodItems().then(setDbFoodItems);
   }, []);
   const [amountInput, setAmountInput] = useState("100");
   const [amountError, setAmountError] = useState("");
@@ -53,6 +51,11 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
   const [customNutrientError, setCustomNutrientError] = useState("");
   const [open, setOpen] = useState(false);
 
+  const filteredFoods = dbFoodItems.filter((f) =>
+    f.name.toLowerCase().includes(foodSearch.toLowerCase()) ||
+    f.category.toLowerCase().includes(foodSearch.toLowerCase())
+  );
+
   function handleAdd() {
     const parsedAmount = parseFloat(amountInput);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -60,9 +63,10 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
       return;
     }
     if (mode === "db") {
-      const fi = dbFoodItems.find((f) => f.id === selectedId);
-      if (!fi) return;
-      onAdd({ foodItemId: fi.id, foodItem: fi, amountG: parsedAmount });
+      if (!selectedFood) return;
+      onAdd({ foodItemId: selectedFood.id, foodItem: selectedFood, amountG: parsedAmount });
+      setSelectedFood(null);
+      setFoodSearch("");
     } else {
       if (!customName.trim()) return;
       const nutInputs = [customKcalInput, customProteinInput, customCarbsInput, customFatInput];
@@ -106,13 +110,50 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
       </div>
 
       {mode === "db" ? (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-[#5a7090]">Lebensmittel</label>
-            <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}
-              className="bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6]">
-              {dbFoodItems.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
+            {selectedFood ? (
+              <div className="flex items-center gap-2 bg-[#141d2e] border border-[#3b82f6]/40 rounded-lg px-2.5 py-1.5">
+                <span className="text-xs text-[#f0f4ff] flex-1 truncate">{selectedFood.name}</span>
+                <span className="text-[10px] text-[#5a7090] shrink-0">{selectedFood.category}</span>
+                <button type="button" onClick={() => { setSelectedFood(null); setFoodSearch(""); }}
+                  className="shrink-0 text-[#5a7090] hover:text-[#f0f4ff] transition-colors">
+                  <X size={11} />
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5a7090] pointer-events-none" />
+                  <input
+                    autoFocus
+                    value={foodSearch}
+                    onChange={(e) => setFoodSearch(e.target.value)}
+                    placeholder="Lebensmittel suchen…"
+                    className="bg-[#141d2e] border border-[#1e2d42] rounded-lg pl-7 pr-3 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] w-full"
+                  />
+                </div>
+                {dbFoodItems.length === 0 ? (
+                  <p className="text-xs text-[#5a7090] px-1 py-2">Noch keine Lebensmittel in der DB vorhanden.</p>
+                ) : (
+                  <div className="flex flex-col gap-0.5 max-h-44 overflow-y-auto rounded-lg border border-[#1e2d42] bg-[#0f1624]">
+                    {filteredFoods.length === 0 ? (
+                      <p className="text-xs text-[#5a7090] px-2.5 py-3">Keine Lebensmittel gefunden</p>
+                    ) : (
+                      filteredFoods.map((f) => (
+                        <button key={f.id} type="button"
+                          onClick={() => setSelectedFood(f)}
+                          className="text-left px-2.5 py-2 hover:bg-[#1e2d42] transition-colors">
+                          <span className="text-xs font-medium text-[#f0f4ff] block">{f.name}</span>
+                          <span className="text-[10px] text-[#5a7090]">{f.category}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-[#5a7090]">Menge (g)</label>
