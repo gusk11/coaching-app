@@ -1,9 +1,13 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials } from "@/lib/store";
+import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { Athlete, GoalType, MealPlan, TrainingPlan, SupplementPlan } from "@/types";
+import {
+  copyMealPlan, copyTrainingPlan, copySupplementPlan,
+  getMealPlanClipboard, getTrainingPlanClipboard, getSupplementPlanClipboard,
+} from "@/lib/planClipboard";
 import { AppShell } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/ui/StatCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -26,7 +30,7 @@ import {
   getGoalLabel, getGoalColor, getTrendIcon, getTrendColor, normalizeNutritionStatus, resolveAthleteWeight,
 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Pencil, Check, X } from "lucide-react";
+import { ArrowLeft, Pencil, Check, X, Copy, ClipboardPaste, Trash2 } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition, listContainer, listItem } from "@/lib/motion";
@@ -71,6 +75,17 @@ export default function CoachAthletePage() {
   const [editingTraining, setEditingTraining] = useState(false);
   const [editingSupplements, setEditingSupplements] = useState(false);
 
+  // Plan clipboard
+  const [clipboardMeal, setClipboardMeal] = useState<MealPlan | null>(null);
+  const [clipboardTraining, setClipboardTraining] = useState<TrainingPlan | null>(null);
+  const [clipboardSupplement, setClipboardSupplement] = useState<SupplementPlan | null>(null);
+
+  // Delete athlete
+  const [showDeleteZone, setShowDeleteZone] = useState(false);
+  const [deleteNameInput, setDeleteNameInput] = useState("");
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
+  const [deleteStep, setDeleteStep] = useState<1 | 2 | 3>(1);
+
   // Credential editing
   const [editingCredentials, setEditingCredentials] = useState(false);
   const [editCredName, setEditCredName] = useState("");
@@ -90,6 +105,9 @@ export default function CoachAthletePage() {
       setEditCoachNote(found.coachNote);
       setEditVisibleNote(found.visibleNote);
     });
+    setClipboardMeal(getMealPlanClipboard());
+    setClipboardTraining(getTrainingPlanClipboard());
+    setClipboardSupplement(getSupplementPlanClipboard());
   }, [router, id]);
 
   const analysis = useMemo(() => athlete ? analyzeWeek(athlete) : null, [athlete]);
@@ -263,6 +281,66 @@ export default function CoachAthletePage() {
   function handleUpdateTrainingLogs(athletes: Athlete[]) {
     const updated = athletes.find((a) => a.id === athlete!.id);
     if (updated) setAthlete(updated);
+  }
+
+  function handleCopyMealPlan(plan: MealPlan) {
+    copyMealPlan(plan);
+    setClipboardMeal(plan);
+    showToast(`"${plan.title}" kopiert.`, "success");
+  }
+
+  function handleCopyTrainingPlan() {
+    if (!athlete?.trainingPlan) return;
+    copyTrainingPlan(athlete.trainingPlan);
+    setClipboardTraining(athlete.trainingPlan);
+    showToast("Trainingsplan kopiert.", "success");
+  }
+
+  function handleCopySupplementPlan() {
+    if (!athlete?.supplementPlan) return;
+    copySupplementPlan(athlete.supplementPlan);
+    setClipboardSupplement(athlete.supplementPlan);
+    showToast("Supplementplan kopiert.", "success");
+  }
+
+  async function handlePasteMealPlan() {
+    if (!clipboardMeal) return;
+    const newPlan: MealPlan = {
+      ...clipboardMeal,
+      id: crypto.randomUUID(),
+      athleteId: athlete!.id,
+    };
+    await saveMealPlan(newPlan);
+  }
+
+  async function handlePasteTrainingPlan() {
+    if (!clipboardTraining) return;
+    const newPlan: TrainingPlan = {
+      ...clipboardTraining,
+      id: crypto.randomUUID(),
+      athleteId: athlete!.id,
+    };
+    await saveTrainingPlan(newPlan);
+  }
+
+  async function handlePasteSupplementPlan() {
+    if (!clipboardSupplement) return;
+    const newPlan: SupplementPlan = {
+      ...clipboardSupplement,
+      id: crypto.randomUUID(),
+      athleteId: athlete!.id,
+    };
+    await saveSupplementPlan(newPlan);
+  }
+
+  async function handleDeleteAthlete() {
+    try {
+      await deleteAthlete(athlete!.id);
+      showToast("Athletenprofil gelöscht.", "success");
+      router.replace("/coach/dashboard");
+    } catch {
+      showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");
+    }
   }
 
   function openCredentialEdit() {
@@ -691,6 +769,106 @@ export default function CoachAthletePage() {
               )}
             </div>
 
+            {/* ── GEFAHRENZONE: ATHLET LÖSCHEN ── */}
+            <div className="mt-4">
+              {!showDeleteZone ? (
+                <button
+                  onClick={() => { setShowDeleteZone(true); setDeleteStep(1); setDeleteNameInput(""); setDeleteConfirmInput(""); }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-[#ef4444]/20 bg-[#ef4444]/5 text-[#ef4444] text-sm font-medium hover:bg-[#ef4444]/10 hover:border-[#ef4444]/40 transition-all"
+                >
+                  <Trash2 size={15} />
+                  Athletenprofil löschen
+                </button>
+              ) : (
+                <div className="rounded-2xl border border-[#ef4444]/30 bg-[#ef4444]/5 p-4 flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-[#ef4444]">Athletenprofil unwiderruflich löschen</p>
+                    <button
+                      onClick={() => { setShowDeleteZone(false); setDeleteStep(1); setDeleteNameInput(""); setDeleteConfirmInput(""); }}
+                      className="text-[#5a7090] hover:text-[#f0f4ff] transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <p className="text-xs text-[#8fa3c0]">
+                    Alle Daten dieses Athleten werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
+                  </p>
+
+                  {/* Schritt 1: Name eingeben */}
+                  {deleteStep >= 1 && (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-[#5a7090]">
+                        Schritt 1 — Vollständigen Namen eingeben: <span className="text-[#f0f4ff] font-medium">{athlete.name}</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          value={deleteNameInput}
+                          onChange={(e) => setDeleteNameInput(e.target.value)}
+                          placeholder={athlete.name}
+                          disabled={deleteStep > 1}
+                          className="flex-1 bg-[#0f1624] border border-[#ef4444]/30 rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#ef4444] transition-colors disabled:opacity-40"
+                        />
+                        {deleteStep === 1 && (
+                          <button
+                            onClick={() => { if (deleteNameInput.trim() === athlete.name) setDeleteStep(2); }}
+                            disabled={deleteNameInput.trim() !== athlete.name}
+                            className="px-4 py-2 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] text-sm font-medium disabled:opacity-30 hover:bg-[#ef4444]/20 transition-all"
+                          >
+                            Akzeptieren
+                          </button>
+                        )}
+                        {deleteStep > 1 && (
+                          <span className="flex items-center text-[#10b981] text-sm px-2">✓</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Schritt 2: "akzeptieren" eintippen */}
+                  {deleteStep >= 2 && (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-[#5a7090]">
+                        Schritt 2 — Tippe <span className="text-[#f0f4ff] font-mono">akzeptieren</span> ein:
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          value={deleteConfirmInput}
+                          onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                          placeholder="akzeptieren"
+                          disabled={deleteStep > 2}
+                          className="flex-1 bg-[#0f1624] border border-[#ef4444]/30 rounded-xl px-3 py-2 text-[#f0f4ff] text-sm font-mono focus:outline-none focus:border-[#ef4444] transition-colors disabled:opacity-40"
+                          autoFocus={deleteStep === 2}
+                        />
+                        {deleteStep === 2 && (
+                          <button
+                            onClick={() => { if (deleteConfirmInput === "akzeptieren") setDeleteStep(3); }}
+                            disabled={deleteConfirmInput !== "akzeptieren"}
+                            className="px-4 py-2 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] text-sm font-medium disabled:opacity-30 hover:bg-[#ef4444]/20 transition-all"
+                          >
+                            Akzeptieren
+                          </button>
+                        )}
+                        {deleteStep > 2 && (
+                          <span className="flex items-center text-[#10b981] text-sm px-2">✓</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Schritt 3: Finaler Lösch-Button */}
+                  {deleteStep === 3 && (
+                    <button
+                      onClick={handleDeleteAthlete}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#ef4444] text-white text-sm font-semibold hover:bg-[#dc2626] transition-colors"
+                    >
+                      <Trash2 size={15} />
+                      Akzeptieren – Profil unwiderruflich löschen
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
           </motion.div>
         )}
 
@@ -916,18 +1094,45 @@ export default function CoachAthletePage() {
                 <>
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-[#f0f4ff]">Ernährungspläne</p>
-                    <button
-                      onClick={() => setEditingNutrition(!editingNutrition)}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
-                        editingNutrition
-                          ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
-                          : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
+                    <div className="flex items-center gap-1.5">
+                      {clipboardMeal && !editingNutrition && (
+                        <button
+                          onClick={handlePasteMealPlan}
+                          title={`"${clipboardMeal.title}" einfügen`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all bg-[#141d2e] border-[#22c55e]/30 text-[#4ade80] hover:bg-[#22c55e]/10"
+                        >
+                          <ClipboardPaste size={12} /> Einfügen
+                        </button>
                       )}
-                    >
-                      {editingNutrition ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
-                    </button>
+                      <button
+                        onClick={() => setEditingNutrition(!editingNutrition)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                          editingNutrition
+                            ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
+                            : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
+                        )}
+                      >
+                        {editingNutrition ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
+                      </button>
+                    </div>
                   </div>
+
+                  {!editingNutrition && plans.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {plans.map((plan) => (
+                        <button
+                          key={plan.id}
+                          onClick={() => handleCopyMealPlan(plan)}
+                          title={`"${plan.title}" kopieren`}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs text-[#8fa3c0] bg-[#141d2e] border-[#1e2d42] hover:border-[#3b82f6]/40 hover:text-[#60a5fa] transition-all"
+                        >
+                          <Copy size={11} />
+                          {plan.title}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   {editingNutrition ? (
                     <MealPlanEditor
@@ -953,17 +1158,37 @@ export default function CoachAthletePage() {
               <p className="text-sm font-semibold text-[#f0f4ff]">
                 {athlete.trainingPlan ? athlete.trainingPlan.title : "Trainingsplan"}
               </p>
-              <button
-                onClick={() => setEditingTraining(!editingTraining)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
-                  editingTraining
-                    ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
-                    : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
+              <div className="flex items-center gap-1.5">
+                {athlete.trainingPlan && !editingTraining && (
+                  <button
+                    onClick={handleCopyTrainingPlan}
+                    title="Trainingsplan kopieren"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
+                  >
+                    <Copy size={12} />
+                  </button>
                 )}
-              >
-                {editingTraining ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
-              </button>
+                {clipboardTraining && !editingTraining && (
+                  <button
+                    onClick={handlePasteTrainingPlan}
+                    title={`"${clipboardTraining.title}" einfügen`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all bg-[#141d2e] border-[#22c55e]/30 text-[#4ade80] hover:bg-[#22c55e]/10"
+                  >
+                    <ClipboardPaste size={12} /> Einfügen
+                  </button>
+                )}
+                <button
+                  onClick={() => setEditingTraining(!editingTraining)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                    editingTraining
+                      ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
+                      : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
+                  )}
+                >
+                  {editingTraining ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
+                </button>
+              </div>
             </div>
 
             {editingTraining ? (
@@ -1002,17 +1227,37 @@ export default function CoachAthletePage() {
           <motion.div key="Supplements" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-[#f0f4ff]">Supplementplan</p>
-              <button
-                onClick={() => setEditingSupplements(!editingSupplements)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
-                  editingSupplements
-                    ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
-                    : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
+              <div className="flex items-center gap-1.5">
+                {athlete.supplementPlan && !editingSupplements && (
+                  <button
+                    onClick={handleCopySupplementPlan}
+                    title="Supplementplan kopieren"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
+                  >
+                    <Copy size={12} />
+                  </button>
                 )}
-              >
-                {editingSupplements ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
-              </button>
+                {clipboardSupplement && !editingSupplements && (
+                  <button
+                    onClick={handlePasteSupplementPlan}
+                    title="Supplementplan einfügen"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all bg-[#141d2e] border-[#22c55e]/30 text-[#4ade80] hover:bg-[#22c55e]/10"
+                  >
+                    <ClipboardPaste size={12} /> Einfügen
+                  </button>
+                )}
+                <button
+                  onClick={() => setEditingSupplements(!editingSupplements)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                    editingSupplements
+                      ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
+                      : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
+                  )}
+                >
+                  {editingSupplements ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
+                </button>
+              </div>
             </div>
 
             {editingSupplements ? (

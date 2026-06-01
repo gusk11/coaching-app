@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 type View = "login" | "register";
 type LoginTab = "athlete" | "coach";
 
-const COACH_PASSWORD = "123";
+const COACH_PASSWORD = process.env.NEXT_PUBLIC_COACH_PASSWORD ?? "";
 
 export default function LoginPage() {
   const router = useRouter();

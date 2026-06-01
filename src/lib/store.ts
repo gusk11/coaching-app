@@ -291,6 +291,11 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   return loadAthletes();
 }
 
+export async function deleteAthlete(id: string): Promise<void> {
+  const { error } = await supabase.from("athletes").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ─── Registration & Login ─────────────────────────────────────────────────────
 
 function getInitials(name: string): string {
