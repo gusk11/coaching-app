@@ -288,10 +288,23 @@ export interface Meal {
   note?: string;
 }
 
+export type MealPlanType = "fixed" | "macro_targets";
+
+export interface MacroTargets {
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+}
+
 export interface MealPlan {
   id: string;
   athleteId: string;
   title: string;
+  /** Defaults to "fixed" when absent (backward compat). */
+  planType?: MealPlanType;
+  macroTargets?: MacroTargets;
   meals: Meal[];
   coachNote?: string;
   createdAt: string;

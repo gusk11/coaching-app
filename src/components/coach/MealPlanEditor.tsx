@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { MealPlan, Meal, MealEntry, FoodItem } from "@/types";
+import { MealPlan, MealPlanType, MacroTargets, Meal, MealEntry, FoodItem } from "@/types";
 import { getAllFoodItems } from "@/lib/store";
-import { Trash2, Plus, ChevronDown, ChevronUp, Pencil, ArrowLeft, Search, X } from "lucide-react";
+import { Trash2, Plus, ChevronDown, ChevronUp, Pencil, ArrowLeft, ArrowUp, ArrowDown, Search, X } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { calculateMealMacros, calculateDayMacros, roundMacro, roundSalt } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ function emptyMeal(): Meal {
   };
 }
 
-function customFoodItem(name: string, kcal: number, protein: number, carbs: number, fat: number): FoodItem {
+function customFoodItem(name: string, kcal: number, protein: number, carbs: number, fat: number, fiber: number, salt: number): FoodItem {
   return {
     id: `custom-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     name,
@@ -26,8 +26,8 @@ function customFoodItem(name: string, kcal: number, protein: number, carbs: numb
     proteinPer100g: protein,
     carbsPer100g: carbs,
     fatPer100g: fat,
-    fiberPer100g: 0,
-    saltPer100g: 0,
+    fiberPer100g: fiber,
+    saltPer100g: salt,
   };
 }
 
@@ -48,6 +48,8 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
   const [customProteinInput, setCustomProteinInput] = useState("0");
   const [customCarbsInput, setCustomCarbsInput] = useState("0");
   const [customFatInput, setCustomFatInput] = useState("0");
+  const [customFiberInput, setCustomFiberInput] = useState("0");
+  const [customSaltInput, setCustomSaltInput] = useState("0");
   const [customNutrientError, setCustomNutrientError] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -69,7 +71,7 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
       setFoodSearch("");
     } else {
       if (!customName.trim()) return;
-      const nutInputs = [customKcalInput, customProteinInput, customCarbsInput, customFatInput];
+      const nutInputs = [customKcalInput, customProteinInput, customCarbsInput, customFatInput, customFiberInput, customSaltInput];
       for (const v of nutInputs) {
         const n = v === "" ? 0 : parseFloat(v);
         if (isNaN(n) || n < 0) {
@@ -78,9 +80,9 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
         }
       }
       const parseN = (v: string) => v === "" ? 0 : (parseFloat(v) || 0);
-      const fi = customFoodItem(customName.trim(), parseN(customKcalInput), parseN(customProteinInput), parseN(customCarbsInput), parseN(customFatInput));
+      const fi = customFoodItem(customName.trim(), parseN(customKcalInput), parseN(customProteinInput), parseN(customCarbsInput), parseN(customFatInput), parseN(customFiberInput), parseN(customSaltInput));
       onAdd({ foodItemId: fi.id, foodItem: fi, amountG: parsedAmount });
-      setCustomName(""); setCustomKcalInput("0"); setCustomProteinInput("0"); setCustomCarbsInput("0"); setCustomFatInput("0"); setCustomNutrientError("");
+      setCustomName(""); setCustomKcalInput("0"); setCustomProteinInput("0"); setCustomCarbsInput("0"); setCustomFatInput("0"); setCustomFiberInput("0"); setCustomSaltInput("0"); setCustomNutrientError("");
     }
     setOpen(false);
     setAmountInput("100");
@@ -157,7 +159,7 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-[#5a7090]">Menge (g)</label>
-            <input type="number" min={0} value={amountInput} onChange={(e) => { setAmountInput(e.target.value); setAmountError(""); }}
+            <input type="number" min={0} step={10} value={amountInput} onChange={(e) => { setAmountInput(e.target.value); setAmountError(""); }}
               className="bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6]" />
             {amountError && <p className="text-[10px] text-[#ef4444] mt-0.5">{amountError}</p>}
           </div>
@@ -178,12 +180,14 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
             </div>
           </div>
           <p className="text-xs text-[#5a7090]">Makros pro 100g (optional)</p>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
             {[
               { label: "kcal", val: customKcalInput, set: setCustomKcalInput },
               { label: "P (g)", val: customProteinInput, set: setCustomProteinInput },
               { label: "K (g)", val: customCarbsInput, set: setCustomCarbsInput },
               { label: "F (g)", val: customFatInput, set: setCustomFatInput },
+              { label: "Bal (g)", val: customFiberInput, set: setCustomFiberInput },
+              { label: "Salz (g)", val: customSaltInput, set: setCustomSaltInput },
             ].map((f) => (
               <div key={f.label} className="flex flex-col gap-0.5">
                 <label className="text-xs text-[#5a7090]">{f.label}</label>
@@ -219,9 +223,15 @@ interface SinglePlanEditorProps {
   athleteWeight?: number;
 }
 
+function emptyMacroTargets(): MacroTargets {
+  return { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+}
+
 function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanEditorProps) {
   const [title, setTitle] = useState(plan.title);
   const [coachNote, setCoachNote] = useState(plan.coachNote ?? "");
+  const [planType, setPlanType] = useState<MealPlanType>(plan.planType ?? "fixed");
+  const [macroTargets, setMacroTargets] = useState<MacroTargets>(plan.macroTargets ?? emptyMacroTargets());
   const [meals, setMeals] = useState<Meal[]>(plan.meals);
   const [expandedMeals, setExpandedMeals] = useState<Set<string>>(new Set(plan.meals.map((m) => m.id)));
   const [entryAmountInputs, setEntryAmountInputs] = useState<Record<string, string>>(() => {
@@ -235,6 +245,11 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
   });
   const [amountErrors, setAmountErrors] = useState<Record<string, boolean>>({});
   const [saveError, setSaveError] = useState("");
+
+  function updateMacroTarget(field: keyof MacroTargets, value: string) {
+    const n = parseFloat(value);
+    setMacroTargets((prev) => ({ ...prev, [field]: isNaN(n) ? 0 : n }));
+  }
 
   function getAmountKey(mealId: string, foodItemId: string) {
     return `${mealId}:${foodItemId}`;
@@ -252,6 +267,17 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
     const m = emptyMeal();
     setMeals((prev) => [...prev, m]);
     setExpandedMeals((prev) => new Set([...prev, m.id]));
+  }
+
+  function moveMeal(id: string, dir: -1 | 1) {
+    setMeals((prev) => {
+      const idx = prev.findIndex((m) => m.id === id);
+      const next = idx + dir;
+      if (next < 0 || next >= prev.length) return prev;
+      const arr = [...prev];
+      [arr[idx], arr[next]] = [arr[next], arr[idx]];
+      return arr;
+    });
   }
 
   function deleteMeal(id: string) {
@@ -330,7 +356,14 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
       return;
     }
     setSaveError("");
-    onSave({ ...plan, title, coachNote, meals });
+    onSave({
+      ...plan,
+      title,
+      coachNote,
+      planType,
+      macroTargets: planType === "macro_targets" ? macroTargets : undefined,
+      meals,
+    });
   }
 
   const dayMacros = calculateDayMacros(meals);
@@ -350,6 +383,50 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
           <input value={title} onChange={(e) => setTitle(e.target.value)}
             className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors" />
         </div>
+
+        {/* Plan type selector */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-[#8fa3c0]">Plan-Typ</label>
+          <div className="flex gap-2">
+            {(["fixed", "macro_targets"] as const).map((t) => (
+              <button key={t} type="button" onClick={() => setPlanType(t)}
+                className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all border ${
+                  planType === t
+                    ? "bg-[#3b82f6]/20 text-[#60a5fa] border-[#3b82f6]/40"
+                    : "bg-[#0f1624] text-[#5a7090] border-[#1e2d42] hover:border-[#3b82f6]/20"
+                }`}>
+                {t === "fixed" ? "Fester Plan" : "Makrovorgaben"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Macro targets (only shown when planType === "macro_targets") */}
+        {planType === "macro_targets" && (
+          <div className="flex flex-col gap-2 p-3 rounded-xl bg-[#0f1624] border border-[#3b82f6]/20">
+            <p className="text-xs font-medium text-[#8fa3c0]">Tagesziele</p>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { label: "Kalorien (kcal)", field: "kcal" as const },
+                { label: "Protein (g)", field: "protein" as const },
+                { label: "Kohlenhydrate (g)", field: "carbs" as const },
+                { label: "Fett (g)", field: "fat" as const },
+                { label: "Ballaststoffe (g)", field: "fiber" as const },
+              ] as const).map(({ label, field }) => (
+                <div key={field} className="flex flex-col gap-1">
+                  <label className="text-[10px] text-[#5a7090]">{label}</label>
+                  <input
+                    type="number" min={0}
+                    value={macroTargets[field] ?? ""}
+                    onChange={(e) => updateMacroTarget(field, e.target.value)}
+                    className="bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6]"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#8fa3c0]">Coach-Notiz</label>
           <textarea value={coachNote} onChange={(e) => setCoachNote(e.target.value)} rows={2}
@@ -358,15 +435,20 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
         </div>
       </div>
 
-      {/* Day totals */}
+      {/* Day totals / fixed-foods totals */}
       {meals.length > 0 && (
-        <div className="p-3 rounded-xl bg-[#3b82f6]/5 border border-[#3b82f6]/20 flex gap-4 text-xs flex-wrap">
-          <span className="text-[#f0f4ff] font-semibold">{Math.round(dayMacros.kcal)} kcal</span>
-          <span className="text-[#60a5fa]">P {Math.round(dayMacros.protein)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.protein / athleteWeight).toFixed(1)} g/kg)</span> : null}</span>
-          <span className="text-[#8fa3c0]">K {Math.round(dayMacros.carbs)}g</span>
-          <span className="text-[#8fa3c0]">F {Math.round(dayMacros.fat)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.fat / athleteWeight).toFixed(1)} g/kg)</span> : null}</span>
-          <span className="text-[#34d399]">Bal {roundMacro(dayMacros.fiber)}g</span>
-          <span className="text-[#f59e0b]">Salz {roundSalt(dayMacros.salt)}g</span>
+        <div className="p-3 rounded-xl bg-[#3b82f6]/5 border border-[#3b82f6]/20 flex flex-col gap-1.5 text-xs">
+          {planType === "macro_targets" && (
+            <p className="text-[10px] text-[#5a7090] uppercase tracking-wide mb-0.5">Feste Lebensmittel – Summe</p>
+          )}
+          <div className="flex gap-4 flex-wrap">
+            <span className="text-[#f0f4ff] font-semibold">{Math.round(dayMacros.kcal)} kcal</span>
+            <span className="text-[#60a5fa]">P {Math.round(dayMacros.protein)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.protein / athleteWeight).toFixed(1)} g/kg)</span> : null}</span>
+            <span className="text-[#8fa3c0]">K {Math.round(dayMacros.carbs)}g</span>
+            <span className="text-[#8fa3c0]">F {Math.round(dayMacros.fat)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.fat / athleteWeight).toFixed(1)} g/kg)</span> : null}</span>
+            <span className="text-[#34d399]">Bal {roundMacro(dayMacros.fiber)}g</span>
+            <span className="text-[#f59e0b]">Salz {roundSalt(dayMacros.salt)}g</span>
+          </div>
         </div>
       )}
 
@@ -395,12 +477,28 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
                   )}
                 </div>
               </button>
-              <Tooltip label="Mahlzeit löschen">
-                <button type="button" onClick={() => deleteMeal(meal.id)} aria-label="Mahlzeit löschen"
-                  className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors">
-                  <Trash2 size={14} className="text-[#ef4444]/60 hover:text-[#ef4444]" />
-                </button>
-              </Tooltip>
+              <div className="flex items-center gap-0.5">
+                <Tooltip label="Nach oben">
+                  <button type="button" onClick={() => moveMeal(meal.id, -1)} aria-label="Nach oben"
+                    disabled={meals.indexOf(meal) === 0}
+                    className="p-1 rounded-lg hover:bg-[#1e2d42] transition-colors disabled:opacity-20 disabled:cursor-not-allowed">
+                    <ArrowUp size={13} className="text-[#5a7090]" />
+                  </button>
+                </Tooltip>
+                <Tooltip label="Nach unten">
+                  <button type="button" onClick={() => moveMeal(meal.id, 1)} aria-label="Nach unten"
+                    disabled={meals.indexOf(meal) === meals.length - 1}
+                    className="p-1 rounded-lg hover:bg-[#1e2d42] transition-colors disabled:opacity-20 disabled:cursor-not-allowed">
+                    <ArrowDown size={13} className="text-[#5a7090]" />
+                  </button>
+                </Tooltip>
+                <Tooltip label="Mahlzeit löschen">
+                  <button type="button" onClick={() => deleteMeal(meal.id)} aria-label="Mahlzeit löschen"
+                    className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors">
+                    <Trash2 size={14} className="text-[#ef4444]/60 hover:text-[#ef4444]" />
+                  </button>
+                </Tooltip>
+              </div>
             </div>
 
             {expanded && (
@@ -428,7 +526,7 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className="flex flex-col items-end">
-                          <input type="number" min={0} value={amountStr}
+                          <input type="number" min={0} step={10} value={amountStr}
                             onChange={(e) => handleAmountChange(meal.id, entry.foodItemId, e.target.value)}
                             className={`bg-[#0f1624] border rounded-lg px-2 py-1 text-[#f0f4ff] text-xs w-16 focus:outline-none text-right transition-colors ${hasAmountError ? "border-[#ef4444] focus:border-[#ef4444]" : "border-[#1e2d42] focus:border-[#3b82f6]"}`} />
                           {hasAmountError && <span className="text-[10px] text-[#ef4444]">{">"} 0</span>}
@@ -458,7 +556,7 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
 
       <button type="button" onClick={addMeal}
         className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-[#1e2d42] text-[#5a7090] text-sm hover:border-[#3b82f6]/40 hover:text-[#60a5fa] transition-colors">
-        <Plus size={15} /> Mahlzeit hinzufügen
+        <Plus size={15} /> {planType === "macro_targets" ? "Feste Lebensmittel hinzufügen" : "Mahlzeit hinzufügen"}
       </button>
 
       {saveError && (
@@ -496,6 +594,7 @@ export function MealPlanEditor({ plans, athleteId, onSavePlan, onDeletePlan, ath
       id: `mp-${athleteId}-${Date.now()}`,
       athleteId,
       title: "Neuer Plan",
+      planType: "fixed",
       meals: [],
       coachNote: "",
       createdAt: new Date().toISOString(),
@@ -541,7 +640,16 @@ export function MealPlanEditor({ plans, athleteId, onSavePlan, onDeletePlan, ath
         return (
           <div key={plan.id} className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#f0f4ff] truncate">{plan.title}</p>
+              <div className="flex items-center gap-2 mb-0.5">
+                <p className="text-sm font-semibold text-[#f0f4ff] truncate">{plan.title}</p>
+                <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
+                  (plan.planType ?? "fixed") === "macro_targets"
+                    ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
+                    : "bg-[#1e2d42] text-[#5a7090]"
+                }`}>
+                  {(plan.planType ?? "fixed") === "macro_targets" ? "Makrovorgaben" : "Fester Plan"}
+                </span>
+              </div>
               {plan.meals.length > 0 ? (
                 <p className="text-xs text-[#5a7090] mt-0.5">
                   {Math.round(dayMacros.kcal)} kcal · P {Math.round(dayMacros.protein)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.protein / athleteWeight).toFixed(1)} g/kg)</span> : null}{" · "}K {Math.round(dayMacros.carbs)}g · F {Math.round(dayMacros.fat)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.fat / athleteWeight).toFixed(1)} g/kg)</span> : null}

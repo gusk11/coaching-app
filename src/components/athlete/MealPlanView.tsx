@@ -18,9 +18,13 @@ function MacroRow({ label, value, unit = "g", color, fmt = Math.round, perKg }: 
 }
 
 function SinglePlanView({ plan, athleteWeight }: { plan: MealPlan; athleteWeight?: number }) {
+  const isMacroTargets = (plan.planType ?? "fixed") === "macro_targets";
   const dayMacros = calculateDayMacros(plan.meals);
   const proteinPerKg = athleteWeight ? dayMacros.protein / athleteWeight : undefined;
   const fatPerKg = athleteWeight ? dayMacros.fat / athleteWeight : undefined;
+  const mt = plan.macroTargets;
+  const mtProteinPerKg = athleteWeight && mt ? mt.protein / athleteWeight : undefined;
+  const mtFatPerKg = athleteWeight && mt ? mt.fat / athleteWeight : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -31,17 +35,44 @@ function SinglePlanView({ plan, athleteWeight }: { plan: MealPlan; athleteWeight
         </div>
       )}
 
-      <div className="p-4 rounded-2xl bg-[#3b82f6]/5 border border-[#3b82f6]/20">
-        <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-3">Tagessumme</p>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-          <MacroRow label="Kalorien" value={dayMacros.kcal} unit=" kcal" color="text-[#f0f4ff] font-semibold" />
-          <MacroRow label="Protein" value={dayMacros.protein} color="text-[#60a5fa]" perKg={proteinPerKg} />
-          <MacroRow label="Kohlenhydrate" value={dayMacros.carbs} />
-          <MacroRow label="Fett" value={dayMacros.fat} perKg={fatPerKg} />
-          <MacroRow label="Ballaststoffe" value={dayMacros.fiber} fmt={roundMacro} />
-          <MacroRow label="Salz" value={dayMacros.salt} fmt={roundSalt} />
+      {isMacroTargets && mt ? (
+        /* ── Macro targets view ── */
+        <div className="p-4 rounded-2xl bg-[#8b5cf6]/5 border border-[#8b5cf6]/25">
+          <p className="text-xs text-[#a78bfa] uppercase tracking-widest mb-3">Tagesziele</p>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+            <MacroRow label="Kalorien" value={mt.kcal} unit=" kcal" color="text-[#f0f4ff] font-semibold" />
+            <MacroRow label="Protein" value={mt.protein} color="text-[#60a5fa]" perKg={mtProteinPerKg} />
+            <MacroRow label="Kohlenhydrate" value={mt.carbs} />
+            <MacroRow label="Fett" value={mt.fat} perKg={mtFatPerKg} />
+            {(mt.fiber ?? 0) > 0 && <MacroRow label="Ballaststoffe" value={mt.fiber!} fmt={roundMacro} />}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* ── Fixed plan totals ── */
+        <div className="p-4 rounded-2xl bg-[#3b82f6]/5 border border-[#3b82f6]/20">
+          <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-3">Tagessumme</p>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+            <MacroRow label="Kalorien" value={dayMacros.kcal} unit=" kcal" color="text-[#f0f4ff] font-semibold" />
+            <MacroRow label="Protein" value={dayMacros.protein} color="text-[#60a5fa]" perKg={proteinPerKg} />
+            <MacroRow label="Kohlenhydrate" value={dayMacros.carbs} />
+            <MacroRow label="Fett" value={dayMacros.fat} perKg={fatPerKg} />
+            <MacroRow label="Ballaststoffe" value={dayMacros.fiber} fmt={roundMacro} />
+            <MacroRow label="Salz" value={dayMacros.salt} fmt={roundSalt} />
+          </div>
+        </div>
+      )}
+
+      {/* Fixed foods header (only in macro_targets mode with meals) */}
+      {isMacroTargets && plan.meals.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs text-[#5a7090] uppercase tracking-widest px-1">Feste Lebensmittel</p>
+          {dayMacros.kcal > 0 && (
+            <p className="text-[10px] text-[#3b4d6a] px-1">
+              {Math.round(dayMacros.kcal)} kcal · P {Math.round(dayMacros.protein)}g · K {Math.round(dayMacros.carbs)}g · F {Math.round(dayMacros.fat)}g
+            </p>
+          )}
+        </div>
+      )}
 
       {plan.meals.map((meal) => {
         const macros = calculateMealMacros(meal.entries);

@@ -604,16 +604,22 @@ export async function updateCustomFood(id: string, updates: Partial<FoodItem>): 
 }
 
 export async function deleteCustomFood(id: string): Promise<FoodItem[]> {
-  const { error } = await supabase.from("custom_foods").delete().eq("id", id);
-  if (error) throw error;
+  const res = await fetch(`/api/food/${encodeURIComponent(id)}?type=custom`, { method: "DELETE" });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "Delete failed");
+  }
   return loadCustomFoods();
 }
 
 export async function deleteBaseFoodItem(id: string): Promise<string[]> {
   const hidden = await loadDeactivatedFoods();
   if (hidden.includes(id)) return hidden;
-  const { error } = await supabase.from("deactivated_foods").insert({ food_id: id });
-  if (error) throw error;
+  const res = await fetch(`/api/food/${encodeURIComponent(id)}?type=base`, { method: "DELETE" });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "Deactivate failed");
+  }
   return [...hidden, id];
 }
 
