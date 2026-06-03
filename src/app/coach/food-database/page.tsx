@@ -324,10 +324,13 @@ export default function FoodDatabase() {
     });
   }, [router]);
 
-  // Merge base (minus hidden) + custom
+  // Merge base (minus hidden + minus those superseded by a custom food with the same name) + custom
+  const activeCustomNames = new Set(
+    customFoods.filter((f) => f.isActive !== false).map((f) => f.name.toLowerCase())
+  );
   const allItems: FoodItem[] = [
     ...baseFoodItems
-      .filter((f) => !hiddenBaseIds.includes(f.id))
+      .filter((f) => !hiddenBaseIds.includes(f.id) && !activeCustomNames.has(f.name.toLowerCase()))
       .map((f) => ({ ...f, isActive: true })),
     ...customFoods.filter((f) => f.isActive !== false),
   ];
@@ -375,18 +378,31 @@ export default function FoodDatabase() {
     const target = deleteTarget;
     const prevCustom = [...customFoods];
     const prevHidden = [...hiddenBaseIds];
+
+    // When deleting a custom food, also find and hide the matching base food (same name)
+    const baseMatch = target.isCustomFood
+      ? baseFoodItems.find((b) => b.name.toLowerCase() === target.name.toLowerCase())
+      : null;
+
     if (target.isCustomFood) {
       setCustomFoods((prev) => prev.filter((f) => f.id !== target.id));
+      if (baseMatch && !hiddenBaseIds.includes(baseMatch.id)) {
+        setHiddenBaseIds((prev) => [...prev, baseMatch.id]);
+      }
     } else {
       setHiddenBaseIds((prev) => [...prev, target.id]);
     }
     setDeleteTarget(null);
     try {
       if (target.isCustomFood) {
-        await deleteCustomFood(target.id);
+        setCustomFoods(await deleteCustomFood(target.id));
+        if (baseMatch && !hiddenBaseIds.includes(baseMatch.id)) {
+          setHiddenBaseIds(await deleteBaseFoodItem(baseMatch.id));
+        }
       } else {
-        await deleteBaseFoodItem(target.id);
+        setHiddenBaseIds(await deleteBaseFoodItem(target.id));
       }
+      showToast("Lebensmittel gelöscht.", "success");
     } catch {
       setCustomFoods(prevCustom);
       setHiddenBaseIds(prevHidden);

@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import { MealPlan, MealPlanType, MacroTargets, Meal, MealEntry, FoodItem } from "@/types";
 import { getAllFoodItems } from "@/lib/store";
-import { Trash2, Plus, ChevronDown, ChevronUp, Pencil, ArrowLeft, ArrowUp, ArrowDown, Search, X } from "lucide-react";
+import { copyMeal, getMealClipboard } from "@/lib/planClipboard";
+import { Trash2, Plus, ChevronDown, ChevronUp, Pencil, ArrowLeft, ArrowUp, ArrowDown, Search, X, Copy, ClipboardPaste } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { calculateMealMacros, calculateDayMacros, roundMacro, roundSalt } from "@/lib/utils";
 
@@ -235,6 +236,8 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
   });
   const [meals, setMeals] = useState<Meal[]>(plan.meals);
   const [expandedMeals, setExpandedMeals] = useState<Set<string>>(new Set(plan.meals.map((m) => m.id)));
+  const [clipboardMeal, setClipboardMeal] = useState<Meal | null>(null);
+  useEffect(() => { setClipboardMeal(getMealClipboard()); }, []);
   const [entryAmountInputs, setEntryAmountInputs] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {};
     plan.meals.forEach((meal) => {
@@ -267,6 +270,27 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
     const m = emptyMeal();
     setMeals((prev) => [...prev, m]);
     setExpandedMeals((prev) => new Set([...prev, m.id]));
+  }
+
+  function handleCopyMeal(meal: Meal) {
+    copyMeal(meal);
+    setClipboardMeal(meal);
+  }
+
+  function handlePasteMeal() {
+    if (!clipboardMeal) return;
+    const m: Meal = {
+      ...clipboardMeal,
+      id: `meal-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      entries: clipboardMeal.entries.map((e) => ({ ...e })),
+    };
+    setMeals((prev) => [...prev, m]);
+    setExpandedMeals((prev) => new Set([...prev, m.id]));
+    setEntryAmountInputs((prev) => {
+      const next = { ...prev };
+      m.entries.forEach((e) => { next[getAmountKey(m.id, e.foodItemId)] = String(e.amountG); });
+      return next;
+    });
   }
 
   function moveMeal(id: string, dir: -1 | 1) {
@@ -374,6 +398,20 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
   }
 
   const dayMacros = calculateDayMacros(meals);
+  const parsedTargets = {
+    kcal: parseFloat(macroInputs.kcal) || 0,
+    protein: parseFloat(macroInputs.protein) || 0,
+    carbs: parseFloat(macroInputs.carbs) || 0,
+    fat: parseFloat(macroInputs.fat) || 0,
+    fiber: parseFloat(macroInputs.fiber) || 0,
+  };
+  const remaining = {
+    kcal: parsedTargets.kcal - dayMacros.kcal,
+    protein: parsedTargets.protein - dayMacros.protein,
+    carbs: parsedTargets.carbs - dayMacros.carbs,
+    fat: parsedTargets.fat - dayMacros.fat,
+    fiber: parsedTargets.fiber - dayMacros.fiber,
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -442,21 +480,53 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
         </div>
       </div>
 
-      {/* Day totals / fixed-foods totals */}
-      {meals.length > 0 && (
-        <div className="p-3 rounded-xl bg-[#3b82f6]/5 border border-[#3b82f6]/20 flex flex-col gap-1.5 text-xs">
-          {planType === "macro_targets" && (
-            <p className="text-[10px] text-[#5a7090] uppercase tracking-wide mb-0.5">Feste Lebensmittel – Summe</p>
-          )}
-          <div className="flex gap-4 flex-wrap">
-            <span className="text-[#f0f4ff] font-semibold">{Math.round(dayMacros.kcal)} kcal</span>
-            <span className="text-[#60a5fa]">P {Math.round(dayMacros.protein)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.protein / athleteWeight).toFixed(1)} g/kg)</span> : null}</span>
-            <span className="text-[#8fa3c0]">K {Math.round(dayMacros.carbs)}g</span>
-            <span className="text-[#8fa3c0]">F {Math.round(dayMacros.fat)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.fat / athleteWeight).toFixed(1)} g/kg)</span> : null}</span>
-            <span className="text-[#34d399]">Bal {roundMacro(dayMacros.fiber)}g</span>
-            <span className="text-[#f59e0b]">Salz {roundSalt(dayMacros.salt)}g</span>
+      {/* Day totals / macro diff */}
+      {planType === "macro_targets" ? (
+        <div className="p-3 rounded-xl bg-[#8b5cf6]/5 border border-[#8b5cf6]/20 flex flex-col gap-2 text-xs">
+          <p className="text-[10px] text-[#a78bfa] uppercase tracking-wide">Makro-Überblick</p>
+          <div className="flex gap-3 flex-wrap items-baseline">
+            <span className="text-[10px] text-[#a78bfa] w-20 shrink-0">Tagesziel</span>
+            <span className="text-[#f0f4ff] font-semibold">{Math.round(parsedTargets.kcal)} kcal</span>
+            <span className="text-[#60a5fa]">P {Math.round(parsedTargets.protein)}g</span>
+            <span className="text-[#8fa3c0]">K {Math.round(parsedTargets.carbs)}g</span>
+            <span className="text-[#8fa3c0]">F {Math.round(parsedTargets.fat)}g</span>
+            <span className="text-[#34d399]">Bal {roundMacro(parsedTargets.fiber)}g</span>
           </div>
+          {meals.length > 0 && (
+            <>
+              <div className="flex gap-3 flex-wrap items-baseline">
+                <span className="text-[10px] text-[#5a7090] w-20 shrink-0">Feste LM</span>
+                <span className="text-[#f0f4ff]">{Math.round(dayMacros.kcal)} kcal</span>
+                <span className="text-[#60a5fa]">P {Math.round(dayMacros.protein)}g</span>
+                <span className="text-[#8fa3c0]">K {Math.round(dayMacros.carbs)}g</span>
+                <span className="text-[#8fa3c0]">F {Math.round(dayMacros.fat)}g</span>
+                <span className="text-[#34d399]">Bal {roundMacro(dayMacros.fiber)}g</span>
+              </div>
+              <div className="border-t border-[#8b5cf6]/20" />
+              <div className="flex gap-3 flex-wrap items-baseline">
+                <span className="text-[10px] text-[#5a7090] w-20 shrink-0">Verbleibend</span>
+                <span className={`font-semibold ${remaining.kcal < 0 ? "text-[#ef4444]" : "text-[#34d399]"}`}>{Math.round(remaining.kcal)} kcal</span>
+                <span className={remaining.protein < 0 ? "text-[#ef4444]" : "text-[#60a5fa]"}>P {Math.round(remaining.protein)}g</span>
+                <span className={remaining.carbs < 0 ? "text-[#ef4444]" : "text-[#8fa3c0]"}>K {Math.round(remaining.carbs)}g</span>
+                <span className={remaining.fat < 0 ? "text-[#ef4444]" : "text-[#8fa3c0]"}>F {Math.round(remaining.fat)}g</span>
+                <span className={remaining.fiber < 0 ? "text-[#ef4444]" : "text-[#34d399]"}>Bal {roundMacro(remaining.fiber)}g</span>
+              </div>
+            </>
+          )}
         </div>
+      ) : (
+        meals.length > 0 && (
+          <div className="p-3 rounded-xl bg-[#3b82f6]/5 border border-[#3b82f6]/20 flex flex-col gap-1.5 text-xs">
+            <div className="flex gap-4 flex-wrap">
+              <span className="text-[#f0f4ff] font-semibold">{Math.round(dayMacros.kcal)} kcal</span>
+              <span className="text-[#60a5fa]">P {Math.round(dayMacros.protein)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.protein / athleteWeight).toFixed(1)} g/kg)</span> : null}</span>
+              <span className="text-[#8fa3c0]">K {Math.round(dayMacros.carbs)}g</span>
+              <span className="text-[#8fa3c0]">F {Math.round(dayMacros.fat)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.fat / athleteWeight).toFixed(1)} g/kg)</span> : null}</span>
+              <span className="text-[#34d399]">Bal {roundMacro(dayMacros.fiber)}g</span>
+              <span className="text-[#f59e0b]">Salz {roundSalt(dayMacros.salt)}g</span>
+            </div>
+          </div>
+        )
       )}
 
       {/* Meals */}
@@ -497,6 +567,12 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
                     disabled={meals.indexOf(meal) === meals.length - 1}
                     className="p-1 rounded-lg hover:bg-[#1e2d42] transition-colors disabled:opacity-20 disabled:cursor-not-allowed">
                     <ArrowDown size={13} className="text-[#5a7090]" />
+                  </button>
+                </Tooltip>
+                <Tooltip label="Mahlzeit kopieren">
+                  <button type="button" onClick={() => handleCopyMeal(meal)} aria-label="Mahlzeit kopieren"
+                    className="p-1 rounded-lg hover:bg-[#1e2d42] transition-colors">
+                    <Copy size={13} className="text-[#5a7090] hover:text-[#60a5fa]" />
                   </button>
                 </Tooltip>
                 <Tooltip label="Mahlzeit löschen">
@@ -561,10 +637,20 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
         );
       })}
 
-      <button type="button" onClick={addMeal}
-        className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-[#1e2d42] text-[#5a7090] text-sm hover:border-[#3b82f6]/40 hover:text-[#60a5fa] transition-colors">
-        <Plus size={15} /> {planType === "macro_targets" ? "Feste Lebensmittel hinzufügen" : "Mahlzeit hinzufügen"}
-      </button>
+      <div className="flex gap-2">
+        <button type="button" onClick={addMeal}
+          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-[#1e2d42] text-[#5a7090] text-sm hover:border-[#3b82f6]/40 hover:text-[#60a5fa] transition-colors">
+          <Plus size={15} /> {planType === "macro_targets" ? "Feste Lebensmittel hinzufügen" : "Mahlzeit hinzufügen"}
+        </button>
+        {clipboardMeal && (
+          <Tooltip label={`"${clipboardMeal.name}" einfügen`}>
+            <button type="button" onClick={handlePasteMeal} aria-label="Mahlzeit einfügen"
+              className="flex items-center gap-1.5 px-3 py-3 rounded-2xl border border-dashed border-[#3b82f6]/30 text-[#60a5fa] text-xs hover:border-[#3b82f6]/60 hover:bg-[#3b82f6]/5 transition-colors">
+              <ClipboardPaste size={14} /> Einfügen
+            </button>
+          </Tooltip>
+        )}
+      </div>
 
       {saveError && (
         <p className="text-xs text-[#ef4444] text-center -mt-2">{saveError}</p>
@@ -590,11 +676,29 @@ interface Props {
 export function MealPlanEditor({ plans, athleteId, onSavePlan, onDeletePlan, athleteWeight }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newPlanDraft, setNewPlanDraft] = useState<MealPlan | null>(null);
+  const [expandedPlanIds, setExpandedPlanIds] = useState<Set<string>>(new Set());
 
   const isCreatingNew = editingId === "new";
   const planToEdit = isCreatingNew
     ? newPlanDraft
     : plans.find((p) => p.id === editingId) ?? null;
+
+  function togglePlanExpanded(planId: string) {
+    setExpandedPlanIds((prev) => {
+      const next = new Set(prev);
+      next.has(planId) ? next.delete(planId) : next.add(planId);
+      return next;
+    });
+  }
+
+  function quickAddMeal(plan: MealPlan) {
+    const meal = emptyMeal();
+    onSavePlan({ ...plan, meals: [...plan.meals, meal] });
+  }
+
+  function quickDeleteMeal(plan: MealPlan, mealId: string) {
+    onSavePlan({ ...plan, meals: plan.meals.filter((m) => m.id !== mealId) });
+  }
 
   function startNewPlan() {
     const draft: MealPlan = {
@@ -644,43 +748,81 @@ export function MealPlanEditor({ plans, athleteId, onSavePlan, onDeletePlan, ath
 
       {plans.map((plan) => {
         const dayMacros = calculateDayMacros(plan.meals);
+        const isExpanded = expandedPlanIds.has(plan.id);
         return (
-          <div key={plan.id} className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <p className="text-sm font-semibold text-[#f0f4ff] truncate">{plan.title}</p>
-                <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
-                  (plan.planType ?? "fixed") === "macro_targets"
-                    ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
-                    : "bg-[#1e2d42] text-[#5a7090]"
-                }`}>
-                  {(plan.planType ?? "fixed") === "macro_targets" ? "Makrovorgaben" : "Fester Plan"}
-                </span>
-              </div>
-              {plan.meals.length > 0 ? (
-                <p className="text-xs text-[#5a7090] mt-0.5">
-                  {Math.round(dayMacros.kcal)} kcal · P {Math.round(dayMacros.protein)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.protein / athleteWeight).toFixed(1)} g/kg)</span> : null}{" · "}K {Math.round(dayMacros.carbs)}g · F {Math.round(dayMacros.fat)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.fat / athleteWeight).toFixed(1)} g/kg)</span> : null}
-                  <span className="ml-1.5">· {plan.meals.length} Mahlzeit{plan.meals.length !== 1 ? "en" : ""}</span>
-                </p>
-              ) : (
-                <p className="text-xs text-[#3b4d6a] mt-0.5">Keine Mahlzeiten</p>
-              )}
-              {plan.coachNote && (
-                <p className="text-xs text-[#5a7090] mt-1 italic line-clamp-1">{plan.coachNote}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <button type="button" onClick={() => setEditingId(plan.id)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1e2d42] text-[#8fa3c0] text-xs hover:text-[#60a5fa] hover:bg-[#3b82f6]/10 transition-colors">
-                <Pencil size={11} /> Bearbeiten
+          <div key={plan.id} className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">
+            {/* Plan header */}
+            <div className="p-4 flex items-start justify-between gap-3">
+              <button type="button" onClick={() => togglePlanExpanded(plan.id)} className="flex-1 min-w-0 text-left">
+                <div className="flex items-center gap-2 mb-0.5">
+                  {isExpanded ? <ChevronUp size={13} className="text-[#5a7090] shrink-0" /> : <ChevronDown size={13} className="text-[#5a7090] shrink-0" />}
+                  <p className="text-sm font-semibold text-[#f0f4ff] truncate">{plan.title}</p>
+                  <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
+                    (plan.planType ?? "fixed") === "macro_targets"
+                      ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
+                      : "bg-[#1e2d42] text-[#5a7090]"
+                  }`}>
+                    {(plan.planType ?? "fixed") === "macro_targets" ? "Makrovorgaben" : "Fester Plan"}
+                  </span>
+                </div>
+                {plan.meals.length > 0 ? (
+                  <p className="text-xs text-[#5a7090] mt-0.5 pl-[17px]">
+                    {Math.round(dayMacros.kcal)} kcal · P {Math.round(dayMacros.protein)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.protein / athleteWeight).toFixed(1)} g/kg)</span> : null}{" · "}K {Math.round(dayMacros.carbs)}g · F {Math.round(dayMacros.fat)}g{athleteWeight ? <span className="text-[10px] text-[#3b4d6a] ml-0.5">({(dayMacros.fat / athleteWeight).toFixed(1)} g/kg)</span> : null}
+                    <span className="ml-1.5">· {plan.meals.length} Mahlzeit{plan.meals.length !== 1 ? "en" : ""}</span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-[#3b4d6a] mt-0.5 pl-[17px]">Keine Mahlzeiten</p>
+                )}
+                {plan.coachNote && (
+                  <p className="text-xs text-[#5a7090] mt-1 italic line-clamp-1 pl-[17px]">{plan.coachNote}</p>
+                )}
               </button>
-              <Tooltip label="Plan löschen">
-                <button type="button" onClick={() => onDeletePlan(plan.id)} aria-label="Plan löschen"
-                  className="p-1.5 rounded-lg hover:bg-[#ef4444]/10 transition-colors">
-                  <Trash2 size={13} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button type="button" onClick={() => setEditingId(plan.id)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1e2d42] text-[#8fa3c0] text-xs hover:text-[#60a5fa] hover:bg-[#3b82f6]/10 transition-colors">
+                  <Pencil size={11} /> Bearbeiten
                 </button>
-              </Tooltip>
+                <Tooltip label="Plan löschen">
+                  <button type="button" onClick={() => onDeletePlan(plan.id)} aria-label="Plan löschen"
+                    className="p-1.5 rounded-lg hover:bg-[#ef4444]/10 transition-colors">
+                    <Trash2 size={13} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+                  </button>
+                </Tooltip>
+              </div>
             </div>
+
+            {/* Inline meal list */}
+            {isExpanded && (
+              <div className="border-t border-[#1e2d42] px-4 pb-3 pt-2 flex flex-col gap-1">
+                {plan.meals.length === 0 && (
+                  <p className="text-xs text-[#3b4d6a] py-1">Noch keine Mahlzeiten</p>
+                )}
+                {plan.meals.map((meal) => {
+                  const mealMacros = calculateMealMacros(meal.entries);
+                  return (
+                    <div key={meal.id} className="flex items-center gap-2 py-1.5 border-b border-[#1e2d42]/50 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-medium text-[#f0f4ff]">{meal.name}</span>
+                        {meal.time && <span className="text-[10px] text-[#5a7090] ml-1.5">{meal.time} Uhr</span>}
+                        {meal.entries.length > 0 && (
+                          <span className="text-[10px] text-[#5a7090] ml-1.5">· {Math.round(mealMacros.kcal)} kcal · {meal.entries.length} Lebensmittel</span>
+                        )}
+                      </div>
+                      <Tooltip label="Mahlzeit löschen">
+                        <button type="button" onClick={() => quickDeleteMeal(plan, meal.id)} aria-label="Mahlzeit löschen"
+                          className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors shrink-0">
+                          <Trash2 size={12} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+                        </button>
+                      </Tooltip>
+                    </div>
+                  );
+                })}
+                <button type="button" onClick={() => quickAddMeal(plan)}
+                  className="flex items-center gap-1.5 text-xs text-[#3b82f6] hover:text-[#60a5fa] transition-colors pt-1.5">
+                  <Plus size={12} /> Mahlzeit hinzufügen
+                </button>
+              </div>
+            )}
           </div>
         );
       })}

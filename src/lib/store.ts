@@ -609,7 +609,10 @@ export async function deleteCustomFood(id: string): Promise<FoodItem[]> {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error ?? "Delete failed");
   }
-  return loadCustomFoods();
+  // Direct query without re-seeding (avoids re-inserting all seed foods if table becomes empty)
+  const { data, error } = await supabase.from("custom_foods").select("*").order("name");
+  if (error) throw error;
+  return (data ?? []).map(rowToFoodItem);
 }
 
 export async function deleteBaseFoodItem(id: string): Promise<string[]> {
