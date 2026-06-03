@@ -223,15 +223,16 @@ interface SinglePlanEditorProps {
   athleteWeight?: number;
 }
 
-function emptyMacroTargets(): MacroTargets {
-  return { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
-}
 
 function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanEditorProps) {
   const [title, setTitle] = useState(plan.title);
   const [coachNote, setCoachNote] = useState(plan.coachNote ?? "");
   const [planType, setPlanType] = useState<MealPlanType>(plan.planType ?? "fixed");
-  const [macroTargets, setMacroTargets] = useState<MacroTargets>(plan.macroTargets ?? emptyMacroTargets());
+  const [macroInputs, setMacroInputs] = useState<Record<keyof MacroTargets, string>>(() => {
+    const t = plan.macroTargets;
+    const fmt = (v: number | undefined) => (v ? String(v) : "");
+    return { kcal: fmt(t?.kcal), protein: fmt(t?.protein), carbs: fmt(t?.carbs), fat: fmt(t?.fat), fiber: fmt(t?.fiber) };
+  });
   const [meals, setMeals] = useState<Meal[]>(plan.meals);
   const [expandedMeals, setExpandedMeals] = useState<Set<string>>(new Set(plan.meals.map((m) => m.id)));
   const [entryAmountInputs, setEntryAmountInputs] = useState<Record<string, string>>(() => {
@@ -247,8 +248,7 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
   const [saveError, setSaveError] = useState("");
 
   function updateMacroTarget(field: keyof MacroTargets, value: string) {
-    const n = parseFloat(value);
-    setMacroTargets((prev) => ({ ...prev, [field]: isNaN(n) ? 0 : n }));
+    setMacroInputs((prev) => ({ ...prev, [field]: value }));
   }
 
   function getAmountKey(mealId: string, foodItemId: string) {
@@ -356,12 +356,19 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
       return;
     }
     setSaveError("");
+    const parsedMacros: MacroTargets = {
+      kcal: parseFloat(macroInputs.kcal) || 0,
+      protein: parseFloat(macroInputs.protein) || 0,
+      carbs: parseFloat(macroInputs.carbs) || 0,
+      fat: parseFloat(macroInputs.fat) || 0,
+      fiber: parseFloat(macroInputs.fiber) || 0,
+    };
     onSave({
       ...plan,
       title,
       coachNote,
       planType,
-      macroTargets: planType === "macro_targets" ? macroTargets : undefined,
+      macroTargets: planType === "macro_targets" ? parsedMacros : undefined,
       meals,
     });
   }
@@ -417,7 +424,7 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
                   <label className="text-[10px] text-[#5a7090]">{label}</label>
                   <input
                     type="number" min={0}
-                    value={macroTargets[field] ?? ""}
+                    value={macroInputs[field]}
                     onChange={(e) => updateMacroTarget(field, e.target.value)}
                     className="bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6]"
                   />

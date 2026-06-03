@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 import { Athlete } from "@/types";
 import {
   analyzeWeek, calculateDistanceToGoal, calculateGoalProgressPercent,
@@ -8,9 +9,34 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 
 const DAY_NAMES = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+
+interface CoachTask {
+  id: string;
+  label: string;
+  checkedAt: string | null;
+  createdAt: string;
+}
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function loadCoachTasks(athleteId: string): CoachTask[] {
+  try {
+    const raw = localStorage.getItem(`coach_tasks_v1_${athleteId}`);
+    if (!raw) return [];
+    const tasks: CoachTask[] = JSON.parse(raw);
+    const today = todayISO();
+    return tasks.filter((t) => t.checkedAt === null || t.checkedAt >= today);
+  } catch { return []; }
+}
+
+function saveCoachTasksToStorage(athleteId: string, tasks: CoachTask[]) {
+  localStorage.setItem(`coach_tasks_v1_${athleteId}`, JSON.stringify(tasks));
+}
 
 interface AthleteCardProps {
   athlete: Athlete;
@@ -26,6 +52,39 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
   const progress = calculateGoalProgressPercent(athlete.startWeight, athlete.currentWeight, athlete.targetWeight);
   const trendColor = getTrendColor(analysis.trend, athlete.goalType);
   const checkInDayLabel = athlete.checkInDay != null ? DAY_NAMES[athlete.checkInDay] : null;
+
+  const [coachTasks, setCoachTasks] = useState<CoachTask[]>([]);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [customTaskInput, setCustomTaskInput] = useState("");
+
+  useEffect(() => {
+    setCoachTasks(loadCoachTasks(athlete.id));
+  }, [athlete.id]);
+
+  function addCoachTask(label: string) {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    const updated = [...coachTasks, { id: crypto.randomUUID(), label: trimmed, checkedAt: null, createdAt: todayISO() }];
+    setCoachTasks(updated);
+    saveCoachTasksToStorage(athlete.id, updated);
+    setCustomTaskInput("");
+    setShowAddTask(false);
+  }
+
+  function toggleCoachTask(taskId: string) {
+    const today = todayISO();
+    const updated = coachTasks.map((t) =>
+      t.id === taskId ? { ...t, checkedAt: t.checkedAt ? null : today } : t
+    );
+    setCoachTasks(updated);
+    saveCoachTasksToStorage(athlete.id, updated);
+  }
+
+  function removeCoachTask(taskId: string) {
+    const updated = coachTasks.filter((t) => t.id !== taskId);
+    setCoachTasks(updated);
+    saveCoachTasksToStorage(athlete.id, updated);
+  }
 
   return (
     <div
@@ -141,6 +200,84 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
           </button>
         </div>
       )}
+
+      {/* Coach tasks — always visible, outside navigation button */}
+      <div
+        className="mt-3 pt-3 border-t border-[#1e2d42]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-[#5a7090]">Aufgaben</span>
+          <button
+            onClick={() => { setShowAddTask((v) => !v); setCustomTaskInput(""); }}
+            className={cn(
+              "p-0.5 rounded transition-colors",
+              showAddTask ? "text-[#ef4444] hover:text-[#fca5a5]" : "text-[#3b4d6a] hover:text-[#60a5fa]"
+            )}
+          >
+            {showAddTask ? <X size={11} /> : <Plus size={11} />}
+          </button>
+        </div>
+
+        {coachTasks.length > 0 && (
+          <div className="flex flex-col gap-1 mt-1">
+            {coachTasks.map((task) => (
+              <div key={task.id} className="flex items-center gap-1.5 group">
+                <button
+                  onClick={() => toggleCoachTask(task.id)}
+                  className={cn(
+                    "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors",
+                    task.checkedAt
+                      ? "bg-[#10b981] border-[#10b981]"
+                      : "border-[#3b4d6a] hover:border-[#60a5fa]"
+                  )}
+                >
+                  {task.checkedAt && <Check size={9} className="text-white" />}
+                </button>
+                <span className={cn(
+                  "text-xs flex-1",
+                  task.checkedAt ? "line-through text-[#3b4d6a]" : "text-[#8fa3c0]"
+                )}>
+                  {task.label}
+                </span>
+                <button
+                  onClick={() => removeCoachTask(task.id)}
+                  className="opacity-0 group-hover:opacity-100 text-[#3b4d6a] hover:text-[#ef4444] transition-all"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {coachTasks.length === 0 && !showAddTask && (
+          <p className="text-xs text-[#3b4d6a]">Keine Aufgaben</p>
+        )}
+
+        {showAddTask && (
+          <div className="mt-1.5 flex gap-1.5">
+            <input
+              value={customTaskInput}
+              onChange={(e) => setCustomTaskInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addCoachTask(customTaskInput);
+                if (e.key === "Escape") { setShowAddTask(false); setCustomTaskInput(""); }
+              }}
+              placeholder="Neue Aufgabe..."
+              autoFocus
+              className="flex-1 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] placeholder:text-[#3b4d6a] focus:outline-none focus:border-[#3b82f6]/60 transition-colors"
+            />
+            <button
+              onClick={() => addCoachTask(customTaskInput)}
+              disabled={!customTaskInput.trim()}
+              className="px-2 py-1 rounded-lg bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#60a5fa] text-xs disabled:opacity-30 hover:bg-[#3b82f6]/20 transition-all"
+            >
+              <Check size={11} />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
