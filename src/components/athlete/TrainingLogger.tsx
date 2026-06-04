@@ -271,16 +271,18 @@ export function TrainingLogger({
 
   function buildEmptyExercises(dayId: string): TrainingExerciseLog[] {
     const day = trainingPlan.days.find((d) => d.id === dayId);
-    return (day?.exercises ?? []).map((ex) => ({
-      exerciseId: ex.id,
-      exerciseName: ex.name,
-      sets: Array.from({ length: ex.sets }, (_, i) => ({
-        setNumber: i + 1,
-        weight: null,
-        reps: null,
-        rir: null,
-      })),
-    }));
+    return (day?.exercises ?? []).map((ex) => {
+      const isUnilateral = ex.laterality === "unilateral";
+      return {
+        exerciseId: ex.id,
+        exerciseName: ex.name,
+        laterality: ex.laterality ?? "bilateral",
+        sets: Array.from({ length: ex.sets }, (_, i) => isUnilateral
+          ? { setNumber: i + 1, weight: null, reps: null, rir: null, weightLeft: null, repsLeft: null, weightRight: null, repsRight: null }
+          : { setNumber: i + 1, weight: null, reps: null, rir: null }
+        ),
+      };
+    });
   }
 
   function handleStartSession() {
@@ -376,22 +378,14 @@ export function TrainingLogger({
 
   function addSet(exIdx: number) {
     updateExercises((prev) =>
-      prev.map((ex, i) =>
-        i !== exIdx
-          ? ex
-          : {
-              ...ex,
-              sets: [
-                ...ex.sets,
-                {
-                  setNumber: ex.sets.length + 1,
-                  weight: null,
-                  reps: null,
-                  rir: null,
-                },
-              ],
-            }
-      )
+      prev.map((ex, i) => {
+        if (i !== exIdx) return ex;
+        const isUnilateral = ex.laterality === "unilateral";
+        const newSet = isUnilateral
+          ? { setNumber: ex.sets.length + 1, weight: null, reps: null, rir: null, weightLeft: null, repsLeft: null, weightRight: null, repsRight: null }
+          : { setNumber: ex.sets.length + 1, weight: null, reps: null, rir: null };
+        return { ...ex, sets: [...ex.sets, newSet] };
+      })
     );
   }
 
@@ -498,69 +492,103 @@ export function TrainingLogger({
                 </div>
 
                 <div className="p-3 flex flex-col gap-2">
-                  <div className="grid grid-cols-12 gap-1.5 text-xs text-[#5a7090] px-1">
-                    <span className="col-span-1">Satz</span>
-                    <span className="col-span-4">kg</span>
-                    <span className="col-span-3">Wdh</span>
-                    <span className="col-span-3">RIR</span>
-                    <span className="col-span-1" />
-                  </div>
-
-                  {ex.sets.map((set, setIdx) => (
-                    <div
-                      key={setIdx}
-                      className="grid grid-cols-12 gap-1.5 items-center"
-                    >
-                      <span className="col-span-1 text-xs text-[#5a7090] text-center">
-                        {set.setNumber}
-                      </span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.5}
-                        value={set.weight ?? ""}
-                        onChange={(e) =>
-                          updateSet(exIdx, setIdx, "weight", e.target.value)
-                        }
-                        placeholder="–"
-                        className="col-span-4 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        value={set.reps ?? ""}
-                        onChange={(e) =>
-                          updateSet(exIdx, setIdx, "reps", e.target.value)
-                        }
-                        placeholder="–"
-                        className="col-span-3 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        max={10}
-                        value={set.rir ?? ""}
-                        onChange={(e) =>
-                          updateSet(exIdx, setIdx, "rir", e.target.value)
-                        }
-                        placeholder="–"
-                        className="col-span-3 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
-                      />
-                      <Tooltip label="Satz entfernen">
-                        <button
-                          type="button"
-                          onClick={() => removeSet(exIdx, setIdx)}
-                          aria-label="Satz entfernen"
-                          className="col-span-1 flex items-center justify-center p-1 rounded hover:bg-[#ef4444]/10 transition-colors"
-                        >
-                          <Trash2
-                            size={11}
-                            className="text-[#ef4444]/50 hover:text-[#ef4444]"
+                  {ex.laterality === "unilateral" ? (
+                    <>
+                      {/* Unilateral: pairwise L + R per set */}
+                      <div className="grid grid-cols-12 gap-1 text-xs text-[#5a7090] px-1">
+                        <span className="col-span-1" />
+                        <span className="col-span-5 text-center">Links (kg × Wdh)</span>
+                        <span className="col-span-5 text-center">Rechts (kg × Wdh)</span>
+                        <span className="col-span-1" />
+                      </div>
+                      {ex.sets.map((set, setIdx) => (
+                        <div key={setIdx} className="grid grid-cols-12 gap-1 items-center">
+                          <span className="col-span-1 text-xs text-[#5a7090] text-center">{set.setNumber}</span>
+                          {/* Left */}
+                          <input
+                            type="number" min={0} step={0.5}
+                            value={set.weightLeft ?? ""}
+                            onChange={(e) => updateSet(exIdx, setIdx, "weightLeft", e.target.value)}
+                            placeholder="kg"
+                            className="col-span-2 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
                           />
-                        </button>
-                      </Tooltip>
-                    </div>
-                  ))}
+                          <span className="col-span-1 text-xs text-[#5a7090] text-center">×</span>
+                          <input
+                            type="number" min={0}
+                            value={set.repsLeft ?? ""}
+                            onChange={(e) => updateSet(exIdx, setIdx, "repsLeft", e.target.value)}
+                            placeholder="Wdh"
+                            className="col-span-2 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
+                          />
+                          {/* Right */}
+                          <input
+                            type="number" min={0} step={0.5}
+                            value={set.weightRight ?? ""}
+                            onChange={(e) => updateSet(exIdx, setIdx, "weightRight", e.target.value)}
+                            placeholder="kg"
+                            className="col-span-2 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
+                          />
+                          <span className="col-span-1 text-xs text-[#5a7090] text-center">×</span>
+                          <input
+                            type="number" min={0}
+                            value={set.repsRight ?? ""}
+                            onChange={(e) => updateSet(exIdx, setIdx, "repsRight", e.target.value)}
+                            placeholder="Wdh"
+                            className="col-span-2 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
+                          />
+                          <Tooltip label="Satz entfernen">
+                            <button type="button" onClick={() => removeSet(exIdx, setIdx)} aria-label="Satz entfernen"
+                              className="col-span-1 flex items-center justify-center p-1 rounded hover:bg-[#ef4444]/10 transition-colors">
+                              <Trash2 size={11} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+                            </button>
+                          </Tooltip>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      {/* Bilateral: standard weight/reps/RIR */}
+                      <div className="grid grid-cols-12 gap-1.5 text-xs text-[#5a7090] px-1">
+                        <span className="col-span-1">Satz</span>
+                        <span className="col-span-4">kg</span>
+                        <span className="col-span-3">Wdh</span>
+                        <span className="col-span-3">RIR</span>
+                        <span className="col-span-1" />
+                      </div>
+                      {ex.sets.map((set, setIdx) => (
+                        <div key={setIdx} className="grid grid-cols-12 gap-1.5 items-center">
+                          <span className="col-span-1 text-xs text-[#5a7090] text-center">{set.setNumber}</span>
+                          <input
+                            type="number" min={0} step={0.5}
+                            value={set.weight ?? ""}
+                            onChange={(e) => updateSet(exIdx, setIdx, "weight", e.target.value)}
+                            placeholder="–"
+                            className="col-span-4 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
+                          />
+                          <input
+                            type="number" min={0}
+                            value={set.reps ?? ""}
+                            onChange={(e) => updateSet(exIdx, setIdx, "reps", e.target.value)}
+                            placeholder="–"
+                            className="col-span-3 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
+                          />
+                          <input
+                            type="number" min={0} max={10}
+                            value={set.rir ?? ""}
+                            onChange={(e) => updateSet(exIdx, setIdx, "rir", e.target.value)}
+                            placeholder="–"
+                            className="col-span-3 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
+                          />
+                          <Tooltip label="Satz entfernen">
+                            <button type="button" onClick={() => removeSet(exIdx, setIdx)} aria-label="Satz entfernen"
+                              className="col-span-1 flex items-center justify-center p-1 rounded hover:bg-[#ef4444]/10 transition-colors">
+                              <Trash2 size={11} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+                            </button>
+                          </Tooltip>
+                        </div>
+                      ))}
+                    </>
+                  )}
 
                   <button
                     type="button"

@@ -208,11 +208,17 @@ export interface TrainingSetLog {
   rir?: number | null;
   rpe?: number | null;
   notes?: string;
+  // pairwise fields for unilateral exercises
+  weightLeft?: number | null;
+  repsLeft?: number | null;
+  weightRight?: number | null;
+  repsRight?: number | null;
 }
 
 export interface TrainingExerciseLog {
   exerciseId: string;
   exerciseName: string;
+  laterality?: "bilateral" | "unilateral";
   sets: TrainingSetLog[];
 }
 
@@ -245,6 +251,7 @@ export interface ExerciseDBItem {
   name: string;             // Übungsname
   muscleGroup: string;      // Muskelgruppe
   equipment?: string;       // z.B. "Langhantel", "Kurzhantel", "Kabelzug", "Maschine", "Körpergewicht"
+  laterality?: "bilateral" | "unilateral";
   notes?: string;           // Anmerkungen
   executionLink?: string;   // Link zur Übungsausführung
   createdAt?: string;
@@ -320,6 +327,7 @@ export interface Exercise {
   note?: string;           // individual coach note for this athlete
   videoUrl?: string;       // execution link (mapped from DB's executionLink on import)
   muscleGroup?: string;    // snapshot from ÜbungenDB
+  laterality?: "bilateral" | "unilateral"; // snapshot from ÜbungenDB
   exerciseDbNote?: string; // snapshot of DB notes
   exerciseDbId?: string;   // reference to ExerciseDBItem (snapshot approach)
 }

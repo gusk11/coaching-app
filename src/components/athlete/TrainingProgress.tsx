@@ -10,12 +10,21 @@ interface Props {
 
 type SetResult = "progress" | "same" | "regress" | "na";
 
+function setVolume(s: TrainingSetLog): number | null {
+  if (s.weightLeft != null && s.repsLeft != null) {
+    const l = s.weightLeft * s.repsLeft;
+    const r = (s.weightRight ?? s.weightLeft) * (s.repsRight ?? s.repsLeft);
+    return l + r;
+  }
+  if (s.weight != null && s.reps != null) return s.weight * s.reps;
+  return null;
+}
+
 function compareSet(curr: TrainingSetLog, prev: TrainingSetLog): SetResult {
-  const cw = curr.weight, cr = curr.reps, pw = prev.weight, pr = prev.reps;
-  if (cw == null || cr == null || pw == null || pr == null) return "na";
-  if (cw > pw) return "progress";
-  if (cw === pw && cr > pr) return "progress";
-  if (cw === pw && cr === pr) return "same";
+  const cv = setVolume(curr), pv = setVolume(prev);
+  if (cv == null || pv == null) return "na";
+  if (cv > pv) return "progress";
+  if (cv === pv) return "same";
   return "regress";
 }
 

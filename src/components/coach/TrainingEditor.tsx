@@ -29,6 +29,7 @@ function exerciseFromDB(item: ExerciseDBItem): Exercise {
     sets: 3,
     reps: "8-12",
     muscleGroup: item.muscleGroup,
+    laterality: item.laterality ?? "bilateral",
     exerciseDbNote: item.notes,
     videoUrl: item.executionLink,
     exerciseDbId: item.id,
@@ -132,6 +133,9 @@ function ExerciseRow({ exercise, onChange, onDelete }: ExerciseRowProps) {
               <span className="text-[9px] bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20 rounded px-1.5 py-0.5 font-medium leading-none">DB</span>
               {exercise.muscleGroup && (
                 <span className="text-[9px] bg-[#1e2d42] text-[#8fa3c0] rounded px-1.5 py-0.5 leading-none">{exercise.muscleGroup}</span>
+              )}
+              {exercise.laterality === "unilateral" && (
+                <span className="text-[9px] bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20 rounded px-1.5 py-0.5 font-medium leading-none">Uni</span>
               )}
             </div>
             {exercise.exerciseDbNote && (

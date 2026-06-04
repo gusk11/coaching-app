@@ -181,6 +181,7 @@ function rowToExercise(row: any): ExerciseDBItem {
     name: row.name,
     muscleGroup: row.muscle_group ?? "",
     equipment: row.equipment ?? undefined,
+    laterality: (row.laterality === "unilateral" ? "unilateral" : "bilateral") as "bilateral" | "unilateral",
     notes: row.notes ?? undefined,
     executionLink: row.execution_link ?? undefined,
     createdAt: row.created_at ?? undefined,
@@ -789,7 +790,8 @@ export async function addExerciseDBItem(
 ): Promise<ExerciseDBItem[]> {
   const { error } = await supabase.from("exercise_db").insert({
     id: `ex-${Date.now()}`, name: item.name, muscle_group: item.muscleGroup ?? null,
-    equipment: item.equipment ?? null, notes: item.notes ?? null, execution_link: item.executionLink ?? null,
+    equipment: item.equipment ?? null, laterality: item.laterality ?? "bilateral",
+    notes: item.notes ?? null, execution_link: item.executionLink ?? null,
   });
   if (error) throw error;
   return loadExerciseDB();
@@ -803,6 +805,7 @@ export async function updateExerciseDBItem(
   if ("name" in updates) row.name = updates.name;
   if ("muscleGroup" in updates) row.muscle_group = updates.muscleGroup ?? null;
   if ("equipment" in updates) row.equipment = updates.equipment ?? null;
+  if ("laterality" in updates) row.laterality = updates.laterality ?? "bilateral";
   if ("notes" in updates) row.notes = updates.notes ?? null;
   if ("executionLink" in updates) row.execution_link = updates.executionLink ?? null;
   row.updated_at = new Date().toISOString();

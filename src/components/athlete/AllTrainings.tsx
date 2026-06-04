@@ -30,8 +30,15 @@ function totalSets(log: TrainingLog): number {
 function totalVolume(log: TrainingLog): number | null {
   let vol = 0, hasData = false;
   for (const ex of log.exercises)
-    for (const s of ex.sets)
-      if (s.weight != null && s.reps != null) { vol += s.weight * s.reps; hasData = true; }
+    for (const s of ex.sets) {
+      if (s.weightLeft != null && s.repsLeft != null) {
+        vol += s.weightLeft * s.repsLeft + (s.weightRight ?? s.weightLeft) * (s.repsRight ?? s.repsLeft);
+        hasData = true;
+      } else if (s.weight != null && s.reps != null) {
+        vol += s.weight * s.reps;
+        hasData = true;
+      }
+    }
   return hasData ? Math.round(vol) : null;
 }
 
@@ -43,8 +50,8 @@ function formatDuration(secs: number): string {
 
 // ─── Edit types ───────────────────────────────────────────────────────────────
 
-interface EditSet { weight: string; reps: string; rir: string; notes: string; }
-interface EditExercise { exerciseId: string; exerciseName: string; sets: EditSet[]; }
+interface EditSet { weight: string; reps: string; rir: string; notes: string; weightLeft: string; repsLeft: string; weightRight: string; repsRight: string; }
+interface EditExercise { exerciseId: string; exerciseName: string; laterality?: "bilateral" | "unilateral"; sets: EditSet[]; }
 interface EditState {
   logId: string;
   date: string;
@@ -64,11 +71,16 @@ function logToEditState(log: TrainingLog): EditState {
     exercises: log.exercises.map((ex) => ({
       exerciseId: ex.exerciseId,
       exerciseName: ex.exerciseName,
+      laterality: ex.laterality,
       sets: ex.sets.map((s) => ({
         weight: s.weight != null ? String(s.weight) : "",
         reps: s.reps != null ? String(s.reps) : "",
         rir: s.rir != null ? String(s.rir) : "",
         notes: s.notes ?? "",
+        weightLeft: s.weightLeft != null ? String(s.weightLeft) : "",
+        repsLeft: s.repsLeft != null ? String(s.repsLeft) : "",
+        weightRight: s.weightRight != null ? String(s.weightRight) : "",
+        repsRight: s.repsRight != null ? String(s.repsRight) : "",
       })),
     })),
   };
@@ -84,12 +96,17 @@ function editStateToLog(state: EditState, original: TrainingLog): TrainingLog {
     exercises: state.exercises.map((ex) => ({
       exerciseId: ex.exerciseId,
       exerciseName: ex.exerciseName,
+      laterality: ex.laterality,
       sets: ex.sets.map((s, sIdx) => ({
         setNumber: sIdx + 1,
         weight: s.weight !== "" ? Number(s.weight) : null,
         reps: s.reps !== "" ? Number(s.reps) : null,
         rir: s.rir !== "" ? Number(s.rir) : null,
         notes: s.notes || undefined,
+        weightLeft: s.weightLeft !== "" ? Number(s.weightLeft) : null,
+        repsLeft: s.repsLeft !== "" ? Number(s.repsLeft) : null,
+        weightRight: s.weightRight !== "" ? Number(s.weightRight) : null,
+        repsRight: s.repsRight !== "" ? Number(s.repsRight) : null,
       })),
     })),
   };
@@ -185,7 +202,7 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
       return {
         ...prev,
         exercises: prev.exercises.map((ex, i) =>
-          i !== exIdx ? ex : { ...ex, sets: [...ex.sets, { weight: "", reps: "", rir: "", notes: "" }] }
+          i !== exIdx ? ex : { ...ex, sets: [...ex.sets, { weight: "", reps: "", rir: "", notes: "", weightLeft: "", repsLeft: "", weightRight: "", repsRight: "" }] }
         ),
       };
     });
@@ -214,7 +231,7 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
         exercises: [...prev.exercises, {
           exerciseId: `ex-custom-${Date.now()}`,
           exerciseName: "",
-          sets: [{ weight: "", reps: "", rir: "", notes: "" }],
+          sets: [{ weight: "", reps: "", rir: "", notes: "", weightLeft: "", repsLeft: "", weightRight: "", repsRight: "" }],
         }],
       } : prev
     );
@@ -332,12 +349,22 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
                       {ex.sets.map((set, si) => (
                         <div key={si} className="flex items-center gap-2 text-sm">
                           <span className="text-xs text-[#5a7090] w-14 shrink-0">Satz {set.setNumber}</span>
-                          <span className="text-[#f0f4ff] flex-1">
-                            {set.weight != null ? `${set.weight} kg` : "–"}
-                            {" × "}
-                            {set.reps != null ? set.reps : "–"}
-                            {set.rir != null ? <span className="text-[#5a7090]"> @RIR{set.rir}</span> : null}
-                          </span>
+                          {ex.laterality === "unilateral" ? (
+                            <span className="text-[#f0f4ff] flex-1 text-xs">
+                              <span className="text-[#5a7090]">L </span>
+                              {set.weightLeft != null ? `${set.weightLeft} kg` : "–"}{" × "}{set.repsLeft != null ? set.repsLeft : "–"}
+                              <span className="text-[#5a7090] mx-1">|</span>
+                              <span className="text-[#5a7090]">R </span>
+                              {set.weightRight != null ? `${set.weightRight} kg` : "–"}{" × "}{set.repsRight != null ? set.repsRight : "–"}
+                            </span>
+                          ) : (
+                            <span className="text-[#f0f4ff] flex-1">
+                              {set.weight != null ? `${set.weight} kg` : "–"}
+                              {" × "}
+                              {set.reps != null ? set.reps : "–"}
+                              {set.rir != null ? <span className="text-[#5a7090]"> @RIR{set.rir}</span> : null}
+                            </span>
+                          )}
                           {set.notes && (
                             <span className="text-xs text-[#5a7090] italic truncate max-w-[100px]">{set.notes}</span>
                           )}
@@ -434,50 +461,41 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
 
                       <div className="flex flex-col gap-1.5">
                         {ex.sets.map((set, setIdx) => (
-                          <div key={setIdx} className="flex items-center gap-1.5">
-                            <span className="text-xs text-[#5a7090] w-5 shrink-0 text-right">{setIdx + 1}</span>
-                            <input
-                              type="number"
-                              value={set.weight}
-                              onChange={(e) => setSetField(exIdx, setIdx, "weight", e.target.value)}
-                              placeholder="kg"
-                              min="0"
-                              className="w-14 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] text-center"
-                            />
-                            <span className="text-xs text-[#5a7090]">×</span>
-                            <input
-                              type="number"
-                              value={set.reps}
-                              onChange={(e) => setSetField(exIdx, setIdx, "reps", e.target.value)}
-                              placeholder="Wdh"
-                              min="0"
-                              className="w-12 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] text-center"
-                            />
-                            <span className="text-xs text-[#5a7090]">RIR</span>
-                            <input
-                              type="number"
-                              value={set.rir}
-                              onChange={(e) => setSetField(exIdx, setIdx, "rir", e.target.value)}
-                              placeholder="–"
-                              min="0"
-                              className="w-10 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] text-center"
-                            />
-                            <input
-                              type="text"
-                              value={set.notes}
-                              onChange={(e) => setSetField(exIdx, setIdx, "notes", e.target.value)}
-                              placeholder="Notiz"
-                              className="flex-1 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] min-w-0"
-                            />
-                            <Tooltip label="Satz entfernen">
-                              <button
-                                onClick={() => removeSet(exIdx, setIdx)}
-                                aria-label="Satz entfernen"
-                                className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </Tooltip>
+                          <div key={setIdx} className={`flex items-center gap-1.5 ${ex.laterality === "unilateral" ? "flex-col items-stretch" : ""}`}>
+                            {ex.laterality === "unilateral" ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs text-[#5a7090] w-5 shrink-0 text-right">{setIdx + 1}</span>
+                                <span className="text-xs text-[#5a7090]">L</span>
+                                <input type="number" value={set.weightLeft} onChange={(e) => setSetField(exIdx, setIdx, "weightLeft", e.target.value)} placeholder="kg" min="0" className="w-12 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] text-center" />
+                                <span className="text-xs text-[#5a7090]">×</span>
+                                <input type="number" value={set.repsLeft} onChange={(e) => setSetField(exIdx, setIdx, "repsLeft", e.target.value)} placeholder="Wdh" min="0" className="w-10 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] text-center" />
+                                <span className="text-xs text-[#5a7090] mx-0.5">|</span>
+                                <span className="text-xs text-[#5a7090]">R</span>
+                                <input type="number" value={set.weightRight} onChange={(e) => setSetField(exIdx, setIdx, "weightRight", e.target.value)} placeholder="kg" min="0" className="w-12 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] text-center" />
+                                <span className="text-xs text-[#5a7090]">×</span>
+                                <input type="number" value={set.repsRight} onChange={(e) => setSetField(exIdx, setIdx, "repsRight", e.target.value)} placeholder="Wdh" min="0" className="w-10 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] text-center" />
+                                <Tooltip label="Satz entfernen">
+                                  <button onClick={() => removeSet(exIdx, setIdx)} aria-label="Satz entfernen" className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0">
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </Tooltip>
+                              </div>
+                            ) : (
+                              <>
+                                <span className="text-xs text-[#5a7090] w-5 shrink-0 text-right">{setIdx + 1}</span>
+                                <input type="number" value={set.weight} onChange={(e) => setSetField(exIdx, setIdx, "weight", e.target.value)} placeholder="kg" min="0" className="w-14 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] text-center" />
+                                <span className="text-xs text-[#5a7090]">×</span>
+                                <input type="number" value={set.reps} onChange={(e) => setSetField(exIdx, setIdx, "reps", e.target.value)} placeholder="Wdh" min="0" className="w-12 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] text-center" />
+                                <span className="text-xs text-[#5a7090]">RIR</span>
+                                <input type="number" value={set.rir} onChange={(e) => setSetField(exIdx, setIdx, "rir", e.target.value)} placeholder="–" min="0" className="w-10 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] text-center" />
+                                <input type="text" value={set.notes} onChange={(e) => setSetField(exIdx, setIdx, "notes", e.target.value)} placeholder="Notiz" className="flex-1 bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6] min-w-0" />
+                                <Tooltip label="Satz entfernen">
+                                  <button onClick={() => removeSet(exIdx, setIdx)} aria-label="Satz entfernen" className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0">
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </Tooltip>
+                              </>
+                            )}
                           </div>
                         ))}
                       </div>

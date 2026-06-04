@@ -38,7 +38,7 @@ const EQUIPMENT_OPTIONS = [
 ] as const;
 
 function emptyForm(): Partial<ExerciseDBItem> {
-  return { name: "", muscleGroup: "", equipment: "", notes: "", executionLink: "" };
+  return { name: "", muscleGroup: "", equipment: "", laterality: "bilateral", notes: "", executionLink: "" };
 }
 
 // ─── Form Modal ───────────────────────────────────────────────────────────────
@@ -80,6 +80,8 @@ function ExerciseForm({
     onSave({
       name: form.name?.trim() ?? "",
       muscleGroup: form.muscleGroup?.trim() ?? "",
+      equipment: form.equipment?.trim() || undefined,
+      laterality: form.laterality ?? "bilateral",
       notes: form.notes?.trim() || undefined,
       executionLink: form.executionLink?.trim() || undefined,
     });
@@ -167,6 +169,27 @@ function ExerciseForm({
                 <option key={eq} value={eq}>{eq}</option>
               ))}
             </select>
+          </div>
+
+          {/* Unilateral / Bilateral */}
+          <div>
+            <label className={labelCls}>Ausführung</label>
+            <div className="flex gap-2">
+              {(["bilateral", "unilateral"] as const).map((lat) => (
+                <button
+                  key={lat}
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, laterality: lat }))}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    form.laterality === lat
+                      ? "bg-[#3b82f6]/10 border-[#3b82f6] text-[#60a5fa]"
+                      : "bg-[#0f1624] border-[#1e2d42] text-[#8fa3c0] hover:text-[#f0f4ff]"
+                  }`}
+                >
+                  {lat === "bilateral" ? "Bilateral" : "Unilateral"}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Anmerkungen */}
@@ -408,12 +431,19 @@ export default function ExerciseDatabase() {
                   </div>
 
                   {/* Muskelgruppe + Equipment */}
-                  <div className="col-span-2 pr-3">
-                    <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20">
-                      {e.muscleGroup}
-                    </span>
+                  <div className="col-span-2 pr-3 flex flex-col gap-0.5">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20">
+                        {e.muscleGroup}
+                      </span>
+                      {e.laterality === "unilateral" && (
+                        <span className="inline-block text-xs font-medium px-1.5 py-0.5 rounded-full bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20">
+                          Uni
+                        </span>
+                      )}
+                    </div>
                     {e.equipment && (
-                      <p className="text-xs text-[#3a5070] mt-0.5">{e.equipment}</p>
+                      <p className="text-xs text-[#3a5070]">{e.equipment}</p>
                     )}
                   </div>
 
