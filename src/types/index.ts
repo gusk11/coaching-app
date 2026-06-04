@@ -220,7 +220,6 @@ export interface TrainingExerciseLog {
   exerciseName: string;
   laterality?: "bilateral" | "unilateral";
   sets: TrainingSetLog[];
-  laterality?: "bilateral" | "unilateral";
 }
 
 export interface TrainingLog {
