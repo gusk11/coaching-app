@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn } from "@/lib/store";
+import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { Athlete, GoalType, MealPlan, TrainingPlan, SupplementPlan } from "@/types";
 import {
@@ -60,6 +60,7 @@ export default function CoachAthletePage() {
   const [editingCheckIns, setEditingCheckIns] = useState(false);
   const [editDailyCI, setEditDailyCI] = useState<DailyCheckIn | null>(null);
   const [editWeeklyCI, setEditWeeklyCI] = useState<WeeklyCheckIn | null>(null);
+  const [deleteConfirmCI, setDeleteConfirmCI] = useState<{ type: "daily" | "weekly"; id: string } | null>(null);
 
   // Goal editing
   const [editingGoal, setEditingGoal] = useState(false);
@@ -190,6 +191,23 @@ export default function CoachAthletePage() {
       showToast("Weekly Check-in gespeichert.", "success");
     } catch {
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
+  }
+
+  async function handleDeleteCheckIn() {
+    if (!deleteConfirmCI) return;
+    try {
+      let updated: Athlete[];
+      if (deleteConfirmCI.type === "daily") {
+        updated = await deleteDailyCheckIn(athlete!.id, deleteConfirmCI.id);
+      } else {
+        updated = await deleteWeeklyCheckIn(athlete!.id, deleteConfirmCI.id);
+      }
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setDeleteConfirmCI(null);
+      showToast("Check-in gelöscht.", "success");
+    } catch {
+      showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");
     }
   }
 
@@ -954,12 +972,12 @@ export default function CoachAthletePage() {
             {checkInSubTab === "daily" && (
               <motion.div className="flex flex-col gap-3" variants={listContainer} initial="hidden" animate="visible">
                 {sortedDailyCheckIns.map((ci) => (
-                    <motion.button
+                    <motion.div
                       variants={listItem}
                       key={ci.id}
                       onClick={() => editingCheckIns ? setEditDailyCI(ci) : setSelectedDailyCI(ci)}
                       className={cn(
-                        "w-full text-left rounded-2xl bg-[#141d2e] border p-4 transition-all group",
+                        "w-full text-left rounded-2xl bg-[#141d2e] border p-4 transition-all group cursor-pointer",
                         editingCheckIns
                           ? "border-[#3b82f6]/30 hover:border-[#3b82f6]/60 hover:bg-[#192236]"
                           : "border-[#1e2d42] hover:border-[#3b82f6]/30 hover:bg-[#192236]"
@@ -969,7 +987,19 @@ export default function CoachAthletePage() {
                         <span className="text-sm font-semibold text-[#f0f4ff] group-hover:text-white">
                           {new Date(ci.date + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "short" })}
                         </span>
-                        <span className="text-base font-bold text-[#3b82f6]">{ci.weight} kg</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-bold text-[#3b82f6]">{ci.weight} kg</span>
+                          {editingCheckIns && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmCI({ type: "daily", id: ci.id }); }}
+                              aria-label="Check-in löschen"
+                              className="p-1.5 rounded-lg hover:bg-[#ef4444]/10 transition-colors"
+                            >
+                              <Trash2 size={13} className="text-[#ef4444]/60 hover:text-[#ef4444]" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 text-xs">
                         <div className="flex flex-col gap-0.5">
@@ -1029,7 +1059,7 @@ export default function CoachAthletePage() {
                       <p className="text-[10px] mt-2 text-right" style={{ color: editingCheckIns ? "#60a5fa" : "#3b4d6a" }}>
                         {editingCheckIns ? "Bearbeiten →" : "Details ansehen →"}
                       </p>
-                    </motion.button>
+                    </motion.div>
                   ))}
                 {!athlete.dailyCheckIns.length && (
                   <p className="text-center text-[#5a7090] py-8">Noch keine Daily Check-ins vorhanden.</p>
@@ -1048,12 +1078,12 @@ export default function CoachAthletePage() {
                       d.toLocaleDateString("de-DE", { day: "2-digit", month: "short" });
                     const weekLabel = `${fmtShort(weekStart)} – ${fmtShort(weekEnd)}`;
                     return (
-                      <motion.button
+                      <motion.div
                         variants={listItem}
                         key={ci.id}
                         onClick={() => editingCheckIns ? setEditWeeklyCI(ci) : setSelectedWeeklyCI(ci)}
                         className={cn(
-                          "w-full text-left rounded-2xl bg-[#141d2e] border p-4 transition-all group",
+                          "w-full text-left rounded-2xl bg-[#141d2e] border p-4 transition-all group cursor-pointer",
                           editingCheckIns
                             ? "border-[#3b82f6]/30 hover:border-[#3b82f6]/60 hover:bg-[#192236]"
                             : "border-[#1e2d42] hover:border-[#3b82f6]/30 hover:bg-[#192236]"
@@ -1065,11 +1095,23 @@ export default function CoachAthletePage() {
                             <p className="text-xs text-[#5a7090] mb-0.5">Woche</p>
                             <p className="text-sm font-semibold text-[#f0f4ff] group-hover:text-white">{weekLabel}</p>
                           </div>
-                          <div className="text-right">
-                            <p className="text-xs text-[#5a7090] mb-0.5">Gesamtbewertung</p>
-                            <p className="text-base font-bold text-[#3b82f6]">
-                              {"★".repeat(ci.overallWeekRating)}{"☆".repeat(5 - ci.overallWeekRating)}
-                            </p>
+                          <div className="flex items-center gap-2">
+                            <div className="text-right">
+                              <p className="text-xs text-[#5a7090] mb-0.5">Gesamtbewertung</p>
+                              <p className="text-base font-bold text-[#3b82f6]">
+                                {"★".repeat(ci.overallWeekRating)}{"☆".repeat(5 - ci.overallWeekRating)}
+                              </p>
+                            </div>
+                            {editingCheckIns && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmCI({ type: "weekly", id: ci.id }); }}
+                                aria-label="Check-in löschen"
+                                className="p-1.5 rounded-lg hover:bg-[#ef4444]/10 transition-colors"
+                              >
+                                <Trash2 size={13} className="text-[#ef4444]/60 hover:text-[#ef4444]" />
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -1114,7 +1156,7 @@ export default function CoachAthletePage() {
                         <p className="text-[10px] mt-2 text-right" style={{ color: editingCheckIns ? "#60a5fa" : "#3b4d6a" }}>
                           {editingCheckIns ? "Bearbeiten →" : "Details ansehen →"}
                         </p>
-                      </motion.button>
+                      </motion.div>
                     );
                   })}
                 {!athlete.weeklyCheckIns.length && (
@@ -1446,6 +1488,33 @@ export default function CoachAthletePage() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Delete check-in confirmation modal */}
+      {deleteConfirmCI && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#141d2e] border border-[#1e2d42] rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-sm font-semibold text-[#f0f4ff] mb-1.5">Check-in löschen</h3>
+            <p className="text-xs text-[#8fa3c0] mb-5">
+              Diesen {deleteConfirmCI.type === "daily" ? "Daily" : "Weekly"} Check-in unwiderruflich löschen?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmCI(null)}
+                className="px-4 py-2 text-xs rounded-lg border border-[#1e2d42] text-[#8fa3c0] hover:bg-[#1e2d42] transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCheckIn}
+                className="px-4 py-2 text-xs rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] hover:bg-[#ef4444]/20 transition-colors font-medium"
+              >
+                Löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

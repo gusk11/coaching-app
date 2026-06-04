@@ -490,6 +490,35 @@ export async function updateWeeklyCheckIn(
   return loadAthletes();
 }
 
+export async function deleteDailyCheckIn(
+  athleteId: string,
+  checkInId: string
+): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const daily_check_ins = a.dailyCheckIns
+    .filter((c) => c.id !== checkInId)
+    .sort((x, y) => x.date.localeCompare(y.date));
+  const latest = daily_check_ins.at(-1);
+  const { error } = await supabase.from("athletes")
+    .update({ daily_check_ins, ...(latest ? { current_weight: latest.weight } : {}), updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
+export async function deleteWeeklyCheckIn(
+  athleteId: string,
+  checkInId: string
+): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const weekly_check_ins = a.weeklyCheckIns.filter((c) => c.id !== checkInId);
+  const { error } = await supabase.from("athletes")
+    .update({ weekly_check_ins, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
 export async function addWeeklyAdjustment(
   athleteId: string,
   adj: Omit<WeeklyAdjustment, "id" | "athleteId" | "createdAt">

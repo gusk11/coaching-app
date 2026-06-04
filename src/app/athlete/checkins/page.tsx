@@ -2,14 +2,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
-import { loadAuth, loadAthletes, addDailyCheckIn, addWeeklyCheckIn } from "@/lib/store";
+import { loadAuth, loadAthletes, addDailyCheckIn, addWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { DailyCheckInForm } from "@/components/athlete/DailyCheckInForm";
 import { WeeklyCheckInForm } from "@/components/athlete/WeeklyCheckInForm";
 import { isCheckInDay, getWeekDates, todayISO } from "@/lib/utils";
-import { ClipboardCheck, CalendarPlus } from "lucide-react";
+import { ClipboardCheck, CalendarPlus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -43,6 +43,9 @@ export default function CheckInsPage() {
 
   // Weekly state
   const [editing, setEditing] = useState(false);
+
+  // Delete confirmation
+  const [deleteConfirmCI, setDeleteConfirmCI] = useState<{ type: "daily" | "weekly"; id: string } | null>(null);
 
   useEffect(() => {
     const auth = loadAuth();
@@ -101,6 +104,22 @@ export default function CheckInsPage() {
       showToast("Check-in nachgetragen.", "success");
     } catch {
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
+  }
+
+  async function handleDeleteCheckIn() {
+    if (!deleteConfirmCI) return;
+    try {
+      let updated: Awaited<ReturnType<typeof loadAthletes>>;
+      if (deleteConfirmCI.type === "daily") {
+        updated = await deleteDailyCheckIn(athlete!.id, deleteConfirmCI.id);
+      } else {
+        updated = await deleteWeeklyCheckIn(athlete!.id, deleteConfirmCI.id);
+      }
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setDeleteConfirmCI(null);
+    } catch {
+      setDeleteConfirmCI(null);
     }
   }
 
@@ -244,6 +263,36 @@ export default function CheckInsPage() {
           </div>
         )}
 
+        {/* Past daily check-ins list */}
+        {activeTab === "daily" && sortedDaily.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium text-[#5a7090] px-1">Vergangene Daily Check-ins</p>
+            {sortedDaily.map((ci) => (
+              <div
+                key={ci.id}
+                className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] px-4 py-3 flex items-center justify-between gap-3"
+              >
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-sm font-medium text-[#f0f4ff]">
+                    {new Date(ci.date + "T12:00:00").toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
+                  </span>
+                  <span className="text-xs text-[#5a7090]">
+                    {ci.weight} kg · Energie {ci.energyLevel}/5 · Schlaf {ci.sleepHours}h
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmCI({ type: "daily", id: ci.id })}
+                  aria-label="Check-in löschen"
+                  className="p-2 rounded-lg hover:bg-[#ef4444]/10 transition-colors shrink-0"
+                >
+                  <Trash2 size={14} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Weekly tab */}
         {activeTab === "weekly" && (
           <div className="flex flex-col gap-4">
@@ -261,12 +310,20 @@ export default function CheckInsPage() {
                 <div className="w-16 h-16 rounded-full bg-[#064e3b] flex items-center justify-center text-3xl">✓</div>
                 <p className="text-lg font-semibold text-[#f0f4ff]">Diese Woche bereits abgeschlossen</p>
                 <p className="text-sm text-[#8fa3c0]">Nächster Check-in: {DAY_NAMES[athlete.checkInDay]}</p>
-                <button
-                  onClick={() => setEditing(true)}
-                  className="mt-2 px-5 py-2.5 rounded-xl border border-[#1e2d42] bg-[#141d2e] text-[#8fa3c0] text-sm font-medium hover:border-[#3b82f6] hover:text-[#60a5fa] transition-colors"
-                >
-                  Check-in bearbeiten
-                </button>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="px-5 py-2.5 rounded-xl border border-[#1e2d42] bg-[#141d2e] text-[#8fa3c0] text-sm font-medium hover:border-[#3b82f6] hover:text-[#60a5fa] transition-colors"
+                  >
+                    Check-in bearbeiten
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmCI({ type: "weekly", id: existingWeekly!.id })}
+                    className="px-5 py-2.5 rounded-xl border border-[#ef4444]/20 bg-[#141d2e] text-[#ef4444]/60 text-sm font-medium hover:border-[#ef4444]/40 hover:text-[#ef4444] transition-colors"
+                  >
+                    Löschen
+                  </button>
+                </div>
               </div>
             ) : (
               <WeeklyCheckInForm
@@ -276,10 +333,76 @@ export default function CheckInsPage() {
                 isEdit={editing}
               />
             )}
+
+            {/* Past weekly check-ins */}
+            {athlete.weeklyCheckIns.length > 0 && (
+              <div className="flex flex-col gap-2 pt-2">
+                <p className="text-xs font-medium text-[#5a7090] px-1">Vergangene Weekly Check-ins</p>
+                {[...athlete.weeklyCheckIns]
+                  .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
+                  .map((ci) => {
+                    const ws = new Date(ci.weekStart + "T12:00:00");
+                    const we = new Date(ws);
+                    we.setDate(ws.getDate() + 6);
+                    const fmt = (d: Date) => d.toLocaleDateString("de-DE", { day: "2-digit", month: "short" });
+                    return (
+                      <div
+                        key={ci.id}
+                        className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] px-4 py-3 flex items-center justify-between gap-3"
+                      >
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-sm font-medium text-[#f0f4ff]">
+                            {fmt(ws)} – {fmt(we)}
+                          </span>
+                          <span className="text-xs text-[#5a7090]">
+                            {"★".repeat(ci.overallWeekRating)}{"☆".repeat(5 - ci.overallWeekRating)} · Training {ci.trainingRating}/5
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmCI({ type: "weekly", id: ci.id })}
+                          aria-label="Check-in löschen"
+                          className="p-2 rounded-lg hover:bg-[#ef4444]/10 transition-colors shrink-0"
+                        >
+                          <Trash2 size={14} className="text-[#ef4444]/50 hover:text-[#ef4444]" />
+                        </button>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )}
 
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteConfirmCI && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#141d2e] border border-[#1e2d42] rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-sm font-semibold text-[#f0f4ff] mb-1.5">Check-in löschen</h3>
+            <p className="text-xs text-[#8fa3c0] mb-5">
+              Diesen {deleteConfirmCI.type === "daily" ? "Daily" : "Weekly"} Check-in unwiderruflich löschen?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmCI(null)}
+                className="px-4 py-2 text-xs rounded-lg border border-[#1e2d42] text-[#8fa3c0] hover:bg-[#1e2d42] transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCheckIn}
+                className="px-4 py-2 text-xs rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] hover:bg-[#ef4444]/20 transition-colors font-medium"
+              >
+                Löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
