@@ -124,13 +124,13 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       {/* Sliders */}
       <div className="grid grid-cols-1 gap-5">
         {cfg.energyLevel && <SliderInput label="Energielevel" value={energyLevel} onChange={(v) => setEnergyLevel(v as 1|2|3|4|5)} labelMin="Erschöpft" labelMax="Voller Energie" />}
-        {cfg.stressLevel && <SliderInput label="Stresslevel" value={stressLevel} onChange={(v) => setStressLevel(v as 1|2|3|4|5)} labelMin="Entspannt" labelMax="Sehr gestresst" />}
+        {cfg.stressLevel && <SliderInput label="Stresslevel" value={stressLevel} onChange={(v) => setStressLevel(v as 1|2|3|4|5)} labelMin="Entspannt" labelMax="Sehr gestresst" colorMode="negative_high" reversed />}
         {cfg.mood && <SliderInput label="Stimmung / Tagesgefühl" value={mood} onChange={(v) => setMood(v as 1|2|3|4|5)} labelMin="Sehr schlecht" labelMax="Ausgezeichnet" />}
       </div>
 
       {/* Subjective ratings */}
       <div className="grid grid-cols-1 gap-5">
-        {cfg.appetite && <SliderInput label="Appetit" value={appetite} onChange={(v) => setAppetite(v as 1|2|3|4|5)} />}
+        {cfg.appetite && <SliderInput label="Appetit" value={appetite} onChange={(v) => setAppetite(v as 1|2|3|4|5)} noValueColor />}
         {cfg.digestion && <SliderInput label="Verdauung" value={digestion} onChange={(v) => setDigestion(v as 1|2|3|4|5)} />}
       </div>
 

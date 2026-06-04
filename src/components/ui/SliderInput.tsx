@@ -11,6 +11,8 @@ interface SliderInputProps {
   labelMin?: string;
   labelMax?: string;
   colorMode?: "positive_high" | "negative_high";
+  reversed?: boolean;
+  noValueColor?: boolean;
   className?: string;
 }
 
@@ -33,22 +35,30 @@ export function SliderInput({
   labelMin,
   labelMax,
   colorMode = "positive_high",
+  reversed = false,
+  noValueColor = false,
   className,
 }: SliderInputProps) {
   const colors = colorMode === "negative_high" ? negativeColors : positiveColors;
   const idx = Math.min(Math.max(value - min, 0), colors.length - 1);
+  const displayLabelMin = reversed ? labelMax : labelMin;
+  const displayLabelMax = reversed ? labelMin : labelMax;
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex justify-between items-center">
         <label className="text-sm font-medium text-[#8fa3c0]">{label}</label>
-        <span
-          className={cn(
-            "text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center text-white",
-            colors[idx]
-          )}
-        >
-          {value}
-        </span>
+        {noValueColor ? (
+          <span className="text-sm font-bold text-[#f0f4ff]">{value}</span>
+        ) : (
+          <span
+            className={cn(
+              "text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center text-white",
+              colors[idx]
+            )}
+          >
+            {value}
+          </span>
+        )}
       </div>
       <input
         type="range"
@@ -58,11 +68,12 @@ export function SliderInput({
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full accent-[#3b82f6]"
+        style={reversed ? { transform: "scaleX(-1)" } : undefined}
       />
-      {(labelMin || labelMax) && (
+      {(displayLabelMin || displayLabelMax) && (
         <div className="flex justify-between text-xs text-[#5a7090]">
-          <span>{labelMin}</span>
-          <span>{labelMax}</span>
+          <span>{displayLabelMin}</span>
+          <span>{displayLabelMax}</span>
         </div>
       )}
     </div>

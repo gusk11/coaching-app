@@ -457,6 +457,39 @@ export async function addWeeklyCheckIn(
   return loadAthletes();
 }
 
+export async function updateDailyCheckIn(
+  athleteId: string,
+  checkInId: string,
+  data: Omit<DailyCheckIn, "id" | "athleteId">
+): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const daily_check_ins = a.dailyCheckIns.map((c) =>
+    c.id === checkInId ? { ...data, id: checkInId, athleteId } : c
+  ).sort((x, y) => x.date.localeCompare(y.date));
+  const latest = daily_check_ins.at(-1);
+  const { error } = await supabase.from("athletes")
+    .update({ daily_check_ins, ...(latest ? { current_weight: latest.weight } : {}), updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
+export async function updateWeeklyCheckIn(
+  athleteId: string,
+  checkInId: string,
+  data: Omit<WeeklyCheckIn, "id" | "athleteId">
+): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const weekly_check_ins = a.weeklyCheckIns.map((c) =>
+    c.id === checkInId ? { ...data, id: checkInId, athleteId } : c
+  );
+  const { error } = await supabase.from("athletes")
+    .update({ weekly_check_ins, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
 export async function addWeeklyAdjustment(
   athleteId: string,
   adj: Omit<WeeklyAdjustment, "id" | "athleteId" | "createdAt">

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { TrainingPlan, TrainingDay, Exercise, TrainingPlanMode, ExerciseDBItem } from "@/types";
 import { loadExerciseDB } from "@/lib/store";
-import { Trash2, Plus, ChevronDown, ChevronUp, GripVertical, ExternalLink, Database, X } from "lucide-react";
+import { Trash2, Plus, ChevronDown, ChevronUp, GripVertical, ExternalLink, Database, X, ArrowUp, ArrowDown } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 
 interface Props {
@@ -261,6 +261,17 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
     if (pickerOpenDayId === id) setPickerOpenDayId(null);
   }
 
+  function moveDay(id: string, dir: -1 | 1) {
+    setDays((prev) => {
+      const idx = prev.findIndex((d) => d.id === id);
+      const next = idx + dir;
+      if (next < 0 || next >= prev.length) return prev;
+      const arr = [...prev];
+      [arr[idx], arr[next]] = [arr[next], arr[idx]];
+      return arr;
+    });
+  }
+
   function updateDayField<K extends keyof TrainingDay>(id: string, field: K, value: TrainingDay[K]) {
     setDays((prev) => prev.map((d) => (d.id === id ? { ...d, [field]: value } : d)));
   }
@@ -389,9 +400,10 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
                       value={day.dayName}
                       onChange={(e) => { e.stopPropagation(); updateDayField(day.id, "dayName", e.target.value); }}
                       onClick={(e) => e.stopPropagation()}
-                      className="bg-transparent text-sm font-semibold text-[#f0f4ff] focus:outline-none cursor-pointer"
+                      className="bg-[#0f1624] text-sm font-semibold text-[#f0f4ff] focus:outline-none cursor-pointer rounded px-1 border border-[#1e2d42]"
+                      style={{ colorScheme: "dark" }}
                     >
-                      {WEEKDAYS.map((w) => <option key={w} value={w}>{w}</option>)}
+                      {WEEKDAYS.map((w) => <option key={w} value={w} className="bg-[#0f1624] text-[#f0f4ff]">{w}</option>)}
                     </select>
                   ) : (
                     <input
@@ -412,6 +424,28 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
                     {day.exercises.length} Übungen
                   </span>
                 </button>
+                <Tooltip label="Nach oben">
+                  <button
+                    type="button"
+                    onClick={() => moveDay(day.id, -1)}
+                    aria-label="Nach oben"
+                    disabled={idx === 0}
+                    className="p-1 rounded-lg hover:bg-[#1e2d42] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                  >
+                    <ArrowUp size={13} className="text-[#5a7090]" />
+                  </button>
+                </Tooltip>
+                <Tooltip label="Nach unten">
+                  <button
+                    type="button"
+                    onClick={() => moveDay(day.id, 1)}
+                    aria-label="Nach unten"
+                    disabled={idx === days.length - 1}
+                    className="p-1 rounded-lg hover:bg-[#1e2d42] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                  >
+                    <ArrowDown size={13} className="text-[#5a7090]" />
+                  </button>
+                </Tooltip>
                 <Tooltip label="Tag löschen">
                   <button
                     type="button"

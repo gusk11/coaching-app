@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete } from "@/lib/store";
+import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { Athlete, GoalType, MealPlan, TrainingPlan, SupplementPlan } from "@/types";
 import {
@@ -23,6 +23,8 @@ import { ProgressAnalytics } from "@/components/coach/ProgressAnalytics";
 import { TrainingProgressView } from "@/components/athlete/TrainingProgressView";
 import { DailyCheckDetailModal } from "@/components/coach/DailyCheckDetailModal";
 import { WeeklyCheckDetailModal } from "@/components/coach/WeeklyCheckDetailModal";
+import { DailyCheckInForm } from "@/components/athlete/DailyCheckInForm";
+import { WeeklyCheckInForm } from "@/components/athlete/WeeklyCheckInForm";
 import { Badge } from "@/components/ui/Badge";
 import { DailyCheckIn, WeeklyCheckIn } from "@/types";
 import {
@@ -55,6 +57,9 @@ export default function CoachAthletePage() {
   const [checkInSubTab, setCheckInSubTab] = useState<CheckInSubTab>("daily");
   const [selectedDailyCI, setSelectedDailyCI] = useState<DailyCheckIn | null>(null);
   const [selectedWeeklyCI, setSelectedWeeklyCI] = useState<WeeklyCheckIn | null>(null);
+  const [editingCheckIns, setEditingCheckIns] = useState(false);
+  const [editDailyCI, setEditDailyCI] = useState<DailyCheckIn | null>(null);
+  const [editWeeklyCI, setEditWeeklyCI] = useState<WeeklyCheckIn | null>(null);
 
   // Goal editing
   const [editingGoal, setEditingGoal] = useState(false);
@@ -163,6 +168,30 @@ export default function CoachAthletePage() {
     );
   }
 
+
+  async function handleUpdateDailyCheckIn(data: Omit<DailyCheckIn, "id" | "athleteId">) {
+    if (!editDailyCI) return;
+    try {
+      const updated = await updateDailyCheckIn(athlete!.id, editDailyCI.id, data);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setEditDailyCI(null);
+      showToast("Daily Check-in gespeichert.", "success");
+    } catch {
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
+  }
+
+  async function handleUpdateWeeklyCheckIn(data: Omit<WeeklyCheckIn, "id" | "athleteId">) {
+    if (!editWeeklyCI) return;
+    try {
+      const updated = await updateWeeklyCheckIn(athlete!.id, editWeeklyCI.id, data);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setEditWeeklyCI(null);
+      showToast("Weekly Check-in gespeichert.", "success");
+    } catch {
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
+  }
 
   async function saveGoalEdit() {
     const previous = athlete;
@@ -876,35 +905,48 @@ export default function CoachAthletePage() {
         {/* ── CHECK-INS ── */}
         {tab === "Check-ins" && (
           <motion.div key="Check-ins" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
-            {/* Sub-tab bar */}
-            <div className="flex gap-1">
+            {/* Sub-tab bar + edit toggle */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setCheckInSubTab("daily")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                    checkInSubTab === "daily"
+                      ? "bg-[#1e2d42] text-[#f0f4ff]"
+                      : "text-[#5a7090] hover:text-[#8fa3c0]"
+                  )}
+                >
+                  Daily Checks
+                  {athlete.dailyCheckIns.length > 0 && (
+                    <span className="ml-1.5 text-[10px] text-[#5a7090]">({athlete.dailyCheckIns.length})</span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setCheckInSubTab("weekly")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                    checkInSubTab === "weekly"
+                      ? "bg-[#1e2d42] text-[#f0f4ff]"
+                      : "text-[#5a7090] hover:text-[#8fa3c0]"
+                  )}
+                >
+                  Weekly Checks
+                  {athlete.weeklyCheckIns.length > 0 && (
+                    <span className="ml-1.5 text-[10px] text-[#5a7090]">({athlete.weeklyCheckIns.length})</span>
+                  )}
+                </button>
+              </div>
               <button
-                onClick={() => setCheckInSubTab("daily")}
+                onClick={() => setEditingCheckIns((v) => !v)}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                  checkInSubTab === "daily"
-                    ? "bg-[#1e2d42] text-[#f0f4ff]"
-                    : "text-[#5a7090] hover:text-[#8fa3c0]"
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all shrink-0",
+                  editingCheckIns
+                    ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
+                    : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
                 )}
               >
-                Daily Checks
-                {athlete.dailyCheckIns.length > 0 && (
-                  <span className="ml-1.5 text-[10px] text-[#5a7090]">({athlete.dailyCheckIns.length})</span>
-                )}
-              </button>
-              <button
-                onClick={() => setCheckInSubTab("weekly")}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                  checkInSubTab === "weekly"
-                    ? "bg-[#1e2d42] text-[#f0f4ff]"
-                    : "text-[#5a7090] hover:text-[#8fa3c0]"
-                )}
-              >
-                Weekly Checks
-                {athlete.weeklyCheckIns.length > 0 && (
-                  <span className="ml-1.5 text-[10px] text-[#5a7090]">({athlete.weeklyCheckIns.length})</span>
-                )}
+                {editingCheckIns ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Check-Ins bearbeiten</>}
               </button>
             </div>
 
@@ -915,8 +957,13 @@ export default function CoachAthletePage() {
                     <motion.button
                       variants={listItem}
                       key={ci.id}
-                      onClick={() => setSelectedDailyCI(ci)}
-                      className="w-full text-left rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 hover:border-[#3b82f6]/30 hover:bg-[#192236] transition-all group"
+                      onClick={() => editingCheckIns ? setEditDailyCI(ci) : setSelectedDailyCI(ci)}
+                      className={cn(
+                        "w-full text-left rounded-2xl bg-[#141d2e] border p-4 transition-all group",
+                        editingCheckIns
+                          ? "border-[#3b82f6]/30 hover:border-[#3b82f6]/60 hover:bg-[#192236]"
+                          : "border-[#1e2d42] hover:border-[#3b82f6]/30 hover:bg-[#192236]"
+                      )}
                     >
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-semibold text-[#f0f4ff] group-hover:text-white">
@@ -979,7 +1026,9 @@ export default function CoachAthletePage() {
                       {ci.deviationReason && (
                         <p className="text-xs text-[#f59e0b] mt-1">Abweichung: {ci.deviationReason}</p>
                       )}
-                      <p className="text-[10px] text-[#3b4d6a] mt-2 text-right">Details ansehen →</p>
+                      <p className="text-[10px] mt-2 text-right" style={{ color: editingCheckIns ? "#60a5fa" : "#3b4d6a" }}>
+                        {editingCheckIns ? "Bearbeiten →" : "Details ansehen →"}
+                      </p>
                     </motion.button>
                   ))}
                 {!athlete.dailyCheckIns.length && (
@@ -1002,8 +1051,13 @@ export default function CoachAthletePage() {
                       <motion.button
                         variants={listItem}
                         key={ci.id}
-                        onClick={() => setSelectedWeeklyCI(ci)}
-                        className="w-full text-left rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 hover:border-[#3b82f6]/30 hover:bg-[#192236] transition-all group"
+                        onClick={() => editingCheckIns ? setEditWeeklyCI(ci) : setSelectedWeeklyCI(ci)}
+                        className={cn(
+                          "w-full text-left rounded-2xl bg-[#141d2e] border p-4 transition-all group",
+                          editingCheckIns
+                            ? "border-[#3b82f6]/30 hover:border-[#3b82f6]/60 hover:bg-[#192236]"
+                            : "border-[#1e2d42] hover:border-[#3b82f6]/30 hover:bg-[#192236]"
+                        )}
                       >
                         {/* Header */}
                         <div className="flex items-center justify-between mb-3">
@@ -1057,7 +1111,9 @@ export default function CoachAthletePage() {
                             {ci.freeNote}
                           </p>
                         )}
-                        <p className="text-[10px] text-[#3b4d6a] mt-2 text-right">Details ansehen →</p>
+                        <p className="text-[10px] mt-2 text-right" style={{ color: editingCheckIns ? "#60a5fa" : "#3b4d6a" }}>
+                          {editingCheckIns ? "Bearbeiten →" : "Details ansehen →"}
+                        </p>
                       </motion.button>
                     );
                   })}
@@ -1298,6 +1354,96 @@ export default function CoachAthletePage() {
       <AnimatePresence>
         {selectedWeeklyCI && (
           <WeeklyCheckDetailModal ci={selectedWeeklyCI} onClose={() => setSelectedWeeklyCI(null)} />
+        )}
+      </AnimatePresence>
+
+      {/* Daily Check-in edit modal */}
+      <AnimatePresence>
+        {editDailyCI && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setEditDailyCI(null); }}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl bg-[#0d1526] border-t border-[#1e2d42] pb-8"
+            >
+              <div className="sticky top-0 z-10 bg-[#0d1526] flex items-center justify-between px-5 pt-4 pb-3 border-b border-[#1e2d42]">
+                <div>
+                  <p className="text-[10px] text-[#5a7090] uppercase tracking-wider mb-0.5">Daily Check-in bearbeiten</p>
+                  <p className="text-sm font-semibold text-[#f0f4ff]">
+                    {new Date(editDailyCI.date + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+                  </p>
+                </div>
+                <button onClick={() => setEditDailyCI(null)} className="p-2 rounded-xl text-[#5a7090] hover:text-[#f0f4ff] hover:bg-[#1e2d42] transition-all">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="px-4 pt-4">
+                <DailyCheckInForm
+                  athleteId={athlete.id}
+                  existingToday={editDailyCI}
+                  checkConfig={athlete.dailyCheckConfig}
+                  date={editDailyCI.date}
+                  mealPlans={athlete.mealPlans}
+                  onSubmit={handleUpdateDailyCheckIn}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Weekly Check-in edit modal */}
+      <AnimatePresence>
+        {editWeeklyCI && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setEditWeeklyCI(null); }}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl bg-[#0d1526] border-t border-[#1e2d42] pb-8"
+            >
+              <div className="sticky top-0 z-10 bg-[#0d1526] flex items-center justify-between px-5 pt-4 pb-3 border-b border-[#1e2d42]">
+                <div>
+                  <p className="text-[10px] text-[#5a7090] uppercase tracking-wider mb-0.5">Weekly Check-in bearbeiten</p>
+                  <p className="text-sm font-semibold text-[#f0f4ff]">
+                    {(() => {
+                      const ws = new Date(editWeeklyCI.weekStart + "T12:00:00");
+                      const we = new Date(ws);
+                      we.setDate(ws.getDate() + 6);
+                      const fmt = (d: Date) => d.toLocaleDateString("de-DE", { day: "2-digit", month: "short" });
+                      return `${fmt(ws)} – ${fmt(we)}`;
+                    })()}
+                  </p>
+                </div>
+                <button onClick={() => setEditWeeklyCI(null)} className="p-2 rounded-xl text-[#5a7090] hover:text-[#f0f4ff] hover:bg-[#1e2d42] transition-all">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="px-4 pt-4">
+                <WeeklyCheckInForm
+                  athlete={athlete}
+                  initialValues={editWeeklyCI}
+                  isEdit
+                  onSubmit={handleUpdateWeeklyCheckIn}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </AppShell>
