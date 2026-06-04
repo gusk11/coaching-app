@@ -1,7 +1,7 @@
 "use client";
 import { Athlete, DailyCheckIn, MealPlan } from "@/types";
 import { calculateCalorieTrackerDayMacros, calculateDayMacros, calculateMealMacros, normalizeNutritionStatus, roundMacro, roundSalt } from "@/lib/utils";
-import { CheckInSection, CheckInRow, MacroChip } from "@/components/ui/CheckInModalLayout";
+import { CheckInSection, CheckInRow, MacroChip, ReadOnlySlider } from "@/components/ui/CheckInModalLayout";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
 import { modalOverlay, modalContent } from "@/lib/motion";
@@ -10,10 +10,6 @@ interface Props {
   ci: DailyCheckIn;
   athlete: Athlete;
   onClose: () => void;
-}
-
-function stars(val: number, max = 5) {
-  return "★".repeat(val) + "☆".repeat(max - val) + ` (${val}/5)`;
 }
 
 
@@ -241,7 +237,7 @@ export function DailyCheckDetailModal({ ci, athlete, onClose }: Props) {
 
           <CheckInSection title="Schlaf">
             <CheckInRow label="Schlafdauer" value={`${ci.sleepHours} h`} />
-            <CheckInRow label="Schlafqualität" value={stars(ci.sleepQuality)} />
+            <ReadOnlySlider label="Schlafqualität" value={ci.sleepQuality} />
             <CheckInRow label="Schlafscore" value={ci.sleepScore != null ? `${ci.sleepScore} / 100` : "–"} />
           </CheckInSection>
 
@@ -256,19 +252,19 @@ export function DailyCheckDetailModal({ ci, athlete, onClose }: Props) {
           </CheckInSection>
 
           <CheckInSection title="Wohlbefinden">
-            <CheckInRow label="Energielevel" value={stars(ci.energyLevel)} />
-            <CheckInRow label="Stresslevel" value={stars(ci.stressLevel)} />
-            <CheckInRow label="Stimmung" value={stars(ci.mood)} />
-            <CheckInRow label="Appetit" value={stars(ci.appetite)} />
-            <CheckInRow label="Verdauung" value={stars(ci.digestion)} />
+            <ReadOnlySlider label="Energielevel" value={ci.energyLevel} />
+            <ReadOnlySlider label="Stresslevel" value={ci.stressLevel} colorMode="negative_high" />
+            <ReadOnlySlider label="Stimmung" value={ci.mood} />
+            <ReadOnlySlider label="Appetit" value={ci.appetite} noValueColor />
+            <ReadOnlySlider label="Verdauung" value={ci.digestion} />
           </CheckInSection>
 
           <CheckInSection title="Bewegung">
             <CheckInRow label="Schritte" value={ci.steps.toLocaleString("de-DE")} />
             <CheckInRow label="Training absolviert" value={ci.training ? "Ja" : "Nein"} />
-            <CheckInRow
+            <ReadOnlySlider
               label="Trainingsqualität"
-              value={ci.training ? stars(ci.trainingQuality) : "–"}
+              value={ci.training ? ci.trainingQuality : undefined}
             />
             <CheckInRow label="Cardio absolviert" value={ci.cardio ? "Ja" : "Nein"} />
             <CheckInRow
