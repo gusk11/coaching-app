@@ -205,10 +205,22 @@ function SessionCard({ session, defaultOpen }: CardProps) {
                 <div key={i} className="flex items-center gap-2">
                   <span className="text-xs text-[#5a7090] w-14 shrink-0">Satz {set.setNumber}</span>
                   <span className={`text-sm flex-1 ${isExtra ? "text-[#5a7090]" : "text-[#f0f4ff]"}`}>
-                    {set.weight != null ? `${set.weight} kg` : "–"}
-                    {" × "}
-                    {set.reps != null ? set.reps : "–"}
-                    {set.rir != null ? <span className="text-[#5a7090]"> @RIR{set.rir}</span> : null}
+                    {set.weightLeft != null || set.weightRight != null ? (
+                      <>
+                        <span className="text-[#60a5fa]">L</span>{" "}
+                        {set.weightLeft != null ? `${set.weightLeft} kg` : "–"} × {set.repsLeft != null ? set.repsLeft : "–"}
+                        {"  "}
+                        <span className="text-[#a78bfa]">R</span>{" "}
+                        {set.weightRight != null ? `${set.weightRight} kg` : "–"} × {set.repsRight != null ? set.repsRight : "–"}
+                      </>
+                    ) : (
+                      <>
+                        {set.weight != null ? `${set.weight} kg` : "–"}
+                        {" × "}
+                        {set.reps != null ? set.reps : "–"}
+                        {set.rir != null ? <span className="text-[#5a7090]"> @RIR{set.rir}</span> : null}
+                      </>
+                    )}
                     {isExtra && <span className="text-xs text-[#5a7090] ml-1">(extra)</span>}
                   </span>
                   {!isExtra && !noComparison && (

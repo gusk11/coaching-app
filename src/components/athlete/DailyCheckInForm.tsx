@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DailyCheckIn, MealPlan, NutritionStatusType, DailyCheckConfig, DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { SliderInput } from "@/components/ui/SliderInput";
+import { NumberSliderInput } from "@/components/ui/NumberSliderInput";
 import { cn, normalizeNutritionStatus, todayISO } from "@/lib/utils";
 
 interface DailyCheckInFormProps {
@@ -156,17 +157,26 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       </div>
 
       {/* Steps + Caffeine */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="flex flex-col gap-4">
         {cfg.steps && (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-[#8fa3c0]">Schritte</label>
-            <input type="number" step="500" min={0} value={steps} onChange={(e) => setSteps(Number(e.target.value))} className={inputCls} />
-          </div>
+          <NumberSliderInput
+            label="Schritte"
+            value={steps}
+            min={0}
+            max={20000}
+            sliderStep={100}
+            onChange={setSteps}
+          />
         )}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-[#8fa3c0]">Koffein (mg)</label>
-          <input type="number" step="50" min={0} value={caffeine} onChange={(e) => setCaffeine(Number(e.target.value))} className={inputCls} />
-        </div>
+        <NumberSliderInput
+          label="Koffein"
+          value={caffeine}
+          min={0}
+          max={600}
+          sliderStep={10}
+          unit="mg"
+          onChange={setCaffeine}
+        />
       </div>
 
       {/* Resting heart rate + HRV + SpO₂ + Blood pressure */}

@@ -180,13 +180,13 @@ function ExerciseForm({
                   key={lat}
                   type="button"
                   onClick={() => setForm((prev) => ({ ...prev, laterality: lat }))}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                    form.laterality === lat
-                      ? "bg-[#3b82f6]/10 border-[#3b82f6] text-[#60a5fa]"
-                      : "bg-[#0f1624] border-[#1e2d42] text-[#8fa3c0] hover:text-[#f0f4ff]"
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                    (form.laterality ?? "bilateral") === lat
+                      ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]"
+                      : "bg-[#0f1624] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/30"
                   }`}
                 >
-                  {lat === "bilateral" ? "Bilateral" : "Unilateral"}
+                  {lat === "bilateral" ? "Bilateral (beidseitig)" : "Unilateral (einseitig)"}
                 </button>
               ))}
             </div>
@@ -404,7 +404,8 @@ export default function ExerciseDatabase() {
           <div className="grid grid-cols-12 px-4 py-2 text-xs text-[#5a7090] uppercase tracking-widest border-b border-[#1e2d42] bg-[#0f1624]">
             <span className="col-span-3">Übungsname</span>
             <span className="col-span-2">Muskelgruppe</span>
-            <span className="col-span-4">Anmerkungen</span>
+            <span className="col-span-1">Typ</span>
+            <span className="col-span-3">Anmerkungen</span>
             <span className="col-span-2">Link</span>
             <span className="col-span-1 text-right">Aktionen</span>
           </div>
@@ -447,8 +448,21 @@ export default function ExerciseDatabase() {
                     )}
                   </div>
 
+                  {/* Lateralität */}
+                  <div className="col-span-1 pr-2">
+                    {(e.laterality ?? "bilateral") === "unilateral" ? (
+                      <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20 whitespace-nowrap">
+                        1-seitig
+                      </span>
+                    ) : (
+                      <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#1e2d42] text-[#5a7090] whitespace-nowrap">
+                        2-seitig
+                      </span>
+                    )}
+                  </div>
+
                   {/* Anmerkungen */}
-                  <div className="col-span-4 pr-3">
+                  <div className="col-span-3 pr-3">
                     <p className="text-sm text-[#8fa3c0] line-clamp-2 leading-snug">
                       {e.notes || <span className="text-[#5a7090] italic">—</span>}
                     </p>

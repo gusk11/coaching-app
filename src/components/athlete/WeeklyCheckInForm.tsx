@@ -10,11 +10,12 @@ interface WeeklyCheckInFormProps {
   onSubmit: (data: Omit<WeeklyCheckIn, "id" | "athleteId">) => void;
   initialValues?: Partial<WeeklyCheckIn>;
   isEdit?: boolean;
+  weekStartOverride?: string;
 }
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
-export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit }: WeeklyCheckInFormProps) {
+export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, weekStartOverride }: WeeklyCheckInFormProps) {
   const today = todayISO();
   const { start: weekStart } = getWeekDates(today);
   const analysis = analyzeWeek(athlete);
@@ -68,12 +69,15 @@ export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit }: 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     onSubmit({
-      weekStart, date: today,
+      weekStart: weekStartOverride ?? weekStart,
+      date: initialValues?.date ?? today,
       overallWeekRating, weekSatisfaction, selfSatisfaction,
       nutritionAdherence, hungerCravings,
       trainingRating, stressAvg, energyAvg,
-      specialEvents, coachNote: "", freeNote,
+      specialEvents, coachNote: initialValues?.coachNote ?? "", freeNote,
       progressImages: progressImages.length > 0 ? progressImages : undefined,
+      ...(initialValues?.recoveryRating != null ? { recoveryRating: initialValues.recoveryRating } : {}),
+      ...(initialValues?.sleepAvg != null ? { sleepAvg: initialValues.sleepAvg } : {}),
     });
     setSubmitted(true);
   }

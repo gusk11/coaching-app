@@ -416,7 +416,7 @@ function Step2({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
       <Q label="Wie viele Schritte machst du durchschnittlich pro Tag?">
         {!d.averageStepsUnknown && (
           <div className="flex items-center gap-3">
-            <input type="range" min={0} max={30000} step={500} value={d.averageSteps}
+            <input type="range" min={0} max={30000} step={100} value={d.averageSteps}
               onChange={(e) => u({ averageSteps: Number(e.target.value) })} className="flex-1 accent-[#3b82f6]" />
             <span className="w-20 text-right text-sm font-semibold text-[#60a5fa]">{d.averageSteps.toLocaleString("de")}</span>
           </div>

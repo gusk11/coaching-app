@@ -1,14 +1,16 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { TrainingPlan, TrainingLog, TrainingExerciseLog, TrainingSetLog } from "@/types";
+import { TrainingPlan, TrainingLog, TrainingExerciseLog, TrainingSetLog, ExerciseDBItem } from "@/types";
 import {
   loadActiveSession,
   saveActiveSession,
   clearActiveSession,
   ActiveSession,
+  loadExerciseDB,
+  addExerciseDBItem,
 } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Play, Pause, RotateCcw, Timer } from "lucide-react";
+import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 
 interface Props {
@@ -184,6 +186,21 @@ export function TrainingLogger({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Exercise DB + add/remove state
+  const [dbExercises, setDbExercises] = useState<ExerciseDBItem[]>([]);
+  const [removeConfirmIdx, setRemoveConfirmIdx] = useState<number | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addSearch, setAddSearch] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newExName, setNewExName] = useState("");
+  const [newExMuscleGroup, setNewExMuscleGroup] = useState("");
+  const [isCreatingEx, setIsCreatingEx] = useState(false);
+
+  // Übungsdatenbank einmalig laden
+  useEffect(() => {
+    loadExerciseDB().then(setDbExercises);
+  }, []);
+
   // Aktive Session beim Start laden
   useEffect(() => {
     const active = loadActiveSession();
@@ -208,7 +225,6 @@ export function TrainingLogger({
     }
 
     if (session.pausedAt) {
-      // Eingefroren: Zeit zum Pausierzeitpunkt anzeigen
       if (timerRef.current) clearInterval(timerRef.current);
       const frozenMs =
         new Date(session.pausedAt).getTime() -
@@ -404,6 +420,81 @@ export function TrainingLogger({
     );
   }
 
+  // ─── Übung aus Training entfernen ────────────────────────────────────────────
+  function removeExercise(exIdx: number) {
+    updateExercises((prev) => prev.filter((_, i) => i !== exIdx));
+    setRemoveConfirmIdx(null);
+  }
+
+  // ─── Übung aus DB zum Training hinzufügen ────────────────────────────────────
+  function addExerciseFromDB(item: ExerciseDBItem) {
+    const exerciseId = `ex-adhoc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const isUnilateral = (item.laterality ?? "bilateral") === "unilateral";
+    updateExercises((prev) => [
+      ...prev,
+      {
+        exerciseId,
+        exerciseName: item.name,
+        laterality: item.laterality ?? "bilateral",
+        sets: [isUnilateral
+          ? { setNumber: 1, weight: null, reps: null, rir: null, weightLeft: null, repsLeft: null, weightRight: null, repsRight: null }
+          : { setNumber: 1, weight: null, reps: null, rir: null }
+        ],
+      },
+    ]);
+    setShowAddModal(false);
+    setAddSearch("");
+  }
+
+  // ─── Neue Übung erstellen und zum Training hinzufügen ────────────────────────
+  async function handleCreateAndAdd() {
+    const name = newExName.trim();
+    if (!name) return;
+    setIsCreatingEx(true);
+    try {
+      const updatedItems = await addExerciseDBItem({
+        name,
+        muscleGroup: newExMuscleGroup.trim() || "Sonstige",
+      });
+      setDbExercises(updatedItems);
+    } catch {
+      // Fehler beim DB-Speichern ignorieren – Übung trotzdem zum Training hinzufügen
+    } finally {
+      setIsCreatingEx(false);
+    }
+    const exerciseId = `ex-adhoc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    updateExercises((prev) => [
+      ...prev,
+      {
+        exerciseId,
+        exerciseName: name,
+        laterality: "bilateral",
+        sets: [{ setNumber: 1, weight: null, reps: null, rir: null }],
+      },
+    ]);
+    setShowAddModal(false);
+    setShowCreateForm(false);
+    setAddSearch("");
+    setNewExName("");
+    setNewExMuscleGroup("");
+  }
+
+  function closeAddModal() {
+    setShowAddModal(false);
+    setShowCreateForm(false);
+    setAddSearch("");
+    setNewExName("");
+    setNewExMuscleGroup("");
+  }
+
+  const filteredDbExercises = dbExercises.filter(
+    (e) =>
+      addSearch === "" ||
+      e.name.toLowerCase().includes(addSearch.toLowerCase()) ||
+      e.muscleGroup.toLowerCase().includes(addSearch.toLowerCase()) ||
+      (e.equipment ?? "").toLowerCase().includes(addSearch.toLowerCase())
+  );
+
   if (!trainingPlan.days.length) {
     return (
       <p className="text-sm text-[#5a7090] text-center py-6">
@@ -473,22 +564,54 @@ export function TrainingLogger({
 
           {/* Übungen */}
           {session.exercises.map((ex, exIdx) => {
-            const planEx = activeDay?.exercises[exIdx];
+            // ID-basierter Plan-Abgleich – korrekt auch nach Entfernen/Hinzufügen
+            const planEx = activeDay?.exercises.find((e) => e.id === ex.exerciseId);
+            const isUnilateral = ex.laterality === "unilateral";
             return (
               <div
                 key={ex.exerciseId}
                 className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden"
               >
-                <div className="px-4 py-3 border-b border-[#1e2d42]">
-                  <p className="text-sm font-semibold text-[#f0f4ff]">
-                    {ex.exerciseName}
-                  </p>
-                  {planEx && (
-                    <p className="text-xs text-[#5a7090] mt-0.5">
-                      {planEx.sets} × {planEx.reps}
-                      {planEx.rir !== undefined && ` · RIR ${planEx.rir}`}
-                    </p>
-                  )}
+                <div className="px-4 py-3 border-b border-[#1e2d42] flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-[#f0f4ff]">
+                        {ex.exerciseName}
+                      </p>
+                      {isUnilateral && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20 shrink-0">
+                          1-seitig
+                        </span>
+                      )}
+                    </div>
+                    {planEx && (
+                      <p className="text-xs text-[#5a7090] mt-0.5">
+                        {planEx.sets} × {planEx.reps}
+                        {planEx.rir !== undefined && ` · RIR ${planEx.rir}`}
+                      </p>
+                    )}
+                  </div>
+                  <Tooltip label="Übung entfernen">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const hasData = ex.sets.some(
+                          (s) => s.weight !== null || s.reps !== null ||
+                            s.weightLeft !== null || s.repsLeft !== null ||
+                            s.weightRight !== null || s.repsRight !== null
+                        );
+                        if (hasData) {
+                          setRemoveConfirmIdx(exIdx);
+                        } else {
+                          removeExercise(exIdx);
+                        }
+                      }}
+                      aria-label="Übung entfernen"
+                      className="p-1.5 rounded-lg text-[#5a7090] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors shrink-0 mt-0.5"
+                    >
+                      <X size={13} />
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <div className="p-3 flex flex-col gap-2">
@@ -504,7 +627,6 @@ export function TrainingLogger({
                       {ex.sets.map((set, setIdx) => (
                         <div key={setIdx} className="grid grid-cols-12 gap-1 items-center">
                           <span className="col-span-1 text-xs text-[#5a7090] text-center">{set.setNumber}</span>
-                          {/* Left */}
                           <input
                             type="number" min={0} step={0.5}
                             value={set.weightLeft ?? ""}
@@ -520,7 +642,6 @@ export function TrainingLogger({
                             placeholder="Wdh"
                             className="col-span-2 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center"
                           />
-                          {/* Right */}
                           <input
                             type="number" min={0} step={0.5}
                             value={set.weightRight ?? ""}
@@ -602,6 +723,16 @@ export function TrainingLogger({
             );
           })}
 
+          {/* Übung hinzufügen */}
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-dashed border-[#1e2d42] text-[#5a7090] hover:border-[#3b82f6]/40 hover:text-[#3b82f6] transition-colors text-sm"
+          >
+            <Plus size={13} />
+            Übung hinzufügen
+          </button>
+
           {/* Notiz */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-[#5a7090]">
@@ -618,7 +749,6 @@ export function TrainingLogger({
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-2">
-            {/* Pause / Fortsetzen */}
             <button
               type="button"
               onClick={isPaused ? handleResumeSession : handlePauseSession}
@@ -637,7 +767,6 @@ export function TrainingLogger({
             </button>
 
             <div className="flex gap-2">
-              {/* Abbrechen */}
               <button
                 type="button"
                 onClick={() => setShowCancelConfirm(true)}
@@ -646,7 +775,6 @@ export function TrainingLogger({
                 Training abbrechen
               </button>
 
-              {/* Beenden */}
               <button
                 type="button"
                 onClick={handleEndSession}
@@ -657,6 +785,35 @@ export function TrainingLogger({
             </div>
           </div>
         </div>
+
+        {/* Übung entfernen – Bestätigung */}
+        {removeConfirmIdx !== null && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#141d2e] border border-[#1e2d42] rounded-2xl p-5 max-w-sm w-full flex flex-col gap-4">
+              <h3 className="text-base font-semibold text-[#f0f4ff]">
+                Übung entfernen?
+              </h3>
+              <p className="text-sm text-[#8fa3c0]">
+                „{session.exercises[removeConfirmIdx]?.exerciseName}" inklusive
+                eingetragener Sätze aus diesem Training entfernen?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setRemoveConfirmIdx(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-[#1e2d42] text-[#8fa3c0] font-medium text-sm hover:bg-[#243650] hover:text-[#f0f4ff] transition-colors"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  onClick={() => removeExercise(removeConfirmIdx)}
+                  className="flex-1 py-2.5 rounded-xl bg-[#ef4444] text-white font-semibold text-sm hover:bg-[#dc2626] transition-colors"
+                >
+                  Entfernen
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Abbrechen-Bestätigung */}
         {showCancelConfirm && (
@@ -683,6 +840,139 @@ export function TrainingLogger({
                   Ja, abbrechen
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Übung hinzufügen – Modal */}
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#141d2e] border border-[#1e2d42] rounded-2xl p-4 max-w-sm w-full flex flex-col gap-3 max-h-[80vh]">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-[#f0f4ff]">
+                  {showCreateForm ? "Neue Übung" : "Übung hinzufügen"}
+                </h3>
+                <button
+                  type="button"
+                  onClick={closeAddModal}
+                  aria-label="Schließen"
+                  className="p-1.5 rounded-lg text-[#5a7090] hover:bg-[#1e2d42] hover:text-[#f0f4ff] transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {!showCreateForm ? (
+                <>
+                  {/* Suche */}
+                  <div className="relative">
+                    <Search
+                      size={12}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5a7090] pointer-events-none"
+                    />
+                    <input
+                      autoFocus
+                      value={addSearch}
+                      onChange={(e) => setAddSearch(e.target.value)}
+                      placeholder="Übung suchen..."
+                      className="w-full bg-[#0f1624] border border-[#1e2d42] rounded-lg pl-7 pr-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6]"
+                    />
+                  </div>
+
+                  {/* Übungsliste */}
+                  <div className="flex flex-col gap-0.5 overflow-y-auto max-h-56 -mx-1 px-1">
+                    {dbExercises.length === 0 ? (
+                      <p className="text-xs text-[#5a7090] text-center py-4">
+                        Keine Übungen in der Datenbank vorhanden.
+                      </p>
+                    ) : filteredDbExercises.length === 0 ? (
+                      <p className="text-xs text-[#5a7090] text-center py-4">
+                        Keine Übungen gefunden.
+                      </p>
+                    ) : (
+                      filteredDbExercises.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => addExerciseFromDB(item)}
+                          className="text-left px-3 py-2.5 rounded-xl hover:bg-[#1e2d42] transition-colors"
+                        >
+                          <span className="text-sm font-medium text-[#f0f4ff] block">
+                            {item.name}
+                          </span>
+                          <span className="text-xs text-[#5a7090]">
+                            {item.muscleGroup}
+                            {item.equipment && (
+                              <span className="text-[#3a5070]">
+                                {" "}· {item.equipment}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Neue Übung erstellen */}
+                  <div className="border-t border-[#1e2d42] pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateForm(true)}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-[#1e2d42] transition-colors text-[#3b82f6] text-sm"
+                    >
+                      <Plus size={13} />
+                      Neue Übung erstellen
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Zurück-Link */}
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateForm(false)}
+                    className="text-xs text-[#5a7090] hover:text-[#f0f4ff] transition-colors self-start"
+                  >
+                    ← Zurück zur Auswahl
+                  </button>
+
+                  {/* Formular */}
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-[#5a7090]">Name *</label>
+                      <input
+                        autoFocus
+                        value={newExName}
+                        onChange={(e) => setNewExName(e.target.value)}
+                        placeholder="z.B. Schrägbankdrücken"
+                        className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6]"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-[#5a7090]">
+                        Muskelgruppe
+                      </label>
+                      <input
+                        value={newExMuscleGroup}
+                        onChange={(e) => setNewExMuscleGroup(e.target.value)}
+                        placeholder="z.B. Brust"
+                        className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6]"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!newExName.trim() || isCreatingEx}
+                      onClick={handleCreateAndAdd}
+                      className="w-full py-2.5 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isCreatingEx
+                        ? "Wird gespeichert…"
+                        : "Übung erstellen & hinzufügen"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

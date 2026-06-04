@@ -351,10 +351,10 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
                           <span className="text-xs text-[#5a7090] w-14 shrink-0">Satz {set.setNumber}</span>
                           {ex.laterality === "unilateral" ? (
                             <span className="text-[#f0f4ff] flex-1 text-xs">
-                              <span className="text-[#5a7090]">L </span>
+                              <span className="text-[#60a5fa]">L </span>
                               {set.weightLeft != null ? `${set.weightLeft} kg` : "–"}{" × "}{set.repsLeft != null ? set.repsLeft : "–"}
                               <span className="text-[#5a7090] mx-1">|</span>
-                              <span className="text-[#5a7090]">R </span>
+                              <span className="text-[#a78bfa]">R </span>
                               {set.weightRight != null ? `${set.weightRight} kg` : "–"}{" × "}{set.repsRight != null ? set.repsRight : "–"}
                             </span>
                           ) : (
