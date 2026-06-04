@@ -352,17 +352,18 @@ export default function FoodDatabase() {
     const prevHidden = [...hiddenBaseIds];
     try {
       if (editing?.id) {
-        if (editing.isCustomFood) {
+        const isCustomEditing = !baseFoodItems.some((b) => b.id === editing.id);
+        if (isCustomEditing) {
           setCustomFoods(await updateCustomFood(editing.id, data));
         } else {
           // Base food: hide the original, create an editable custom copy
           setHiddenBaseIds(await deleteBaseFoodItem(editing.id));
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { id, isCustomFood, createdAt, updatedAt, ...foodData } = { ...editing, ...data };
-          setCustomFoods(await addCustomFood(foodData as Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">));
+          const { id, createdAt, updatedAt, ...foodData } = { ...editing, ...data };
+          setCustomFoods(await addCustomFood(foodData as Omit<FoodItem, "id" | "createdAt" | "updatedAt">));
         }
       } else {
-        setCustomFoods(await addCustomFood(data as Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">));
+        setCustomFoods(await addCustomFood(data as Omit<FoodItem, "id" | "createdAt" | "updatedAt">));
       }
       setEditing(null);
       showToast("Lebensmittel gespeichert.", "success");
@@ -379,12 +380,13 @@ export default function FoodDatabase() {
     const prevCustom = [...customFoods];
     const prevHidden = [...hiddenBaseIds];
 
+    const isCustomTarget = !baseFoodItems.some((b) => b.id === target.id);
     // When deleting a custom food, also find and hide the matching base food (same name)
-    const baseMatch = target.isCustomFood
+    const baseMatch = isCustomTarget
       ? baseFoodItems.find((b) => b.name.toLowerCase() === target.name.toLowerCase())
       : null;
 
-    if (target.isCustomFood) {
+    if (isCustomTarget) {
       setCustomFoods((prev) => prev.filter((f) => f.id !== target.id));
       if (baseMatch && !hiddenBaseIds.includes(baseMatch.id)) {
         setHiddenBaseIds((prev) => [...prev, baseMatch.id]);
@@ -394,7 +396,7 @@ export default function FoodDatabase() {
     }
     setDeleteTarget(null);
     try {
-      if (target.isCustomFood) {
+      if (isCustomTarget) {
         setCustomFoods(await deleteCustomFood(target.id));
         if (baseMatch && !hiddenBaseIds.includes(baseMatch.id)) {
           setHiddenBaseIds(await deleteBaseFoodItem(baseMatch.id));
@@ -419,13 +421,6 @@ export default function FoodDatabase() {
           <div className="flex gap-4 text-xs">
             <span className="text-[#8fa3c0]">
               <span className="text-[#f0f4ff] font-semibold">{allItems.length}</span> Einträge
-            </span>
-            <span className="text-[#5a7090]">
-              davon{" "}
-              <span className="text-[#3b82f6] font-semibold">
-                {customFoods.filter((f) => f.isActive !== false).length}
-              </span>{" "}
-              eigene
             </span>
           </div>
           <button
@@ -492,9 +487,6 @@ export default function FoodDatabase() {
                   <div className="col-span-3 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm text-[#f0f4ff] truncate">{f.name}</p>
-                      {f.isCustomFood && (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-[#3b82f6]/20 text-[#60a5fa] shrink-0">eigene</span>
-                      )}
                     </div>
                     <p className="text-xs text-[#5a7090] truncate">
                       {f.category}

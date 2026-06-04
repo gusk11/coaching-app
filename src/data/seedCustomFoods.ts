@@ -8,7 +8,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 110, proteinPer100g: 23, carbsPer100g: 0, fatPer100g: 1.5, fiberPer100g: 0, saltPer100g: 0.2,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -19,7 +19,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 208, proteinPer100g: 20, carbsPer100g: 0, fatPer100g: 13, fiberPer100g: 0, saltPer100g: 0.1,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -30,7 +30,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "1 Stück",
     kcalPer100g: 155, proteinPer100g: 13, carbsPer100g: 1.1, fatPer100g: 11, fiberPer100g: 0, saltPer100g: 0.35,
     defaultAmount: 45,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -41,7 +41,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "1 Stück",
     kcalPer100g: 155, proteinPer100g: 13, carbsPer100g: 1.1, fatPer100g: 11, fiberPer100g: 0, saltPer100g: 0.35,
     defaultAmount: 55,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -52,7 +52,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "1 Stück",
     kcalPer100g: 155, proteinPer100g: 13, carbsPer100g: 1.1, fatPer100g: 11, fiberPer100g: 0, saltPer100g: 0.35,
     defaultAmount: 65,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -63,7 +63,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 48, proteinPer100g: 11, carbsPer100g: 0.7, fatPer100g: 0.2, fiberPer100g: 0, saltPer100g: 0.4,
     defaultAmount: 250,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -74,7 +74,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 67, proteinPer100g: 12, carbsPer100g: 4, fatPer100g: 0.2, fiberPer100g: 0, saltPer100g: 0.1,
     defaultAmount: 250,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -85,7 +85,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 63, proteinPer100g: 11, carbsPer100g: 4, fatPer100g: 0.2, fiberPer100g: 0, saltPer100g: 0.1,
     defaultAmount: 250,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -96,7 +96,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 59, proteinPer100g: 10, carbsPer100g: 3.5, fatPer100g: 0.2, fiberPer100g: 0, saltPer100g: 0.1,
     defaultAmount: 200,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -107,7 +107,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 125, proteinPer100g: 30, carbsPer100g: 0, fatPer100g: 0.5, fiberPer100g: 0, saltPer100g: 3,
     defaultAmount: 100,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -118,7 +118,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 170, proteinPer100g: 19, carbsPer100g: 1, fatPer100g: 9, fiberPer100g: 0, saltPer100g: 0.6,
     defaultAmount: 125,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -129,7 +129,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 90, proteinPer100g: 8, carbsPer100g: 4, fatPer100g: 4, fiberPer100g: 0, saltPer100g: 0.8,
     defaultAmount: 30,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -140,7 +140,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 76, proteinPer100g: 10, carbsPer100g: 6, fatPer100g: 1.5, fiberPer100g: 0, saltPer100g: 0.2,
     defaultAmount: 200,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -151,7 +151,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 125, proteinPer100g: 14, carbsPer100g: 2, fatPer100g: 7, fiberPer100g: 1, saltPer100g: 0.05,
     defaultAmount: 200,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -162,7 +162,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 190, proteinPer100g: 19, carbsPer100g: 9, fatPer100g: 9, fiberPer100g: 5, saltPer100g: 0.1,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -173,7 +173,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 140, proteinPer100g: 25, carbsPer100g: 5, fatPer100g: 2, fiberPer100g: 1, saltPer100g: 1,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -184,7 +184,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 120, proteinPer100g: 7, carbsPer100g: 16, fatPer100g: 2, fiberPer100g: 5, saltPer100g: 0.3,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -195,7 +195,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 352, proteinPer100g: 24, carbsPer100g: 52, fatPer100g: 1.5, fiberPer100g: 11, saltPer100g: 0.02,
     defaultAmount: 80,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -206,7 +206,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 110, proteinPer100g: 8, carbsPer100g: 15, fatPer100g: 0.5, fiberPer100g: 6, saltPer100g: 0.3,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -217,7 +217,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 170, proteinPer100g: 19, carbsPer100g: 1, fatPer100g: 9, fiberPer100g: 0, saltPer100g: 2.5,
     defaultAmount: 50,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -228,7 +228,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 380, proteinPer100g: 76, carbsPer100g: 8, fatPer100g: 6, fiberPer100g: 0, saltPer100g: 0.5,
     defaultAmount: 30,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -239,7 +239,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 370, proteinPer100g: 13.5, carbsPer100g: 58.7, fatPer100g: 7, fiberPer100g: 10, saltPer100g: 0.02,
     defaultAmount: 80,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -250,7 +250,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 350, proteinPer100g: 7, carbsPer100g: 78, fatPer100g: 0.8, fiberPer100g: 1.3, saltPer100g: 0.01,
     defaultAmount: 100,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -261,7 +261,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 77, proteinPer100g: 2, carbsPer100g: 17, fatPer100g: 0.1, fiberPer100g: 2, saltPer100g: 0.01,
     defaultAmount: 300,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -272,7 +272,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 86, proteinPer100g: 1.6, carbsPer100g: 20, fatPer100g: 0.1, fiberPer100g: 3, saltPer100g: 0.05,
     defaultAmount: 300,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -283,7 +283,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 360, proteinPer100g: 12, carbsPer100g: 72, fatPer100g: 1.5, fiberPer100g: 3, saltPer100g: 0.02,
     defaultAmount: 100,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -294,7 +294,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 350, proteinPer100g: 12, carbsPer100g: 70, fatPer100g: 1.5, fiberPer100g: 5, saltPer100g: 0.02,
     defaultAmount: 80,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -305,7 +305,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 340, proteinPer100g: 12, carbsPer100g: 69, fatPer100g: 1.5, fiberPer100g: 8, saltPer100g: 0.02,
     defaultAmount: 80,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -316,7 +316,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 360, proteinPer100g: 14, carbsPer100g: 60, fatPer100g: 6, fiberPer100g: 7, saltPer100g: 0.01,
     defaultAmount: 80,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -327,7 +327,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 230, proteinPer100g: 9, carbsPer100g: 40, fatPer100g: 3, fiberPer100g: 7, saltPer100g: 1.2,
     defaultAmount: 100,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -338,7 +338,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 380, proteinPer100g: 8, carbsPer100g: 80, fatPer100g: 2.5, fiberPer100g: 3, saltPer100g: 0.5,
     defaultAmount: 25,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -349,7 +349,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 370, proteinPer100g: 7, carbsPer100g: 84, fatPer100g: 1, fiberPer100g: 3, saltPer100g: 1.5,
     defaultAmount: 60,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -360,7 +360,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 89, proteinPer100g: 1.1, carbsPer100g: 23, fatPer100g: 0.3, fiberPer100g: 2.6, saltPer100g: 0.01,
     defaultAmount: 120,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -371,7 +371,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 52, proteinPer100g: 0.3, carbsPer100g: 14, fatPer100g: 0.2, fiberPer100g: 2.4, saltPer100g: 0.01,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -382,7 +382,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 47, proteinPer100g: 0.9, carbsPer100g: 12, fatPer100g: 0.1, fiberPer100g: 2.4, saltPer100g: 0.01,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -393,7 +393,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 53, proteinPer100g: 0.8, carbsPer100g: 13, fatPer100g: 0.3, fiberPer100g: 1.8, saltPer100g: 0.01,
     defaultAmount: 100,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -404,7 +404,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 61, proteinPer100g: 1.1, carbsPer100g: 15, fatPer100g: 0.5, fiberPer100g: 3, saltPer100g: 0.01,
     defaultAmount: 100,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -415,7 +415,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 32, proteinPer100g: 0.7, carbsPer100g: 7.7, fatPer100g: 0.3, fiberPer100g: 2, saltPer100g: 0.01,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -426,7 +426,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 52, proteinPer100g: 1.2, carbsPer100g: 12, fatPer100g: 0.7, fiberPer100g: 6.5, saltPer100g: 0.01,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -437,7 +437,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 57, proteinPer100g: 0.7, carbsPer100g: 14, fatPer100g: 0.3, fiberPer100g: 2.4, saltPer100g: 0.01,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -448,7 +448,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 60, proteinPer100g: 0.8, carbsPer100g: 15, fatPer100g: 0.4, fiberPer100g: 1.6, saltPer100g: 0.01,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -459,7 +459,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 50, proteinPer100g: 0.5, carbsPer100g: 13, fatPer100g: 0.1, fiberPer100g: 1.4, saltPer100g: 0.01,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -470,7 +470,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 69, proteinPer100g: 0.7, carbsPer100g: 18, fatPer100g: 0.2, fiberPer100g: 0.9, saltPer100g: 0.01,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -481,7 +481,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 57, proteinPer100g: 0.4, carbsPer100g: 15, fatPer100g: 0.1, fiberPer100g: 3.1, saltPer100g: 0.01,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -492,7 +492,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 30, proteinPer100g: 0.6, carbsPer100g: 8, fatPer100g: 0.2, fiberPer100g: 0.4, saltPer100g: 0.01,
     defaultAmount: 300,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -503,7 +503,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 45, proteinPer100g: 1, carbsPer100g: 8, fatPer100g: 0.5, fiberPer100g: 4, saltPer100g: 0.01,
     defaultAmount: 150,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -514,7 +514,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 40, proteinPer100g: 2, carbsPer100g: 6, fatPer100g: 0.5, fiberPer100g: 3, saltPer100g: 0.05,
     defaultAmount: 300,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -525,7 +525,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 14, proteinPer100g: 0.9, carbsPer100g: 2, fatPer100g: 0.1, fiberPer100g: 1.2, saltPer100g: 0.02,
     defaultAmount: 100,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -536,7 +536,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 160, proteinPer100g: 2, carbsPer100g: 2, fatPer100g: 15, fiberPer100g: 7, saltPer100g: 0.01,
     defaultAmount: 100,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -547,7 +547,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 884, proteinPer100g: 0, carbsPer100g: 0, fatPer100g: 100, fiberPer100g: 0, saltPer100g: 0,
     defaultAmount: 10,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -558,7 +558,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 717, proteinPer100g: 0.9, carbsPer100g: 0.1, fatPer100g: 81, fiberPer100g: 0, saltPer100g: 0.02,
     defaultAmount: 10,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -569,7 +569,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 567, proteinPer100g: 26, carbsPer100g: 7, fatPer100g: 49, fiberPer100g: 9, saltPer100g: 0.02,
     defaultAmount: 30,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -580,7 +580,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 579, proteinPer100g: 21, carbsPer100g: 10, fatPer100g: 50, fiberPer100g: 12, saltPer100g: 0.02,
     defaultAmount: 30,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -591,7 +591,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 553, proteinPer100g: 18, carbsPer100g: 27, fatPer100g: 44, fiberPer100g: 3, saltPer100g: 0.03,
     defaultAmount: 30,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -602,7 +602,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 654, proteinPer100g: 15, carbsPer100g: 7, fatPer100g: 65, fiberPer100g: 7, saltPer100g: 0.01,
     defaultAmount: 30,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -613,7 +613,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 718, proteinPer100g: 8, carbsPer100g: 5, fatPer100g: 76, fiberPer100g: 9, saltPer100g: 0.01,
     defaultAmount: 30,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -624,7 +624,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 628, proteinPer100g: 15, carbsPer100g: 7, fatPer100g: 61, fiberPer100g: 10, saltPer100g: 0.01,
     defaultAmount: 30,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -635,7 +635,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 486, proteinPer100g: 17, carbsPer100g: 8, fatPer100g: 31, fiberPer100g: 34, saltPer100g: 0.04,
     defaultAmount: 15,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -646,7 +646,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 534, proteinPer100g: 18, carbsPer100g: 2, fatPer100g: 42, fiberPer100g: 27, saltPer100g: 0.03,
     defaultAmount: 15,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -657,7 +657,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 559, proteinPer100g: 30, carbsPer100g: 5, fatPer100g: 49, fiberPer100g: 6, saltPer100g: 0.02,
     defaultAmount: 20,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -668,7 +668,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 590, proteinPer100g: 8, carbsPer100g: 20, fatPer100g: 50, fiberPer100g: 11, saltPer100g: 0.02,
     defaultAmount: 20,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -679,7 +679,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 ml",
     kcalPer100g: 47, proteinPer100g: 3.4, carbsPer100g: 4.9, fatPer100g: 1.5, fiberPer100g: 0, saltPer100g: 0.1,
     defaultAmount: 250,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -690,7 +690,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 ml",
     kcalPer100g: 64, proteinPer100g: 3.3, carbsPer100g: 4.8, fatPer100g: 3.5, fiberPer100g: 0, saltPer100g: 0.1,
     defaultAmount: 250,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -701,7 +701,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 ml",
     kcalPer100g: 45, proteinPer100g: 1, carbsPer100g: 6.5, fatPer100g: 1.5, fiberPer100g: 0.8, saltPer100g: 0.1,
     defaultAmount: 250,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -712,7 +712,7 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 ml",
     kcalPer100g: 13, proteinPer100g: 0.5, carbsPer100g: 0.2, fatPer100g: 1.1, fiberPer100g: 0.2, saltPer100g: 0.1,
     defaultAmount: 250,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
   },
@@ -723,8 +723,109 @@ export const seedCustomFoods: FoodItem[] = [
     servingLabel: "100 g",
     kcalPer100g: 304, proteinPer100g: 0.3, carbsPer100g: 82, fatPer100g: 0, fiberPer100g: 0, saltPer100g: 0.01,
     defaultAmount: 15,
-    isCustomFood: true,
+
     isActive: true,
     createdAt: "2026-05-29T00:00:00.000Z",
+  },
+
+  // ── Neu (2026-06-04) ──────────────────────────────────────────────────────────
+  {
+    id: "cf-ricemeal",
+    name: "Ricemeal",
+    category: "Kohlenhydrate",
+    servingLabel: "100 g",
+    kcalPer100g: 373, proteinPer100g: 8, carbsPer100g: 82.7, fatPer100g: 1.3, fiberPer100g: 0, saltPer100g: 0,
+    defaultAmount: 75,
+
+    isActive: true,
+    createdAt: "2026-06-04T00:00:00.000Z",
+  },
+  {
+    id: "cf-zartbitter-85",
+    name: "Zartbitterschokolade >85 %",
+    category: "Fettquelle",
+    servingLabel: "100 g",
+    kcalPer100g: 600, proteinPer100g: 10, carbsPer100g: 20, fatPer100g: 50, fiberPer100g: 11, saltPer100g: 0.02,
+    defaultAmount: 20,
+
+    isActive: true,
+    createdAt: "2026-06-04T00:00:00.000Z",
+  },
+  {
+    id: "cf-maltodextrin",
+    name: "Maltodextrin",
+    category: "Kohlenhydrate",
+    servingLabel: "100 g",
+    kcalPer100g: 412, proteinPer100g: 0, carbsPer100g: 100, fatPer100g: 0, fiberPer100g: 0, saltPer100g: 0,
+    defaultAmount: 25,
+
+    isActive: true,
+    createdAt: "2026-06-04T00:00:00.000Z",
+  },
+  {
+    id: "cf-elektrolyte",
+    name: "Elektrolyte / Basepowder",
+    category: "Weitere",
+    servingLabel: "100 g",
+    kcalPer100g: 0, proteinPer100g: 0, carbsPer100g: 0, fatPer100g: 0, fiberPer100g: 0, saltPer100g: 0,
+    defaultAmount: 5,
+
+    isActive: true,
+    createdAt: "2026-06-04T00:00:00.000Z",
+  },
+  {
+    id: "cf-sauerkraut",
+    name: "Sauerkraut",
+    category: "Gemüse",
+    servingLabel: "100 g",
+    kcalPer100g: 20, proteinPer100g: 2, carbsPer100g: 4, fatPer100g: 0, fiberPer100g: 1.5, saltPer100g: 0.7,
+    defaultAmount: 100,
+
+    isActive: true,
+    createdAt: "2026-06-04T00:00:00.000Z",
+  },
+  {
+    id: "cf-toast-gross",
+    name: "Toast groß",
+    category: "Kohlenhydrate",
+    servingLabel: "1 Stück",
+    kcalPer100g: 100, proteinPer100g: 3, carbsPer100g: 18, fatPer100g: 2, fiberPer100g: 1, saltPer100g: 0.5,
+    defaultAmount: 1,
+
+    isActive: true,
+    createdAt: "2026-06-04T00:00:00.000Z",
+  },
+  {
+    id: "cf-nuesse-gemischt",
+    name: "Nüsse (gemischt)",
+    category: "Fettquelle",
+    servingLabel: "100 g",
+    kcalPer100g: 630, proteinPer100g: 25, carbsPer100g: 15, fatPer100g: 50, fiberPer100g: 5, saltPer100g: 0.02,
+    defaultAmount: 30,
+
+    isActive: true,
+    createdAt: "2026-06-04T00:00:00.000Z",
+  },
+  {
+    id: "cf-omega3-kapsel",
+    name: "Omega 3 Kapsel",
+    category: "Weitere",
+    servingLabel: "1 Kapsel",
+    kcalPer100g: 9, proteinPer100g: 0, carbsPer100g: 0, fatPer100g: 1, fiberPer100g: 0, saltPer100g: 0,
+    defaultAmount: 1,
+
+    isActive: true,
+    createdAt: "2026-06-04T00:00:00.000Z",
+  },
+  {
+    id: "cf-ei-standard",
+    name: "Ei",
+    category: "Protein",
+    servingLabel: "1 Stück",
+    kcalPer100g: 74, proteinPer100g: 7, carbsPer100g: 1, fatPer100g: 5, fiberPer100g: 0, saltPer100g: 0.2,
+    defaultAmount: 1,
+
+    isActive: true,
+    createdAt: "2026-06-04T00:00:00.000Z",
   },
 ];

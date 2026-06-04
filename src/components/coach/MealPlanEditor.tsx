@@ -32,6 +32,16 @@ function customFoodItem(name: string, kcal: number, protein: number, carbs: numb
   };
 }
 
+// ─── Serving helpers ──────────────────────────────────────────────────────────
+
+function isStückFood(food: FoodItem): boolean {
+  return food.servingLabel?.includes("Stück") ?? false;
+}
+
+function defaultDisplayAmount(food: FoodItem): string {
+  return String(food.defaultAmount ?? 100);
+}
+
 // ─── AddFoodRow ───────────────────────────────────────────────────────────────
 
 function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
@@ -146,10 +156,10 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
                     ) : (
                       filteredFoods.map((f) => (
                         <button key={f.id} type="button"
-                          onClick={() => setSelectedFood(f)}
+                          onClick={() => { setSelectedFood(f); setAmountInput(defaultDisplayAmount(f)); setAmountError(""); }}
                           className="text-left px-2.5 py-2 hover:bg-[#1e2d42] transition-colors">
                           <span className="text-xs font-medium text-[#f0f4ff] block">{f.name}</span>
-                          <span className="text-[10px] text-[#5a7090]">{f.category}</span>
+                          <span className="text-[10px] text-[#5a7090]">{f.category}{f.servingLabel ? ` · ${f.servingLabel}` : ""}</span>
                         </button>
                       ))
                     )}
@@ -159,8 +169,10 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
             )}
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-[#5a7090]">Menge (g)</label>
-            <input type="number" min={0} step={10} value={amountInput} onChange={(e) => { setAmountInput(e.target.value); setAmountError(""); }}
+            <label className="text-xs text-[#5a7090]">
+              Menge{selectedFood?.servingLabel ? ` (${selectedFood.servingLabel})` : " (g)"}
+            </label>
+            <input type="number" min={0} step={selectedFood && isStückFood(selectedFood) ? 1 : 10} value={amountInput} onChange={(e) => { setAmountInput(e.target.value); setAmountError(""); }}
               className="bg-[#141d2e] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6]" />
             {amountError && <p className="text-[10px] text-[#ef4444] mt-0.5">{amountError}</p>}
           </div>

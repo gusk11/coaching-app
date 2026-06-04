@@ -269,7 +269,6 @@ export interface FoodItem {
   servingLabel?: string;
   notes?: string;
   isActive?: boolean;      // undefined = active; false = deactivated
-  isCustomFood?: boolean;  // true = added by coach
   createdAt?: string;
   updatedAt?: string;
 }

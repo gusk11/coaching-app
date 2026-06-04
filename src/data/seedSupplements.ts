@@ -129,4 +129,26 @@ export const seedSupplementDB: SupplementDBItem[] = [
     instructions: "Mit einer Mahlzeit einnehmen, idealerweise mit Fettanteil.",
     createdAt: "2026-05-29T00:00:00.000Z",
   },
+
+  // ── Neu (2026-06-04) ──────────────────────────────────────────────────────────
+  {
+    id: "supp-elektrolyte",
+    name: "Elektrolyte / Basepowder",
+    category: "Mineralstoffe",
+    standardDosage: "5 g täglich",
+    timing: "morgens und intra workout",
+    instructions: "In Wasser einrühren und trinken.",
+    link: "https://vitaminversand24.com/vit4_elektrolyte_powder_big",
+    createdAt: "2026-06-04T00:00:00.000Z",
+  },
+  {
+    id: "supp-maltodextrin",
+    name: "Maltodextrin / Cluster Dextrin",
+    category: "Kohlenhydrate",
+    standardDosage: "25–50 g intra workout",
+    timing: "intra workout",
+    instructions: "In Wasser einrühren und während des Trainings trinken.",
+    link: "https://vitaminversand24.com/gen_cyclic_cluster_dextrin",
+    createdAt: "2026-06-04T00:00:00.000Z",
+  },
 ];

@@ -133,7 +133,6 @@ function rowToFoodItem(row: any): FoodItem {
     defaultAmountUnit: row.default_amount_unit ?? undefined,
     servingLabel: row.serving_label ?? undefined,
     notes: row.notes ?? undefined,
-    isCustomFood: true,
     isActive: row.is_active ?? true,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
@@ -568,12 +567,11 @@ export async function getAllFoodItems(): Promise<FoodItem[]> {
 }
 
 export async function addCustomFood(
-  food: Omit<FoodItem, "id" | "isCustomFood" | "createdAt" | "updatedAt">
+  food: Omit<FoodItem, "id" | "createdAt" | "updatedAt">
 ): Promise<FoodItem[]> {
   const newFood: FoodItem = {
     ...food,
     id: `cf-${Date.now()}`,
-    isCustomFood: true,
     isActive: true,
     createdAt: new Date().toISOString(),
   };
