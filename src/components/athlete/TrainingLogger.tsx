@@ -165,6 +165,25 @@ function RestTimerWidget() {
   );
 }
 
+function getPrevExerciseLog(
+  logs: TrainingLog[],
+  trainingDayId: string,
+  currentDate: string,
+  exerciseId: string,
+  exerciseName: string
+): TrainingExerciseLog | null {
+  const sorted = logs
+    .filter((l) => l.trainingDayId === trainingDayId && l.date < currentDate)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  for (const log of sorted) {
+    const ex = log.exercises.find(
+      (e) => e.exerciseId === exerciseId || e.exerciseName === exerciseName
+    );
+    if (ex) return ex;
+  }
+  return null;
+}
+
 // ─── Haupt-Logger ──────────────────────────────────────────────────────────────
 export function TrainingLogger({
   trainingPlan,
@@ -567,6 +586,13 @@ export function TrainingLogger({
             // ID-basierter Plan-Abgleich – korrekt auch nach Entfernen/Hinzufügen
             const planEx = activeDay?.exercises.find((e) => e.id === ex.exerciseId);
             const isUnilateral = ex.laterality === "unilateral";
+            const prevEx = getPrevExerciseLog(
+              existingLogs,
+              session.trainingDayId,
+              session.date,
+              ex.exerciseId,
+              ex.exerciseName
+            );
             return (
               <div
                 key={ex.exerciseId}
@@ -624,9 +650,21 @@ export function TrainingLogger({
                         <span className="col-span-5 text-center">Rechts (kg × Wdh)</span>
                         <span className="col-span-1" />
                       </div>
-                      {ex.sets.map((set, setIdx) => (
+                      {ex.sets.map((set, setIdx) => {
+                        const prev = prevEx?.sets[setIdx];
+                        const hasPrevL = prev && (prev.weightLeft !== null || prev.repsLeft !== null);
+                        const hasPrevR = prev && (prev.weightRight !== null || prev.repsRight !== null);
+                        return (
                         <div key={setIdx} className="grid grid-cols-12 gap-1 items-center">
-                          <span className="col-span-1 text-xs text-[#5a7090] text-center">{set.setNumber}</span>
+                          <span className="col-span-1 flex flex-col items-center gap-0.5">
+                            <span className="text-xs text-[#5a7090]">{set.setNumber}</span>
+                            {(hasPrevL || hasPrevR) && (
+                              <span className="text-[8px] text-[#3a5070] leading-none text-center">
+                                {hasPrevL && <span className="block">L{prev!.weightLeft ?? "?"}</span>}
+                                {hasPrevR && <span className="block">R{prev!.weightRight ?? "?"}</span>}
+                              </span>
+                            )}
+                          </span>
                           <input
                             type="number" min={0} step={0.5}
                             value={set.weightLeft ?? ""}
@@ -664,7 +702,8 @@ export function TrainingLogger({
                             </button>
                           </Tooltip>
                         </div>
-                      ))}
+                        );
+                      })}
                     </>
                   ) : (
                     <>
@@ -676,9 +715,19 @@ export function TrainingLogger({
                         <span className="col-span-3">RIR</span>
                         <span className="col-span-1" />
                       </div>
-                      {ex.sets.map((set, setIdx) => (
+                      {ex.sets.map((set, setIdx) => {
+                        const prev = prevEx?.sets[setIdx];
+                        const hasPrev = prev && (prev.weight !== null || prev.reps !== null);
+                        return (
                         <div key={setIdx} className="grid grid-cols-12 gap-1.5 items-center">
-                          <span className="col-span-1 text-xs text-[#5a7090] text-center">{set.setNumber}</span>
+                          <span className="col-span-1 flex flex-col items-center gap-0.5">
+                            <span className="text-xs text-[#5a7090]">{set.setNumber}</span>
+                            {hasPrev && (
+                              <span className="text-[9px] text-[#3a5070] leading-none whitespace-nowrap">
+                                {prev.weight ?? "?"}&times;{prev.reps ?? "?"}
+                              </span>
+                            )}
+                          </span>
                           <input
                             type="number" min={0} step={0.5}
                             value={set.weight ?? ""}
@@ -707,7 +756,8 @@ export function TrainingLogger({
                             </button>
                           </Tooltip>
                         </div>
-                      ))}
+                        );
+                      })}
                     </>
                   )}
 

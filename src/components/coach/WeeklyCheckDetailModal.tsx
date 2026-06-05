@@ -1,6 +1,6 @@
 "use client";
 import { WeeklyCheckIn } from "@/types";
-import { CheckInSection, CheckInRow } from "@/components/ui/CheckInModalLayout";
+import { CheckInSection, CheckInRow, ReadOnlySlider } from "@/components/ui/CheckInModalLayout";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
 import { modalOverlay, modalContent } from "@/lib/motion";
@@ -9,12 +9,6 @@ interface Props {
   ci: WeeklyCheckIn;
   onClose: () => void;
 }
-
-function stars(val: number | undefined, max = 5): string {
-  if (val == null) return "–";
-  return "★".repeat(val) + "☆".repeat(max - val) + ` (${val}/5)`;
-}
-
 
 function weekRangeLabel(weekStart: string): string {
   const start = new Date(weekStart + "T12:00:00");
@@ -60,28 +54,24 @@ export function WeeklyCheckDetailModal({ ci, onClose }: Props) {
 
         <div className="overflow-y-auto p-5 flex flex-col gap-5">
           <CheckInSection title="Gesamtbewertung">
-            <CheckInRow label="Gesamte Woche" value={stars(ci.overallWeekRating)} labelWidth="w-44" />
-            <CheckInRow label="Wochenzufriedenheit" value={stars(ci.weekSatisfaction)} labelWidth="w-44" />
-            <CheckInRow label="Selbstzufriedenheit" value={stars(ci.selfSatisfaction)} labelWidth="w-44" />
+            <ReadOnlySlider label="Gesamte Woche" value={ci.overallWeekRating} />
+            <ReadOnlySlider label="Wochenzufriedenheit" value={ci.weekSatisfaction} />
+            <ReadOnlySlider label="Selbstzufriedenheit" value={ci.selfSatisfaction} />
           </CheckInSection>
 
           <CheckInSection title="Training">
-            <CheckInRow label="Trainingseinschätzung" value={stars(ci.trainingRating)} labelWidth="w-44" />
-            <CheckInRow
-              label="Erholung"
-              value={ci.recoveryRating != null ? stars(ci.recoveryRating) : "–"}
-              labelWidth="w-44"
-            />
+            <ReadOnlySlider label="Trainingseinschätzung" value={ci.trainingRating} />
+            <ReadOnlySlider label="Erholung" value={ci.recoveryRating} />
           </CheckInSection>
 
           <CheckInSection title="Ernährung">
-            <CheckInRow label="Plan-Umsetzung" value={stars(ci.nutritionAdherence)} labelWidth="w-44" />
+            <ReadOnlySlider label="Plan-Umsetzung" value={ci.nutritionAdherence} />
             <CheckInRow label="Hunger & Cravings" value={ci.hungerCravings || "–"} labelWidth="w-44" />
           </CheckInSection>
 
           <CheckInSection title="Wohlbefinden (Wochendurchschnitt)">
-            <CheckInRow label="Energielevel Ø" value={`${ci.energyAvg} / 5`} labelWidth="w-44" />
-            <CheckInRow label="Stresslevel Ø" value={`${ci.stressAvg} / 5`} labelWidth="w-44" />
+            <ReadOnlySlider label="Energielevel Ø" value={ci.energyAvg} />
+            <ReadOnlySlider label="Stresslevel Ø" value={ci.stressAvg} colorMode="negative_high" />
             <CheckInRow
               label="Schlafdauer Ø"
               value={ci.sleepAvg != null ? `${ci.sleepAvg} h` : "–"}
