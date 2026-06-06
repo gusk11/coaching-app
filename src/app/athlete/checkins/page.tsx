@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete, DailyCheckIn, WeeklyCheckIn } from "@/types";
 import { loadAuth, loadAthletes, addDailyCheckIn, addWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn } from "@/lib/store";
@@ -8,6 +8,7 @@ import { DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { DailyCheckInForm } from "@/components/athlete/DailyCheckInForm";
 import { WeeklyCheckInForm } from "@/components/athlete/WeeklyCheckInForm";
+import { WeekBulkBackfill } from "@/components/athlete/WeekBulkBackfill";
 import { isCheckInDay, getWeekDates, todayISO } from "@/lib/utils";
 import { ClipboardCheck, CalendarPlus, Pencil, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -92,6 +93,17 @@ export default function CheckInsPage() {
   const today = todayISO();
   const { start: weekStart } = getWeekDates(today);
 
+  const weekDays = useMemo(() => {
+    const days: string[] = [];
+    const start = new Date(weekStart + "T12:00:00");
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      days.push(d.toISOString().split("T")[0]);
+    }
+    return days;
+  }, [weekStart]);
+
   // Daily
   const sortedDaily = [...athlete.dailyCheckIns].sort((a, b) => b.date.localeCompare(a.date));
   const lastCI = sortedDaily[0];
@@ -175,6 +187,11 @@ export default function CheckInsPage() {
     } catch {
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
     }
+  }
+
+  function handleBulkUpdate(athletes: Athlete[]) {
+    const found = athletes.find((a) => a.id === athlete!.id);
+    if (found) setAthlete(found);
   }
 
   async function handleDeleteDaily(checkInId: string) {
@@ -320,6 +337,47 @@ export default function CheckInsPage() {
                 )}
               </div>
             </div>
+
+            {/* Week status overview */}
+            <div className="flex gap-1.5">
+              {weekDays.map((day) => {
+                const hasCI = athlete.dailyCheckIns.some((ci) => ci.date === day);
+                const isFuture = day > today;
+                const isToday = day === today;
+                const d = new Date(day + "T12:00:00");
+                return (
+                  <div
+                    key={day}
+                    className={cn(
+                      "flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl",
+                      isFuture
+                        ? "bg-[#0f1624]/60 opacity-40"
+                        : hasCI
+                        ? "bg-[#022c22] border border-[#10b981]/30"
+                        : isToday
+                        ? "bg-[#451a03]/60 border border-[#f59e0b]/20"
+                        : "bg-[#2d0b0b]/80 border border-[#ef4444]/20"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "text-[11px] font-semibold leading-tight",
+                        isFuture ? "text-[#5a7090]" : hasCI ? "text-[#34d399]" : isToday ? "text-[#f59e0b]" : "text-[#f87171]"
+                      )}
+                    >
+                      {d.toLocaleDateString("de-DE", { weekday: "short" })}
+                    </span>
+                    <span className="text-[9px] text-[#3d5269] leading-tight">
+                      {d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}
+                    </span>
+                    {isToday && <div className="w-1 h-1 rounded-full bg-[#3b82f6] mt-0.5" />}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bulk retroactive entry */}
+            <WeekBulkBackfill athlete={athlete} onUpdate={handleBulkUpdate} />
 
             {/* Past daily check-ins */}
             {pastDailyCheckIns.length > 0 && (
