@@ -76,20 +76,6 @@ export default function CheckInsPage() {
     });
   }, [router]);
 
-  if (!athlete) {
-    return (
-      <AppShell role="athlete" title="Check-ins">
-        <div className="max-w-lg mx-auto flex flex-col gap-5">
-          <Skeleton className="h-10 rounded-xl" />
-          <Skeleton className="h-[72px] rounded-2xl" />
-          <div className="flex flex-col gap-3">
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
-          </div>
-        </div>
-      </AppShell>
-    );
-  }
-
   const today = todayISO();
   const { start: weekStart } = getWeekDates(today);
 
@@ -103,6 +89,20 @@ export default function CheckInsPage() {
     }
     return days;
   }, [weekStart]);
+
+  if (!athlete) {
+    return (
+      <AppShell role="athlete" title="Check-ins">
+        <div className="max-w-lg mx-auto flex flex-col gap-5">
+          <Skeleton className="h-10 rounded-xl" />
+          <Skeleton className="h-[72px] rounded-2xl" />
+          <div className="flex flex-col gap-3">
+            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   // Daily
   const sortedDaily = [...athlete.dailyCheckIns].sort((a, b) => b.date.localeCompare(a.date));
