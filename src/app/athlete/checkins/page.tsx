@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Athlete, DailyCheckIn, WeeklyCheckIn } from "@/types";
+import { Athlete, WeeklyCheckIn } from "@/types";
 import { loadAuth, loadAthletes, addDailyCheckIn, addWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
@@ -10,25 +10,9 @@ import { DailyCheckInForm } from "@/components/athlete/DailyCheckInForm";
 import { WeeklyCheckInForm } from "@/components/athlete/WeeklyCheckInForm";
 import { WeekBulkBackfill } from "@/components/athlete/WeekBulkBackfill";
 import { isCheckInDay, getWeekDates, todayISO } from "@/lib/utils";
-import { ClipboardCheck, CalendarPlus, Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
-
-function yesterdayISO(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().split("T")[0];
-}
-
-function minBackfillISO(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 90);
-  return d.toISOString().split("T")[0];
-}
-
-function getWeekday(isoDate: string): string {
-  return new Date(isoDate + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long" });
-}
 
 function fmtWeekLabel(weekStart: string): string {
   const start = new Date(weekStart + "T12:00:00");
@@ -39,7 +23,6 @@ function fmtWeekLabel(weekStart: string): string {
 }
 
 const DAY_NAMES = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-
 const iconBtn = "w-7 h-7 rounded-lg flex items-center justify-center transition-colors";
 
 export default function CheckInsPage() {
@@ -48,9 +31,7 @@ export default function CheckInsPage() {
   const [activeTab, setActiveTab] = useState<"daily" | "weekly">("daily");
 
   // Daily state
-  const [showCheckIn, setShowCheckIn] = useState(false);
-  const [showBackfill, setShowBackfill] = useState(false);
-  const [backfillDate, setBackfillDate] = useState(yesterdayISO);
+  const [dayModalDate, setDayModalDate] = useState<string | null>(null);
 
   // Weekly state
   const [editing, setEditing] = useState(false);
@@ -58,8 +39,7 @@ export default function CheckInsPage() {
   // Delete confirmation (unified — used for current-week weekly delete button)
   const [deleteConfirmCI, setDeleteConfirmCI] = useState<{ type: "daily" | "weekly"; id: string } | null>(null);
 
-  // Edit modal state
-  const [editDailyCI, setEditDailyCI] = useState<DailyCheckIn | null>(null);
+  // Edit weekly modal state
   const [editWeeklyCI, setEditWeeklyCI] = useState<WeeklyCheckIn | null>(null);
 
   // Inline delete confirmation state
@@ -79,23 +59,29 @@ export default function CheckInsPage() {
   const today = todayISO();
   const { start: weekStart } = getWeekDates(today);
 
-  const weekDays = useMemo(() => {
+  // 8-day period from last athlete check-in day to next check-in day (inclusive)
+  const checkInDay = athlete?.checkInDay ?? 1;
+  const checkInPeriodDays = useMemo(() => {
+    const todayDate = new Date(today + "T12:00:00");
+    const todayDow = todayDate.getDay();
+    const daysSinceCheckInDay = (todayDow - checkInDay + 7) % 7;
+    const periodStart = new Date(todayDate);
+    periodStart.setDate(todayDate.getDate() - daysSinceCheckInDay);
     const days: string[] = [];
-    const start = new Date(weekStart + "T12:00:00");
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
+    for (let i = 0; i < 8; i++) {
+      const d = new Date(periodStart);
+      d.setDate(periodStart.getDate() + i);
       days.push(d.toISOString().split("T")[0]);
     }
     return days;
-  }, [weekStart]);
+  }, [today, checkInDay]);
 
   if (!athlete) {
     return (
       <AppShell role="athlete" title="Check-ins">
         <div className="max-w-lg mx-auto flex flex-col gap-5">
           <Skeleton className="h-10 rounded-xl" />
-          <Skeleton className="h-[72px] rounded-2xl" />
+          <Skeleton className="h-[56px] rounded-2xl" />
           <div className="flex flex-col gap-3">
             {[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
           </div>
@@ -106,9 +92,6 @@ export default function CheckInsPage() {
 
   // Daily
   const sortedDaily = [...athlete.dailyCheckIns].sort((a, b) => b.date.localeCompare(a.date));
-  const lastCI = sortedDaily[0];
-  const alreadyCheckedIn = lastCI?.date === today;
-  const backfillExisting = athlete.dailyCheckIns.find((c) => c.date === backfillDate);
   const pastDailyCheckIns = sortedDaily.filter((ci) => ci.date !== today);
 
   // Weekly
@@ -118,23 +101,16 @@ export default function CheckInsPage() {
   const isWeeklyDay = isCheckInDay(athlete.checkInDay);
   const pastWeeklyCheckIns = sortedWeekly.filter((ci) => ci.weekStart !== weekStart);
 
-  async function handleDailySubmit(data: any) {
-    try {
-      const updated = await addDailyCheckIn(athlete!.id, data);
-      setAthlete(updated.find((a) => a.id === athlete!.id)!);
-      setShowCheckIn(false);
-      showToast("Daily Check-in gespeichert.", "success");
-    } catch {
-      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
-    }
-  }
+  const dayModalExisting = dayModalDate
+    ? athlete.dailyCheckIns.find((ci) => ci.date === dayModalDate)
+    : undefined;
 
-  async function handleBackfillSubmit(data: any) {
+  async function handleDayModalSubmit(data: any) {
     try {
       const updated = await addDailyCheckIn(athlete!.id, data);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
-      setShowBackfill(false);
-      showToast("Check-in nachgetragen.", "success");
+      setDayModalDate(null);
+      showToast("Daily Check-in gespeichert.", "success");
     } catch {
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
     }
@@ -162,17 +138,6 @@ export default function CheckInsPage() {
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setEditing(false);
       showToast("Weekly Check-in gespeichert.", "success");
-    } catch {
-      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
-    }
-  }
-
-  async function handleEditDailySubmit(data: any) {
-    try {
-      const updated = await addDailyCheckIn(athlete!.id, data);
-      setAthlete(updated.find((a) => a.id === athlete!.id)!);
-      setEditDailyCI(null);
-      showToast("Check-in aktualisiert.", "success");
     } catch {
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
     }
@@ -246,117 +211,27 @@ export default function CheckInsPage() {
         {activeTab === "daily" && (
           <div className="flex flex-col gap-4">
 
-            {/* Today's check-in */}
-            <div className={cn(
-              "rounded-2xl border overflow-hidden transition-all",
-              alreadyCheckedIn
-                ? "bg-[#141d2e] border-[#1e2d42]"
-                : "bg-[#1a1209]/30 border-[#ca8a04]/25 ring-1 ring-[#ca8a04]/10"
-            )}>
-              <button
-                onClick={() => setShowCheckIn(!showCheckIn)}
-                className={cn(
-                  "w-full flex items-center justify-between px-5 py-4 transition-colors",
-                  alreadyCheckedIn ? "hover:bg-[#192236]" : "hover:bg-[#1a1209]/50"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <ClipboardCheck size={18} className={alreadyCheckedIn ? "text-[#10b981]" : "text-[#ca8a04]"} />
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-[#f0f4ff]">Daily Check-in</p>
-                    <p className={cn("text-xs", alreadyCheckedIn ? "text-[#5a7090]" : "text-[#ca8a04]/80")}>
-                      {alreadyCheckedIn ? "Heute bereits eingetragen — bearbeiten?" : "Heute noch nicht eingetragen"}
-                    </p>
-                  </div>
-                </div>
-                <span className={cn("text-lg", alreadyCheckedIn ? "text-[#3b82f6]" : "text-[#ca8a04]")}>
-                  {showCheckIn ? "−" : "+"}
-                </span>
-              </button>
-
-              {showCheckIn && (
-                <div className="border-t border-[#1e2d42] p-5">
-                  <DailyCheckInForm
-                    athleteId={athlete.id}
-                    existingToday={alreadyCheckedIn ? lastCI : undefined}
-                    onSubmit={handleDailySubmit}
-                    checkConfig={{ ...DEFAULT_DAILY_CHECK_CONFIG, ...athlete.dailyCheckConfig }}
-                    mealPlans={athlete.mealPlans ?? []}
-                  />
-                </div>
-              )}
-
-              {/* Backfill */}
-              <div className="border-t border-[#1e2d42]">
-                <button
-                  onClick={() => setShowBackfill(!showBackfill)}
-                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-[#192236] transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <CalendarPlus size={14} className="text-[#5a7090]" />
-                    <span className="text-xs text-[#5a7090]">Früheren Tag nachtragen</span>
-                  </div>
-                  <span className="text-xs text-[#5a7090]">{showBackfill ? "−" : "+"}</span>
-                </button>
-
-                {showBackfill && (
-                  <div className="px-5 pb-5 flex flex-col gap-4 border-t border-[#1e2d42]">
-                    <div className="flex flex-col gap-2 pt-4">
-                      <label className="text-xs font-medium text-[#8fa3c0]">Datum wählen</label>
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <input
-                          type="date"
-                          value={backfillDate}
-                          max={yesterdayISO()}
-                          min={minBackfillISO()}
-                          onChange={(e) => setBackfillDate(e.target.value)}
-                          className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
-                        />
-                        {backfillDate && (
-                          <span className="text-sm text-[#8fa3c0]">{getWeekday(backfillDate)}</span>
-                        )}
-                      </div>
-                      {backfillExisting && (
-                        <p className="text-xs text-[#60a5fa]">
-                          Für diesen Tag existiert bereits ein Eintrag — Daten sind vorausgefüllt.
-                        </p>
-                      )}
-                    </div>
-                    {backfillDate && (
-                      <DailyCheckInForm
-                        key={backfillDate}
-                        athleteId={athlete.id}
-                        existingToday={backfillExisting}
-                        date={backfillDate}
-                        onSubmit={handleBackfillSubmit}
-                        checkConfig={{ ...DEFAULT_DAILY_CHECK_CONFIG, ...athlete.dailyCheckConfig }}
-                        mealPlans={athlete.mealPlans ?? []}
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Week status overview */}
-            <div className="flex gap-1.5">
-              {weekDays.map((day) => {
+            {/* Check-in period tiles — 8 days from last check-in day to next */}
+            <div className="flex gap-1">
+              {checkInPeriodDays.map((day) => {
                 const hasCI = athlete.dailyCheckIns.some((ci) => ci.date === day);
                 const isFuture = day > today;
                 const isToday = day === today;
                 const d = new Date(day + "T12:00:00");
                 return (
-                  <div
+                  <button
                     key={day}
+                    disabled={isFuture}
+                    onClick={() => setDayModalDate(day)}
                     className={cn(
-                      "flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl",
+                      "flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition-colors",
                       isFuture
-                        ? "bg-[#0f1624]/60 opacity-40"
+                        ? "bg-[#0f1624]/60 opacity-40 cursor-default"
                         : hasCI
-                        ? "bg-[#022c22] border border-[#10b981]/30"
+                        ? "bg-[#022c22] border border-[#10b981]/30 hover:bg-[#033830] cursor-pointer"
                         : isToday
-                        ? "bg-[#451a03]/60 border border-[#f59e0b]/20"
-                        : "bg-[#2d0b0b]/80 border border-[#ef4444]/20"
+                        ? "bg-[#451a03]/60 border border-[#f59e0b]/20 hover:bg-[#451a03] cursor-pointer"
+                        : "bg-[#2d0b0b]/80 border border-[#ef4444]/20 hover:bg-[#3d0b0b] cursor-pointer"
                     )}
                   >
                     <span
@@ -371,7 +246,7 @@ export default function CheckInsPage() {
                       {d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}
                     </span>
                     {isToday && <div className="w-1 h-1 rounded-full bg-[#3b82f6] mt-0.5" />}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -394,7 +269,7 @@ export default function CheckInsPage() {
                       <div className="flex items-center gap-1.5">
                         <span className="text-base font-bold text-[#3b82f6] mr-1">{ci.weight} kg</span>
                         <button
-                          onClick={() => { setConfirmDailyDeleteId(null); setEditDailyCI(ci); }}
+                          onClick={() => { setConfirmDailyDeleteId(null); setDayModalDate(ci.date); }}
                           className={cn(iconBtn, "text-[#5a7090] hover:text-[#60a5fa] hover:bg-[#1e2d42]")}
                           title="Bearbeiten"
                         >
@@ -635,22 +510,24 @@ export default function CheckInsPage() {
         </div>
       )}
 
-      {/* ── EDIT DAILY MODAL ── */}
-      {editDailyCI && (
+      {/* ── DAY MODAL — opens for any tile click (new or edit) ── */}
+      {dayModalDate && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) setEditDailyCI(null); }}
+          onClick={(e) => { if (e.target === e.currentTarget) setDayModalDate(null); }}
         >
           <div className="w-full sm:max-w-lg bg-[#0d1526] border-t sm:border border-[#1e2d42] rounded-t-2xl sm:rounded-2xl flex flex-col max-h-[92vh]">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e2d42] shrink-0">
               <div>
-                <p className="text-sm font-semibold text-[#f0f4ff]">Daily Check-in bearbeiten</p>
+                <p className="text-sm font-semibold text-[#f0f4ff]">
+                  {dayModalExisting ? "Daily Check-in bearbeiten" : "Daily Check-in eintragen"}
+                </p>
                 <p className="text-xs text-[#5a7090]">
-                  {new Date(editDailyCI.date + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+                  {new Date(dayModalDate + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
                 </p>
               </div>
               <button
-                onClick={() => setEditDailyCI(null)}
+                onClick={() => setDayModalDate(null)}
                 className="w-8 h-8 rounded-xl flex items-center justify-center text-[#5a7090] hover:text-[#f0f4ff] hover:bg-[#1e2d42] transition-colors"
               >
                 <X size={16} />
@@ -658,11 +535,11 @@ export default function CheckInsPage() {
             </div>
             <div className="overflow-y-auto p-5 flex-1">
               <DailyCheckInForm
-                key={editDailyCI.id}
+                key={dayModalDate}
                 athleteId={athlete.id}
-                existingToday={editDailyCI}
-                date={editDailyCI.date}
-                onSubmit={handleEditDailySubmit}
+                existingToday={dayModalExisting}
+                date={dayModalDate}
+                onSubmit={handleDayModalSubmit}
                 checkConfig={{ ...DEFAULT_DAILY_CHECK_CONFIG, ...athlete.dailyCheckConfig }}
                 mealPlans={athlete.mealPlans ?? []}
               />
