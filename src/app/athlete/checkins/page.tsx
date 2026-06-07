@@ -32,6 +32,7 @@ export default function CheckInsPage() {
 
   // Daily state
   const [dayModalDate, setDayModalDate] = useState<string | null>(null);
+  const [dayRange, setDayRange] = useState<7 | 14>(7);
 
   // Weekly state
   const [editing, setEditing] = useState(false);
@@ -59,22 +60,22 @@ export default function CheckInsPage() {
   const today = todayISO();
   const { start: weekStart } = getWeekDates(today);
 
-  // 8-day period from last athlete check-in day to next check-in day (inclusive)
+  // Days going back from the most recent check-in day
   const checkInDay = athlete?.checkInDay ?? 1;
   const checkInPeriodDays = useMemo(() => {
     const todayDate = new Date(today + "T12:00:00");
     const todayDow = todayDate.getDay();
     const daysSinceCheckInDay = (todayDow - checkInDay + 7) % 7;
-    const periodStart = new Date(todayDate);
-    periodStart.setDate(todayDate.getDate() - daysSinceCheckInDay);
+    const checkInDayDate = new Date(todayDate);
+    checkInDayDate.setDate(todayDate.getDate() - daysSinceCheckInDay);
     const days: string[] = [];
-    for (let i = 0; i < 8; i++) {
-      const d = new Date(periodStart);
-      d.setDate(periodStart.getDate() + i);
+    for (let i = dayRange; i >= 0; i--) {
+      const d = new Date(checkInDayDate);
+      d.setDate(checkInDayDate.getDate() - i);
       days.push(d.toISOString().split("T")[0]);
     }
     return days;
-  }, [today, checkInDay]);
+  }, [today, checkInDay, dayRange]);
 
   if (!athlete) {
     return (
@@ -211,9 +212,25 @@ export default function CheckInsPage() {
         {activeTab === "daily" && (
           <div className="flex flex-col gap-4">
 
-            {/* Check-in period tiles — 8 days from last check-in day to next */}
-            <div className="flex gap-1">
-              {checkInPeriodDays.map((day) => {
+            {/* Day range selector */}
+            <div className="flex gap-1 p-0.5 bg-[#0f1624] rounded-xl border border-[#1e2d42] self-start">
+              {([7, 14] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setDayRange(r)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                    dayRange === r ? "bg-[#1e2d42] text-[#f0f4ff]" : "text-[#5a7090] hover:text-[#8fa3c0]"
+                  )}
+                >
+                  {r} Tage
+                </button>
+              ))}
+            </div>
+
+            {/* Check-in period tiles — dayRange days before + check-in day */}
+            {(() => {
+              const renderTile = (day: string) => {
                 const hasCI = athlete.dailyCheckIns.some((ci) => ci.date === day);
                 const isFuture = day > today;
                 const isToday = day === today;
@@ -224,7 +241,7 @@ export default function CheckInsPage() {
                     disabled={isFuture}
                     onClick={() => setDayModalDate(day)}
                     className={cn(
-                      "flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition-colors",
+                      "flex flex-col items-center gap-0.5 py-2 rounded-xl transition-colors",
                       isFuture
                         ? "bg-[#0f1624]/60 opacity-40 cursor-default"
                         : hasCI
@@ -248,8 +265,26 @@ export default function CheckInsPage() {
                     {isToday && <div className="w-1 h-1 rounded-full bg-[#3b82f6] mt-0.5" />}
                   </button>
                 );
-              })}
-            </div>
+              };
+
+              if (dayRange === 7) {
+                return (
+                  <div className="grid grid-cols-8 gap-1">
+                    {checkInPeriodDays.map(renderTile)}
+                  </div>
+                );
+              }
+              return (
+                <div className="flex flex-col gap-1">
+                  <div className="grid grid-cols-8 gap-1">
+                    {checkInPeriodDays.slice(0, 8).map(renderTile)}
+                  </div>
+                  <div className="grid grid-cols-8 gap-1">
+                    {checkInPeriodDays.slice(8).map(renderTile)}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Bulk retroactive entry */}
             <WeekBulkBackfill athlete={athlete} onUpdate={handleBulkUpdate} />
