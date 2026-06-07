@@ -26,6 +26,14 @@ function todayDateString(): string {
   return new Date().toISOString().split("T")[0];
 }
 
+function getMostRecentCheckInDate(checkInDay: 0|1|2|3|4|5|6, todayDayOfWeek: number, todayStr: string): string {
+  const daysAgo = (todayDayOfWeek - checkInDay + 7) % 7;
+  if (daysAgo === 0) return todayStr;
+  const d = new Date(todayStr + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - daysAgo);
+  return d.toISOString().split("T")[0];
+}
+
 export default function CoachDashboard() {
   const router = useRouter();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
@@ -62,41 +70,40 @@ export default function CoachDashboard() {
 
   const totalAthletes = athletes.length;
 
-  const athletesWithCheckInToday = useMemo(
-    () => athletes.filter((a) => a.checkInDay === todayDayOfWeek),
-    [athletes, todayDayOfWeek]
-  );
+  const athletesWithStatus = useMemo(() => athletes.map((a) => {
+    const mostRecentCheckInDate = getMostRecentCheckInDate(a.checkInDay, todayDayOfWeek, todayStr);
+    const joinedDate = a.joinedAt.split("T")[0];
+    const isCheckInToday = a.checkInDay === todayDayOfWeek;
+    const isDone = checkInDone[`${a.id}_${mostRecentCheckInDate}`] === true;
+    const hasPendingCheckIn = mostRecentCheckInDate >= joinedDate && !isDone;
+    return { athlete: a, mostRecentCheckInDate, isCheckInToday, isDone, hasPendingCheckIn };
+  }), [athletes, checkInDone, todayDayOfWeek, todayStr]);
 
-  const checkInsToday = athletesWithCheckInToday.length;
+  const checkInsToday = athletesWithStatus.filter((s) => s.isCheckInToday).length;
+  const checkInsProcessed = athletesWithStatus.filter((s) => s.isCheckInToday && s.isDone).length;
 
-  const checkInsProcessed = useMemo(
-    () => athletesWithCheckInToday.filter((a) => checkInDone[`${a.id}_${todayStr}`] === true).length,
-    [athletesWithCheckInToday, checkInDone, todayStr]
-  );
+  const sortedAthletes = useMemo(() => {
+    const pending = athletesWithStatus
+      .filter((s) => s.hasPendingCheckIn)
+      .sort((a, b) => a.mostRecentCheckInDate.localeCompare(b.mostRecentCheckInDate));
+    const todayDone = athletesWithStatus.filter((s) => s.isCheckInToday && s.isDone);
+    const others = athletesWithStatus.filter((s) => !s.hasPendingCheckIn && !s.isCheckInToday);
+    return [...pending, ...todayDone, ...others];
+  }, [athletesWithStatus]);
 
-  const sortedAthletes = useMemo(
-    () => [
-      ...athletesWithCheckInToday,
-      ...athletes.filter((a) => a.checkInDay !== todayDayOfWeek),
-    ],
-    [athletes, athletesWithCheckInToday, todayDayOfWeek]
-  );
-
-  const handleToggleDone = useCallback((athleteId: string) => {
-    const key = `${athleteId}_${todayStr}`;
+  const handleToggleDone = useCallback((athleteId: string, date: string) => {
+    const key = `${athleteId}_${date}`;
     const current = checkInDone[key] ?? false;
-    // Optimistic: apply change immediately
     const optimistic = { ...checkInDone, [key]: !current };
     setCheckInDoneState(optimistic);
     try {
-      const persisted = setCheckInDone(athleteId, todayStr, !current);
+      const persisted = setCheckInDone(athleteId, date, !current);
       setCheckInDoneState(persisted);
     } catch {
-      // Revert on error
       setCheckInDoneState(checkInDone);
       showToast("Check-in konnte nicht aktualisiert werden.", "error");
     }
-  }, [checkInDone, todayStr]);
+  }, [checkInDone]);
 
   async function handleResolveLoginHelp(id: string) {
     const updated = await resolveLoginHelpRequest(id);
@@ -246,20 +253,20 @@ export default function CoachDashboard() {
           initial="hidden"
           animate="visible"
         >
-          {sortedAthletes.map((a) => {
-            const isCheckInToday = a.checkInDay === todayDayOfWeek;
-            const isDone = checkInDone[`${a.id}_${todayStr}`] === true;
-            return (
-              <motion.div key={a.id} variants={listItem}>
-                <AthleteCard
-                  athlete={a}
-                  isCheckInToday={isCheckInToday}
-                  isDone={isDone}
-                  onToggleDone={isCheckInToday ? () => handleToggleDone(a.id) : undefined}
-                />
-              </motion.div>
-            );
-          })}
+          {sortedAthletes.map((s) => (
+            <motion.div key={s.athlete.id} variants={listItem}>
+              <AthleteCard
+                athlete={s.athlete}
+                checkInDate={s.mostRecentCheckInDate}
+                isCheckInToday={s.isCheckInToday}
+                hasPendingCheckIn={s.hasPendingCheckIn}
+                isDone={s.isDone}
+                onToggleDone={(s.hasPendingCheckIn || s.isCheckInToday)
+                  ? () => handleToggleDone(s.athlete.id, s.mostRecentCheckInDate)
+                  : undefined}
+              />
+            </motion.div>
+          ))}
         </motion.div>
         )}
       </div>

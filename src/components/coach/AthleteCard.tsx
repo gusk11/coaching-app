@@ -24,6 +24,13 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function formatCheckInDate(date: string): string {
+  const d = new Date(date + "T12:00:00Z");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  return `Check-in ${day}.${month}.`;
+}
+
 function loadCoachTasks(athleteId: string): CoachTask[] {
   try {
     const raw = localStorage.getItem(`coach_tasks_v1_${athleteId}`);
@@ -40,12 +47,14 @@ function saveCoachTasksToStorage(athleteId: string, tasks: CoachTask[]) {
 
 interface AthleteCardProps {
   athlete: Athlete;
+  checkInDate?: string;
   isCheckInToday?: boolean;
+  hasPendingCheckIn?: boolean;
   isDone?: boolean;
   onToggleDone?: () => void;
 }
 
-export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: AthleteCardProps) {
+export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCheckIn, isDone, onToggleDone }: AthleteCardProps) {
   const router = useRouter();
   const analysis = analyzeWeek(athlete);
   const dist = calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight);
@@ -90,7 +99,7 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
     <div
       className={cn(
         "w-full rounded-2xl border p-5 shadow-[0_4px_24px_rgba(0,0,0,0.4)] transition-all",
-        isCheckInToday && !isDone
+        hasPendingCheckIn
           ? "bg-[#1a1300] border-[#f59e0b]/25"
           : isCheckInToday && isDone
           ? "bg-[#0d1a14] border-[#10b981]/25"
@@ -107,7 +116,7 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
           <div className="flex items-center gap-3">
             <div className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold overflow-hidden",
-              !athlete.profileImage && (isCheckInToday && !isDone
+              !athlete.profileImage && (hasPendingCheckIn
                 ? "bg-[#f59e0b]/15 text-[#f59e0b]"
                 : isCheckInToday && isDone
                 ? "bg-[#10b981]/15 text-[#10b981]"
@@ -127,14 +136,14 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            {isCheckInToday && (
+            {(hasPendingCheckIn || (isCheckInToday && isDone)) && (
               <span className={cn(
                 "text-[10px] font-medium px-2 py-0.5 rounded-full border",
                 isDone
                   ? "bg-[#10b981]/10 text-[#10b981] border-[#10b981]/20"
                   : "bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/20"
               )}>
-                Check-in heute
+                {isCheckInToday ? "Check-in heute" : (checkInDate ? formatCheckInDate(checkInDate) : "Check-in offen")}
               </span>
             )}
             <div className={cn("text-lg font-bold", trendColor)}>
@@ -175,8 +184,8 @@ export function AthleteCard({ athlete, isCheckInToday, isDone, onToggleDone }: A
         </div>
       </button>
 
-      {/* Coach check-in done toggle — only shown on check-in day */}
-      {isCheckInToday && onToggleDone && (
+      {/* Coach check-in done toggle */}
+      {onToggleDone && (
         <div className={cn(
           "mt-3 pt-3 border-t flex items-center justify-end",
           isDone ? "border-[#10b981]/15" : "border-[#f59e0b]/10"
