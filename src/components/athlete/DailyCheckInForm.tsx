@@ -140,7 +140,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
         {cfg.sleepDuration && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-[#8fa3c0]">Schlafdauer (h)</label>
-            <input type="number" step="0.5" min={0} max={14} value={sleepHours} onChange={(e) => setSleepHours(Number(e.target.value))} className={inputCls} />
+            <input type="number" step="any" value={sleepHours} onChange={(e) => setSleepHours(Number(e.target.value))} className={inputCls} />
           </div>
         )}
         {cfg.sleepQuality && (
@@ -151,7 +151,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
         {cfg.sleepScore && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-[#8fa3c0]">Schlafscore (0–100)</label>
-            <input type="number" min={0} max={100} value={sleepScore} onChange={(e) => setSleepScore(Number(e.target.value))} className={inputCls} />
+            <input type="number" value={sleepScore} onChange={(e) => setSleepScore(Number(e.target.value))} className={inputCls} />
           </div>
         )}
       </div>
@@ -185,28 +185,28 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
           {cfg.restingHeartRate && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-[#8fa3c0]">Ruheherzfrequenz (bpm)</label>
-              <input type="number" min={30} max={200} value={restingHeartRate} onChange={(e) => setRestingHeartRate(Number(e.target.value))} className={inputCls} />
+              <input type="number" value={restingHeartRate} onChange={(e) => setRestingHeartRate(Number(e.target.value))} className={inputCls} />
             </div>
           )}
           {cfg.hrv && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-[#8fa3c0]">HRV (ms)</label>
-              <input type="number" min={1} max={300} value={hrv} onChange={(e) => setHrv(Number(e.target.value))} className={inputCls} />
+              <input type="number" value={hrv} onChange={(e) => setHrv(Number(e.target.value))} className={inputCls} />
             </div>
           )}
           {cfg.spO2 && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-[#8fa3c0]">Sauerstoffsättigung SpO₂ (%)</label>
-              <input type="number" min={80} max={100} step={0.1} value={spO2} onChange={(e) => setSpO2(Number(e.target.value))} className={inputCls} />
+              <input type="number" step={0.1} value={spO2} onChange={(e) => setSpO2(Number(e.target.value))} className={inputCls} />
             </div>
           )}
           {cfg.bloodPressure && (
             <div className="flex flex-col gap-1.5 col-span-2">
               <label className="text-sm font-medium text-[#8fa3c0]">Blutdruck (mmHg)</label>
               <div className="flex gap-2 items-center">
-                <input type="number" min={60} max={250} value={bpSystolic} onChange={(e) => setBpSystolic(Number(e.target.value))} placeholder="Syst." className={`${inputCls} flex-1`} />
+                <input type="number" value={bpSystolic} onChange={(e) => setBpSystolic(Number(e.target.value))} placeholder="Syst." className={`${inputCls} flex-1`} />
                 <span className="text-[#5a7090] font-bold">/</span>
-                <input type="number" min={40} max={150} value={bpDiastolic} onChange={(e) => setBpDiastolic(Number(e.target.value))} placeholder="Diast." className={`${inputCls} flex-1`} />
+                <input type="number" value={bpDiastolic} onChange={(e) => setBpDiastolic(Number(e.target.value))} placeholder="Diast." className={`${inputCls} flex-1`} />
               </div>
             </div>
           )}
@@ -228,7 +228,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
               {cardio && (
                 <div className="flex flex-col gap-1.5 pl-1">
                   <label className="text-sm font-medium text-[#8fa3c0]">Dauer Cardio (min)</label>
-                  <input type="number" min={1} max={300} step={5} value={cardioDuration} onChange={(e) => setCardioDuration(Number(e.target.value))}
+                  <input type="number" value={cardioDuration} onChange={(e) => setCardioDuration(Number(e.target.value))}
                     className={`${inputCls} w-40`} />
                 </div>
               )}

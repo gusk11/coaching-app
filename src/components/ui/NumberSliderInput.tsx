@@ -31,12 +31,11 @@ export function NumberSliderInput({
         <div className="flex items-center gap-1.5">
           <input
             type="number"
-            min={min}
-            step="1"
+            step="any"
             value={value}
             onChange={(e) => {
               const v = e.target.valueAsNumber;
-              if (!isNaN(v) && v >= min) onChange(v);
+              if (!isNaN(v)) onChange(v);
             }}
             className="w-20 text-right bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
           />
