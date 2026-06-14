@@ -27,6 +27,9 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
   const router = useRouter();
 
   const [weight, setWeight] = useState(init?.weight ?? 80);
+  const [weightInput, setWeightInput] = useState(
+    init?.weight != null ? String(init.weight).replace(".", ",") : "80"
+  );
   const [measurementTime, setMeasurementTime] = useState(init?.measurementTime ?? "07:00");
   const [appetite, setAppetite] = useState<1|2|3|4|5>(init?.appetite ?? 3);
   const [digestion, setDigestion] = useState<1|2|3|4|5>(init?.digestion ?? 3);
@@ -113,7 +116,19 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-[#8fa3c0]">Gewicht (kg)</label>
-            <input type="number" step="0.1" value={weight} onChange={(e) => setWeight(Number(e.target.value))} className={inputCls} />
+            <input
+                type="text"
+                inputMode="decimal"
+                value={weightInput}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (!/^\d*[,.]?\d*$/.test(raw)) return;
+                  setWeightInput(raw);
+                  const parsed = parseFloat(raw.replace(",", "."));
+                  if (!isNaN(parsed)) setWeight(parsed);
+                }}
+                className={inputCls}
+              />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-[#8fa3c0]">Uhrzeit</label>
