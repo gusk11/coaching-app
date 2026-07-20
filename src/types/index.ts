@@ -220,10 +220,10 @@ export interface TrainingExerciseLog {
   exerciseName: string;
   laterality?: "bilateral" | "unilateral";
   sets: TrainingSetLog[];
-  /** Athlete's own note for this exercise in this session. */
+  /** Persistent note — carried over and pre-filled every time this exercise appears in a session. */
   note?: string;
-  /** If true, `note` is carried over and pre-filled in future sessions of this exercise. */
-  alwaysShowNote?: boolean;
+  /** One-off note ("Haftnotiz") for just this single session; never carried to future sessions. */
+  sessionNote?: string;
 }
 
 export interface TrainingLog {

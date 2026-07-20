@@ -10,7 +10,7 @@ import {
   addExerciseDBItem,
 } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search } from "lucide-react";
+import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search, MoreVertical, FileText, Pin } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 
 interface Props {
@@ -184,8 +184,8 @@ function getPrevExerciseLog(
   return null;
 }
 
-// Sticky Notiz: letzte Notiz mit "immer anzeigen" für diese Übung, unabhängig vom Tag
-function getStickyExerciseNote(
+// Persistente Notiz: letzte gesetzte Notiz für diese Übung, unabhängig vom Trainingstag
+function getPersistentExerciseNote(
   logs: TrainingLog[],
   exerciseId: string,
   exerciseName: string
@@ -193,10 +193,7 @@ function getStickyExerciseNote(
   const sorted = [...logs].sort((a, b) => b.date.localeCompare(a.date));
   for (const log of sorted) {
     const ex = log.exercises.find(
-      (e) =>
-        (e.exerciseId === exerciseId || e.exerciseName === exerciseName) &&
-        e.alwaysShowNote &&
-        e.note
+      (e) => (e.exerciseId === exerciseId || e.exerciseName === exerciseName) && e.note
     );
     if (ex) return ex.note!;
   }
@@ -233,6 +230,10 @@ export function TrainingLogger({
   const [newExName, setNewExName] = useState("");
   const [newExMuscleGroup, setNewExMuscleGroup] = useState("");
   const [isCreatingEx, setIsCreatingEx] = useState(false);
+
+  // Notiz / Haftnotiz UI-State
+  const [noteMenuOpenId, setNoteMenuOpenId] = useState<string | null>(null);
+  const [editingNote, setEditingNote] = useState<{ id: string; type: "note" | "sessionNote" } | null>(null);
 
   // Übungsdatenbank einmalig laden
   useEffect(() => {
@@ -327,7 +328,7 @@ export function TrainingLogger({
     const day = trainingPlan.days.find((d) => d.id === dayId);
     return (day?.exercises ?? []).map((ex) => {
       const isUnilateral = ex.laterality === "unilateral";
-      const stickyNote = getStickyExerciseNote(existingLogs, ex.id, ex.name);
+      const persistentNote = getPersistentExerciseNote(existingLogs, ex.id, ex.name);
       return {
         exerciseId: ex.id,
         exerciseName: ex.name,
@@ -336,8 +337,7 @@ export function TrainingLogger({
           ? { setNumber: i + 1, weight: null, reps: null, rir: null, weightLeft: null, repsLeft: null, weightRight: null, repsRight: null }
           : { setNumber: i + 1, weight: null, reps: null, rir: null }
         ),
-        note: stickyNote ?? undefined,
-        alwaysShowNote: stickyNote ? true : undefined,
+        note: persistentNote ?? undefined,
       };
     });
   }
@@ -379,6 +379,8 @@ export function TrainingLogger({
     setSession(null);
     setElapsedSeconds(0);
     setSaveStatus("idle");
+    setNoteMenuOpenId(null);
+    setEditingNote(null);
   }
 
   function handlePauseSession() {
@@ -409,6 +411,8 @@ export function TrainingLogger({
     setElapsedSeconds(0);
     setSaveStatus("idle");
     setShowCancelConfirm(false);
+    setNoteMenuOpenId(null);
+    setEditingNote(null);
   }
 
   function updateSet(
@@ -446,15 +450,23 @@ export function TrainingLogger({
     );
   }
 
-  function updateExerciseNote(exIdx: number, note: string) {
+  function updatePersistentNote(exIdx: number, note: string) {
+    updateExercises((prev) => prev.map((ex, i) => (i !== exIdx ? ex : { ...ex, note })));
+  }
+
+  function removePersistentNote(exIdx: number) {
     updateExercises((prev) =>
-      prev.map((ex, i) => (i !== exIdx ? ex : { ...ex, note: note || undefined }))
+      prev.map((ex, i) => (i !== exIdx ? ex : { ...ex, note: undefined }))
     );
   }
 
-  function toggleAlwaysShowNote(exIdx: number, value: boolean) {
+  function updateSessionNote(exIdx: number, sessionNote: string) {
+    updateExercises((prev) => prev.map((ex, i) => (i !== exIdx ? ex : { ...ex, sessionNote })));
+  }
+
+  function removeSessionNote(exIdx: number) {
     updateExercises((prev) =>
-      prev.map((ex, i) => (i !== exIdx ? ex : { ...ex, alwaysShowNote: value }))
+      prev.map((ex, i) => (i !== exIdx ? ex : { ...ex, sessionNote: undefined }))
     );
   }
 
@@ -483,7 +495,7 @@ export function TrainingLogger({
   function addExerciseFromDB(item: ExerciseDBItem) {
     const exerciseId = `ex-adhoc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const isUnilateral = (item.laterality ?? "bilateral") === "unilateral";
-    const stickyNote = getStickyExerciseNote(existingLogs, exerciseId, item.name);
+    const persistentNote = getPersistentExerciseNote(existingLogs, exerciseId, item.name);
     updateExercises((prev) => [
       ...prev,
       {
@@ -494,8 +506,7 @@ export function TrainingLogger({
           ? { setNumber: 1, weight: null, reps: null, rir: null, weightLeft: null, repsLeft: null, weightRight: null, repsRight: null }
           : { setNumber: 1, weight: null, reps: null, rir: null }
         ],
-        note: stickyNote ?? undefined,
-        alwaysShowNote: stickyNote ? true : undefined,
+        note: persistentNote ?? undefined,
       },
     ]);
     setShowAddModal(false);
@@ -654,28 +665,169 @@ export function TrainingLogger({
                       </p>
                     )}
                   </div>
-                  <Tooltip label="Übung entfernen">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const hasData = ex.sets.some(
-                          (s) => s.weight !== null || s.reps !== null ||
-                            s.weightLeft !== null || s.repsLeft !== null ||
-                            s.weightRight !== null || s.repsRight !== null
-                        );
-                        if (hasData) {
-                          setRemoveConfirmIdx(exIdx);
-                        } else {
-                          removeExercise(exIdx);
+                  <div className="flex items-center gap-1 shrink-0 mt-0.5 relative">
+                    <Tooltip label="Notizen">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNoteMenuOpenId(noteMenuOpenId === ex.exerciseId ? null : ex.exerciseId)
                         }
-                      }}
-                      aria-label="Übung entfernen"
-                      className="p-1.5 rounded-lg text-[#5a7090] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors shrink-0 mt-0.5"
-                    >
-                      <X size={13} />
-                    </button>
-                  </Tooltip>
+                        aria-label="Notizen"
+                        className="p-1.5 rounded-lg text-[#5a7090] hover:bg-[#1e2d42] hover:text-[#f0f4ff] transition-colors"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+                    </Tooltip>
+
+                    {noteMenuOpenId === ex.exerciseId && (
+                      <>
+                        <button
+                          type="button"
+                          aria-label="Menü schließen"
+                          onClick={() => setNoteMenuOpenId(null)}
+                          className="fixed inset-0 z-40 cursor-default"
+                        />
+                        <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-xl bg-[#1a2436] border border-[#243650] shadow-xl overflow-hidden py-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (ex.note === undefined) updatePersistentNote(exIdx, "");
+                              setEditingNote({ id: ex.exerciseId, type: "note" });
+                              setNoteMenuOpenId(null);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-[#f0f4ff] hover:bg-[#243650] transition-colors text-left"
+                          >
+                            <FileText size={13} className="text-[#f59e0b] shrink-0" />
+                            {ex.note !== undefined ? "Notiz bearbeiten" : "Notiz hinzufügen"}
+                            <span className="text-[9px] text-[#5a7090] ml-auto shrink-0">jedes Mal</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (ex.sessionNote === undefined) updateSessionNote(exIdx, "");
+                              setEditingNote({ id: ex.exerciseId, type: "sessionNote" });
+                              setNoteMenuOpenId(null);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-[#f0f4ff] hover:bg-[#243650] transition-colors text-left"
+                          >
+                            <Pin size={13} className="text-[#60a5fa] shrink-0" />
+                            {ex.sessionNote !== undefined ? "Haftnotiz bearbeiten" : "Haftnotiz hinzufügen"}
+                            <span className="text-[9px] text-[#5a7090] ml-auto shrink-0">nur heute</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    <Tooltip label="Übung entfernen">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const hasData = ex.sets.some(
+                            (s) => s.weight !== null || s.reps !== null ||
+                              s.weightLeft !== null || s.repsLeft !== null ||
+                              s.weightRight !== null || s.repsRight !== null
+                          );
+                          if (hasData) {
+                            setRemoveConfirmIdx(exIdx);
+                          } else {
+                            removeExercise(exIdx);
+                          }
+                        }}
+                        aria-label="Übung entfernen"
+                        className="p-1.5 rounded-lg text-[#5a7090] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors"
+                      >
+                        <X size={13} />
+                      </button>
+                    </Tooltip>
+                  </div>
                 </div>
+
+                {/* Notiz-Chips */}
+                {(ex.note !== undefined || ex.sessionNote !== undefined) && (
+                  <div className="px-4 pt-3 flex flex-col gap-1.5">
+                    {ex.note !== undefined && (
+                      editingNote?.id === ex.exerciseId && editingNote.type === "note" ? (
+                        <div className="flex items-center gap-1.5">
+                          <FileText size={12} className="text-[#f59e0b] shrink-0" />
+                          <input
+                            autoFocus
+                            value={ex.note}
+                            onChange={(e) => updatePersistentNote(exIdx, e.target.value)}
+                            onBlur={() => setEditingNote(null)}
+                            onKeyDown={(e) => e.key === "Enter" && setEditingNote(null)}
+                            placeholder="Notiz für jedes Training..."
+                            className="flex-1 bg-[#0f1624] border border-[#f59e0b]/40 rounded-lg px-2.5 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#f59e0b] transition-colors"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => { removePersistentNote(exIdx); setEditingNote(null); }}
+                            aria-label="Notiz löschen"
+                            className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingNote({ id: ex.exerciseId, type: "note" })}
+                          className="flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/25 text-left hover:bg-[#f59e0b]/15 transition-colors w-full"
+                        >
+                          <FileText size={12} className="text-[#f59e0b] mt-0.5 shrink-0" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-xs text-[#fbbf6d] break-words">
+                              {ex.note || "Notiz…"}
+                            </span>
+                            <span className="block text-[9px] text-[#f59e0b]/60 mt-0.5">
+                              Gilt für jedes Training
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    )}
+
+                    {ex.sessionNote !== undefined && (
+                      editingNote?.id === ex.exerciseId && editingNote.type === "sessionNote" ? (
+                        <div className="flex items-center gap-1.5">
+                          <Pin size={12} className="text-[#60a5fa] shrink-0" />
+                          <input
+                            autoFocus
+                            value={ex.sessionNote}
+                            onChange={(e) => updateSessionNote(exIdx, e.target.value)}
+                            onBlur={() => setEditingNote(null)}
+                            onKeyDown={(e) => e.key === "Enter" && setEditingNote(null)}
+                            placeholder="Haftnotiz nur für heute..."
+                            className="flex-1 bg-[#0f1624] border border-[#3b82f6]/40 rounded-lg px-2.5 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => { removeSessionNote(exIdx); setEditingNote(null); }}
+                            aria-label="Haftnotiz löschen"
+                            className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingNote({ id: ex.exerciseId, type: "sessionNote" })}
+                          className="flex items-start gap-1.5 px-2.5 py-1 rounded-lg bg-[#1e2d42] border border-dashed border-[#3b82f6]/30 text-left hover:bg-[#243650] transition-colors w-fit max-w-full"
+                        >
+                          <Pin size={11} className="text-[#60a5fa] mt-0.5 shrink-0" />
+                          <span className="min-w-0">
+                            <span className="block text-[11px] text-[#8fa3c0] break-words">
+                              {ex.sessionNote || "Haftnotiz…"}
+                            </span>
+                            <span className="block text-[9px] text-[#5a7090]/70 mt-0.5">
+                              Nur für dieses Training
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
 
                 <div className="p-3 flex flex-col gap-2">
                   {ex.laterality === "unilateral" ? (
@@ -805,25 +957,6 @@ export function TrainingLogger({
                   >
                     <Plus size={11} /> Satz
                   </button>
-
-                  {/* Notiz zu dieser Übung */}
-                  <div className="flex flex-col gap-1.5 mt-1 pt-2 border-t border-[#1e2d42]/60">
-                    <input
-                      value={ex.note ?? ""}
-                      onChange={(e) => updateExerciseNote(exIdx, e.target.value)}
-                      placeholder="Notiz zu dieser Übung (optional)"
-                      className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2.5 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
-                    />
-                    <label className="flex items-center gap-1.5 text-[10px] text-[#5a7090] cursor-pointer select-none w-fit">
-                      <input
-                        type="checkbox"
-                        checked={ex.alwaysShowNote ?? false}
-                        onChange={(e) => toggleAlwaysShowNote(exIdx, e.target.checked)}
-                        className="accent-[#3b82f6] w-3 h-3"
-                      />
-                      Notiz immer anzeigen
-                    </label>
-                  </div>
                 </div>
               </div>
             );
