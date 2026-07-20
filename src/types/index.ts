@@ -220,6 +220,10 @@ export interface TrainingExerciseLog {
   exerciseName: string;
   laterality?: "bilateral" | "unilateral";
   sets: TrainingSetLog[];
+  /** Athlete's own note for this exercise in this session. */
+  note?: string;
+  /** If true, `note` is carried over and pre-filled in future sessions of this exercise. */
+  alwaysShowNote?: boolean;
 }
 
 export interface TrainingLog {

@@ -184,6 +184,25 @@ function getPrevExerciseLog(
   return null;
 }
 
+// Sticky Notiz: letzte Notiz mit "immer anzeigen" für diese Übung, unabhängig vom Tag
+function getStickyExerciseNote(
+  logs: TrainingLog[],
+  exerciseId: string,
+  exerciseName: string
+): string | null {
+  const sorted = [...logs].sort((a, b) => b.date.localeCompare(a.date));
+  for (const log of sorted) {
+    const ex = log.exercises.find(
+      (e) =>
+        (e.exerciseId === exerciseId || e.exerciseName === exerciseName) &&
+        e.alwaysShowNote &&
+        e.note
+    );
+    if (ex) return ex.note!;
+  }
+  return null;
+}
+
 // ─── Haupt-Logger ──────────────────────────────────────────────────────────────
 export function TrainingLogger({
   trainingPlan,
@@ -308,6 +327,7 @@ export function TrainingLogger({
     const day = trainingPlan.days.find((d) => d.id === dayId);
     return (day?.exercises ?? []).map((ex) => {
       const isUnilateral = ex.laterality === "unilateral";
+      const stickyNote = getStickyExerciseNote(existingLogs, ex.id, ex.name);
       return {
         exerciseId: ex.id,
         exerciseName: ex.name,
@@ -316,6 +336,8 @@ export function TrainingLogger({
           ? { setNumber: i + 1, weight: null, reps: null, rir: null, weightLeft: null, repsLeft: null, weightRight: null, repsRight: null }
           : { setNumber: i + 1, weight: null, reps: null, rir: null }
         ),
+        note: stickyNote ?? undefined,
+        alwaysShowNote: stickyNote ? true : undefined,
       };
     });
   }
@@ -424,6 +446,18 @@ export function TrainingLogger({
     );
   }
 
+  function updateExerciseNote(exIdx: number, note: string) {
+    updateExercises((prev) =>
+      prev.map((ex, i) => (i !== exIdx ? ex : { ...ex, note: note || undefined }))
+    );
+  }
+
+  function toggleAlwaysShowNote(exIdx: number, value: boolean) {
+    updateExercises((prev) =>
+      prev.map((ex, i) => (i !== exIdx ? ex : { ...ex, alwaysShowNote: value }))
+    );
+  }
+
   function removeSet(exIdx: number, setIdx: number) {
     updateExercises((prev) =>
       prev.map((ex, i) =>
@@ -449,6 +483,7 @@ export function TrainingLogger({
   function addExerciseFromDB(item: ExerciseDBItem) {
     const exerciseId = `ex-adhoc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const isUnilateral = (item.laterality ?? "bilateral") === "unilateral";
+    const stickyNote = getStickyExerciseNote(existingLogs, exerciseId, item.name);
     updateExercises((prev) => [
       ...prev,
       {
@@ -459,6 +494,8 @@ export function TrainingLogger({
           ? { setNumber: 1, weight: null, reps: null, rir: null, weightLeft: null, repsLeft: null, weightRight: null, repsRight: null }
           : { setNumber: 1, weight: null, reps: null, rir: null }
         ],
+        note: stickyNote ?? undefined,
+        alwaysShowNote: stickyNote ? true : undefined,
       },
     ]);
     setShowAddModal(false);
@@ -768,6 +805,25 @@ export function TrainingLogger({
                   >
                     <Plus size={11} /> Satz
                   </button>
+
+                  {/* Notiz zu dieser Übung */}
+                  <div className="flex flex-col gap-1.5 mt-1 pt-2 border-t border-[#1e2d42]/60">
+                    <input
+                      value={ex.note ?? ""}
+                      onChange={(e) => updateExerciseNote(exIdx, e.target.value)}
+                      placeholder="Notiz zu dieser Übung (optional)"
+                      className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2.5 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
+                    />
+                    <label className="flex items-center gap-1.5 text-[10px] text-[#5a7090] cursor-pointer select-none w-fit">
+                      <input
+                        type="checkbox"
+                        checked={ex.alwaysShowNote ?? false}
+                        onChange={(e) => toggleAlwaysShowNote(exIdx, e.target.checked)}
+                        className="accent-[#3b82f6] w-3 h-3"
+                      />
+                      Notiz immer anzeigen
+                    </label>
+                  </div>
                 </div>
               </div>
             );

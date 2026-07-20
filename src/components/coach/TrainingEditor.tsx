@@ -117,14 +117,42 @@ interface ExerciseRowProps {
   exercise: Exercise;
   onChange: (updated: Exercise) => void;
   onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }
 
-function ExerciseRow({ exercise, onChange, onDelete }: ExerciseRowProps) {
+function ExerciseRow({ exercise, onChange, onDelete, onMoveUp, onMoveDown, canMoveUp, canMoveDown }: ExerciseRowProps) {
   const isFromDB = !!exercise.exerciseDbId;
 
   return (
     <div className="flex items-start gap-2 py-2 border-b border-[#1e2d42]/60 last:border-0">
-      <GripVertical size={14} className="text-[#2a3d54] mt-2.5 shrink-0" />
+      <div className="flex flex-col items-center gap-0.5 mt-1.5 shrink-0">
+        <Tooltip label="Nach oben">
+          <button
+            type="button"
+            onClick={onMoveUp}
+            aria-label="Übung nach oben"
+            disabled={!canMoveUp}
+            className="p-0.5 rounded hover:bg-[#1e2d42] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            <ArrowUp size={11} className="text-[#5a7090]" />
+          </button>
+        </Tooltip>
+        <GripVertical size={12} className="text-[#2a3d54]" />
+        <Tooltip label="Nach unten">
+          <button
+            type="button"
+            onClick={onMoveDown}
+            aria-label="Übung nach unten"
+            disabled={!canMoveDown}
+            className="p-0.5 rounded hover:bg-[#1e2d42] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            <ArrowDown size={11} className="text-[#5a7090]" />
+          </button>
+        </Tooltip>
+      </div>
       <div className="flex-1 flex flex-col gap-1.5">
         {isFromDB ? (
           <div className="bg-[#0a1120] rounded-lg px-2.5 py-2 border border-[#1e2d42] flex flex-col gap-0.5">
@@ -293,6 +321,20 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
       prev.map((d) => (d.id === dayId ? { ...d, exercises: [...d.exercises, ex] } : d))
     );
     setPickerOpenDayId(null);
+  }
+
+  function moveExercise(dayId: string, exId: string, dir: -1 | 1) {
+    setDays((prev) =>
+      prev.map((d) => {
+        if (d.id !== dayId) return d;
+        const idx = d.exercises.findIndex((e) => e.id === exId);
+        const next = idx + dir;
+        if (idx === -1 || next < 0 || next >= d.exercises.length) return d;
+        const arr = [...d.exercises];
+        [arr[idx], arr[next]] = [arr[next], arr[idx]];
+        return { ...d, exercises: arr };
+      })
+    );
   }
 
   function updateExercise(dayId: string, exId: string, updated: Exercise) {
@@ -465,12 +507,16 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
               {expanded && (
                 <div className="p-4 flex flex-col gap-3">
                   {/* Exercises */}
-                  {day.exercises.map((ex) => (
+                  {day.exercises.map((ex, exIdx) => (
                     <ExerciseRow
                       key={ex.id}
                       exercise={ex}
                       onChange={(updated) => updateExercise(day.id, ex.id, updated)}
                       onDelete={() => setDeleteConfirm({ dayId: day.id, exId: ex.id })}
+                      onMoveUp={() => moveExercise(day.id, ex.id, -1)}
+                      onMoveDown={() => moveExercise(day.id, ex.id, 1)}
+                      canMoveUp={exIdx > 0}
+                      canMoveDown={exIdx < day.exercises.length - 1}
                     />
                   ))}
 
