@@ -758,31 +758,45 @@ export function TrainingLogger({
                             placeholder="Notiz für jedes Training..."
                             className="flex-1 bg-[#0f1624] border border-[#f59e0b]/40 rounded-lg px-2.5 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#f59e0b] transition-colors"
                           />
-                          <button
-                            type="button"
-                            onClick={() => { removePersistentNote(exIdx); setEditingNote(null); }}
-                            aria-label="Notiz löschen"
-                            className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0"
-                          >
-                            <X size={12} />
-                          </button>
+                          <Tooltip label="Notiz löschen">
+                            <button
+                              type="button"
+                              onClick={() => { removePersistentNote(exIdx); setEditingNote(null); }}
+                              aria-label="Notiz löschen"
+                              className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </Tooltip>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setEditingNote({ id: ex.exerciseId, type: "note" })}
-                          className="flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/25 text-left hover:bg-[#f59e0b]/15 transition-colors w-full"
-                        >
-                          <FileText size={12} className="text-[#f59e0b] mt-0.5 shrink-0" />
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-xs text-[#fbbf6d] break-words">
-                              {ex.note || "Notiz…"}
+                        <div className="flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/25 w-full">
+                          <button
+                            type="button"
+                            onClick={() => setEditingNote({ id: ex.exerciseId, type: "note" })}
+                            className="flex items-start gap-1.5 text-left flex-1 min-w-0"
+                          >
+                            <FileText size={12} className="text-[#f59e0b] mt-0.5 shrink-0" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-xs text-[#fbbf6d] break-words">
+                                {ex.note || "Notiz…"}
+                              </span>
+                              <span className="block text-[9px] text-[#f59e0b]/60 mt-0.5">
+                                Gilt für jedes Training
+                              </span>
                             </span>
-                            <span className="block text-[9px] text-[#f59e0b]/60 mt-0.5">
-                              Gilt für jedes Training
-                            </span>
-                          </span>
-                        </button>
+                          </button>
+                          <Tooltip label="Notiz löschen">
+                            <button
+                              type="button"
+                              onClick={() => removePersistentNote(exIdx)}
+                              aria-label="Notiz löschen"
+                              className="p-1 text-[#f59e0b]/50 hover:text-[#ef4444] transition-colors shrink-0"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </Tooltip>
+                        </div>
                       )
                     )}
 
@@ -799,31 +813,45 @@ export function TrainingLogger({
                             placeholder="Haftnotiz nur für heute..."
                             className="flex-1 bg-[#0f1624] border border-[#3b82f6]/40 rounded-lg px-2.5 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
                           />
-                          <button
-                            type="button"
-                            onClick={() => { removeSessionNote(exIdx); setEditingNote(null); }}
-                            aria-label="Haftnotiz löschen"
-                            className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0"
-                          >
-                            <X size={12} />
-                          </button>
+                          <Tooltip label="Haftnotiz löschen">
+                            <button
+                              type="button"
+                              onClick={() => { removeSessionNote(exIdx); setEditingNote(null); }}
+                              aria-label="Haftnotiz löschen"
+                              className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </Tooltip>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setEditingNote({ id: ex.exerciseId, type: "sessionNote" })}
-                          className="flex items-start gap-1.5 px-2.5 py-1 rounded-lg bg-[#1e2d42] border border-dashed border-[#3b82f6]/30 text-left hover:bg-[#243650] transition-colors w-fit max-w-full"
-                        >
-                          <Pin size={11} className="text-[#60a5fa] mt-0.5 shrink-0" />
-                          <span className="min-w-0">
-                            <span className="block text-[11px] text-[#8fa3c0] break-words">
-                              {ex.sessionNote || "Haftnotiz…"}
+                        <div className="flex items-start gap-1.5 px-2.5 py-1 rounded-lg bg-[#1e2d42] border border-dashed border-[#3b82f6]/30 w-fit max-w-full">
+                          <button
+                            type="button"
+                            onClick={() => setEditingNote({ id: ex.exerciseId, type: "sessionNote" })}
+                            className="flex items-start gap-1.5 text-left min-w-0"
+                          >
+                            <Pin size={11} className="text-[#60a5fa] mt-0.5 shrink-0" />
+                            <span className="min-w-0">
+                              <span className="block text-[11px] text-[#8fa3c0] break-words">
+                                {ex.sessionNote || "Haftnotiz…"}
+                              </span>
+                              <span className="block text-[9px] text-[#5a7090]/70 mt-0.5">
+                                Nur für dieses Training
+                              </span>
                             </span>
-                            <span className="block text-[9px] text-[#5a7090]/70 mt-0.5">
-                              Nur für dieses Training
-                            </span>
-                          </span>
-                        </button>
+                          </button>
+                          <Tooltip label="Haftnotiz löschen">
+                            <button
+                              type="button"
+                              onClick={() => removeSessionNote(exIdx)}
+                              aria-label="Haftnotiz löschen"
+                              className="p-1 text-[#5a7090] hover:text-[#ef4444] transition-colors shrink-0"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </Tooltip>
+                        </div>
                       )
                     )}
                   </div>
