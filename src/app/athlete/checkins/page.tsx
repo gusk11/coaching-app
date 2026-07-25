@@ -9,6 +9,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { DailyCheckInForm } from "@/components/athlete/DailyCheckInForm";
 import { WeeklyCheckInForm } from "@/components/athlete/WeeklyCheckInForm";
 import { WeekBulkBackfill } from "@/components/athlete/WeekBulkBackfill";
+import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
 import { isCheckInDay, getWeekDates, todayISO } from "@/lib/utils";
 import { Pencil, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -185,6 +186,7 @@ export default function CheckInsPage() {
   return (
     <AppShell role="athlete" title="Check-ins">
       <div className="max-w-lg mx-auto flex flex-col gap-5">
+        <ToolIntroVideo athleteId={athlete.id} toolKey="checkins" title="Einführung: Check-ins" position="top" />
 
         {/* Tab switcher */}
         <div className="flex gap-1 p-1 bg-[#0f1624] rounded-xl border border-[#1e2d42]">
@@ -515,6 +517,7 @@ export default function CheckInsPage() {
           </div>
         )}
 
+        <ToolIntroVideo athleteId={athlete.id} toolKey="checkins" title="Einführung: Check-ins" position="bottom" />
       </div>
 
       {/* Delete confirmation modal (for current-week weekly) */}

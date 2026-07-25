@@ -6,6 +6,7 @@ import { loadAuth, loadAthletes, saveCalorieTrackerDay } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { AppShell } from "@/components/layout/AppShell";
 import { CalorieTracker } from "@/components/athlete/CalorieTracker";
+import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { todayISO } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -65,6 +66,7 @@ export default function CalorieTrackerPage() {
   return (
     <AppShell role="athlete" title="Kalorientracker">
       <div className="max-w-lg mx-auto flex flex-col gap-4">
+        <ToolIntroVideo athleteId={athlete.id} toolKey="calorie-tracker" title="Einführung: Kalorientracker" position="top" />
         {/* Date navigator */}
         <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
           <button
@@ -103,6 +105,7 @@ export default function CalorieTrackerPage() {
           athleteId={athlete.id}
           onSave={handleSave}
         />
+        <ToolIntroVideo athleteId={athlete.id} toolKey="calorie-tracker" title="Einführung: Kalorientracker" position="bottom" />
       </div>
     </AppShell>
   );

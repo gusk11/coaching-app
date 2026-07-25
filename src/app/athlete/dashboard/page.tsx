@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
-import { loadAuth, loadAthletes, addDailyCheckIn, markIntroVideoSeen } from "@/lib/store";
+import { loadAuth, loadAthletes, addDailyCheckIn, markIntroVideoSeen, loadVideoFeedbacks, markVideoFeedbackSeen } from "@/lib/store";
 import { DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/ui/StatCard";
@@ -15,7 +15,8 @@ import {
   getLastCheckIn, todayISO, getGoalLabel, getTrendIcon, getTrendColor,
   getWeekDates,
 } from "@/lib/utils";
-import { ClipboardCheck, CalendarPlus, PlayCircle } from "lucide-react";
+import { ClipboardCheck, CalendarPlus, PlayCircle, Video } from "lucide-react";
+import { VideoFeedback } from "@/types";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { listContainer, listItem } from "@/lib/motion";
@@ -46,6 +47,7 @@ export default function AthleteDashboard() {
   const [showBackfill, setShowBackfill] = useState(false);
   const [backfillDate, setBackfillDate] = useState(yesterdayISO);
   const [introVideoSeen, setIntroVideoSeen] = useState(false);
+  const [unseenFeedbacks, setUnseenFeedbacks] = useState<VideoFeedback[]>([]);
 
   useEffect(() => {
     const auth = loadAuth();
@@ -55,6 +57,7 @@ export default function AthleteDashboard() {
       if (!found) { router.replace("/login"); return; }
       setAthlete(found);
       setIntroVideoSeen(found.introVideoSeen === true || !!localStorage.getItem(introSeenKey(found.id)));
+      loadVideoFeedbacks(auth.athleteId!).then((fbs) => setUnseenFeedbacks(fbs.filter((f) => !f.seenAt)));
     });
   }, [router]);
 
@@ -164,6 +167,30 @@ export default function AthleteDashboard() {
             <span className="ml-auto text-[#f97316] text-lg flex-shrink-0">→</span>
           </a>
         )}
+
+        {/* Neue Video Feedbacks Banner */}
+        {unseenFeedbacks.map((fb) => (
+          <a
+            key={fb.id}
+            href={fb.loomUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => {
+              markVideoFeedbackSeen(fb.id).catch(() => {});
+              setUnseenFeedbacks((prev) => prev.filter((f) => f.id !== fb.id));
+            }}
+            className="flex items-center gap-4 p-4 rounded-2xl bg-[#0a1628]/60 border border-[#3b82f6]/40 hover:border-[#3b82f6]/70 hover:bg-[#0a1628]/80 transition-all group"
+          >
+            <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#3b82f6]/20 flex items-center justify-center group-hover:bg-[#3b82f6]/30 transition-colors">
+              <Video size={20} className="text-[#60a5fa]" />
+            </div>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <p className="text-sm font-semibold text-[#f0f4ff]">Neues Video-Feedback</p>
+              <p className="text-xs text-[#60a5fa]/80 truncate">{fb.title} · {new Date(fb.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</p>
+            </div>
+            <span className="ml-auto text-[#3b82f6] text-lg flex-shrink-0">→</span>
+          </a>
+        ))}
 
         {/* Daily check-in – first element */}
         <div

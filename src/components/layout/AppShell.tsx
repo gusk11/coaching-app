@@ -6,25 +6,27 @@ import { ReactNode, useEffect, useState } from "react";
 import {
   LayoutDashboard, Dumbbell,
   Pill, ClipboardCheck, Users, BookOpen, LogOut, ChevronRight,
-  Salad, Flame, ListChecks, User,
+  Salad, Flame, ListChecks, User, Video,
 } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { pageTransition } from "@/lib/motion";
 import { isCheckInDay, getWeekDates, todayISO } from "@/lib/utils";
+import { isToolIntroSeen } from "@/lib/toolIntros";
 
 interface NavItem {
   label: string;
   href: string;
   icon: ReactNode;
+  toolIntroKey?: string;
 }
 
 const athleteNav: NavItem[] = [
   { label: "Dashboard", href: "/athlete/dashboard", icon: <LayoutDashboard size={20} /> },
-  { label: "Check-ins", href: "/athlete/checkins", icon: <ClipboardCheck size={20} /> },
-  { label: "Kalorientracker", href: "/athlete/calorie-tracker", icon: <Flame size={20} /> },
-  { label: "Trainingstracker", href: "/athlete/training", icon: <Dumbbell size={20} /> },
-  { label: "Pläne", href: "/athlete/plans", icon: <Salad size={20} /> },
-  { label: "Stammdaten", href: "/athlete/stammdaten", icon: <User size={20} /> },
+  { label: "Check-ins", href: "/athlete/checkins", icon: <ClipboardCheck size={20} />, toolIntroKey: "checkins" },
+  { label: "Kalorientracker", href: "/athlete/calorie-tracker", icon: <Flame size={20} />, toolIntroKey: "calorie-tracker" },
+  { label: "Trainingstracker", href: "/athlete/training", icon: <Dumbbell size={20} />, toolIntroKey: "training" },
+  { label: "Pläne", href: "/athlete/plans", icon: <Salad size={20} />, toolIntroKey: "plans" },
+  { label: "Stammdaten", href: "/athlete/stammdaten", icon: <User size={20} />, toolIntroKey: "stammdaten" },
 ];
 
 const coachNav: NavItem[] = [
@@ -32,6 +34,7 @@ const coachNav: NavItem[] = [
   { label: "Food-Datenbank", href: "/coach/food-database", icon: <BookOpen size={20} /> },
   { label: "SupplementDB", href: "/coach/supplement-database", icon: <Pill size={20} /> },
   { label: "ÜbungenDB", href: "/coach/exercise-database", icon: <ListChecks size={20} /> },
+  { label: "Video Feedbacks", href: "/coach/video-feedbacks", icon: <Video size={20} /> },
 ];
 
 function NavItemButton({
@@ -116,6 +119,7 @@ export function AppShell({ children, role, title }: AppShellProps) {
   const [hasPendingCheckins, setHasPendingCheckins] = useState(false);
   const [hasPendingIntroVideo, setHasPendingIntroVideo] = useState(false);
   const [openLoginHelpCount, setOpenLoginHelpCount] = useState(0);
+  const [unseenToolIntros, setUnseenToolIntros] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (role !== "athlete") return;
@@ -139,6 +143,32 @@ export function AppShell({ children, role, title }: AppShellProps) {
     const handler = () => setHasPendingIntroVideo(false);
     window.addEventListener("introVideoSeen", handler);
     return () => window.removeEventListener("introVideoSeen", handler);
+  }, []);
+
+  useEffect(() => {
+    if (role !== "athlete") return;
+    const auth = loadAuth();
+    if (!auth.athleteId) return;
+    const unseen = new Set<string>();
+    for (const item of athleteNav) {
+      if (item.toolIntroKey && !isToolIntroSeen(auth.athleteId, item.toolIntroKey)) {
+        unseen.add(item.toolIntroKey);
+      }
+    }
+    setUnseenToolIntros(unseen);
+  }, [role, pathname]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { toolKey } = (e as CustomEvent<{ toolKey: string }>).detail;
+      setUnseenToolIntros((prev) => {
+        const next = new Set(prev);
+        next.delete(toolKey);
+        return next;
+      });
+    };
+    window.addEventListener("toolIntroSeen", handler);
+    return () => window.removeEventListener("toolIntroSeen", handler);
   }, []);
 
   useEffect(() => {
@@ -166,7 +196,10 @@ export function AppShell({ children, role, title }: AppShellProps) {
           <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto">
             {nav.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
-              const showPending = !active && role === "athlete" && item.href === "/athlete/checkins" && hasPendingCheckins;
+              const showPending = !active && role === "athlete" && (
+                (item.href === "/athlete/checkins" && hasPendingCheckins) ||
+                !!(item.toolIntroKey && unseenToolIntros.has(item.toolIntroKey))
+              );
               const alertCount = !active
                 ? role === "coach" && item.href === "/coach/dashboard"
                   ? openLoginHelpCount
@@ -224,7 +257,10 @@ export function AppShell({ children, role, title }: AppShellProps) {
             <nav className="flex overflow-x-auto px-3 pb-2.5 gap-1 scrollbar-none" aria-label="Hauptnavigation">
               {nav.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
-                const showPending = !active && role === "athlete" && item.href === "/athlete/checkins" && hasPendingCheckins;
+                const showPending = !active && role === "athlete" && (
+                (item.href === "/athlete/checkins" && hasPendingCheckins) ||
+                !!(item.toolIntroKey && unseenToolIntros.has(item.toolIntroKey))
+              );
                 const alertCount = !active
                   ? role === "coach" && item.href === "/coach/dashboard"
                     ? openLoginHelpCount

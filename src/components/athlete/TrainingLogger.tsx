@@ -10,7 +10,7 @@ import {
   addExerciseDBItem,
 } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search, MoreVertical, FileText, Pin } from "lucide-react";
+import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search, MoreVertical, FileText, Pin, ChevronLeft, ChevronRight } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 
 interface Props {
@@ -215,6 +215,9 @@ export function TrainingLogger({
   const [selectedDayId, setSelectedDayId] = useState(
     trainingPlan.days[0]?.id ?? ""
   );
+  const dayScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
@@ -223,6 +226,29 @@ export function TrainingLogger({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoEndedRef = useRef(false);
+
+  const checkScroll = useCallback(() => {
+    const el = dayScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    const el = dayScrollRef.current;
+    if (!el) return;
+    checkScroll();
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    const ro = new ResizeObserver(checkScroll);
+    ro.observe(el);
+    return () => { el.removeEventListener("scroll", checkScroll); ro.disconnect(); };
+  }, [checkScroll]);
+
+  function scrollDays(dir: "left" | "right") {
+    const el = dayScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir === "left" ? -160 : 160, behavior: "smooth" });
+  }
 
   // Exercise DB + add/remove state
   const [dbExercises, setDbExercises] = useState<ExerciseDBItem[]>([]);
@@ -1278,30 +1304,59 @@ export function TrainingLogger({
       </div>
 
       {/* Tagauswahl */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {trainingPlan.days.map((day) => {
-          const logged = existingLogs.some(
-            (l) => l.date === selectedDate && l.trainingDayId === day.id
-          );
-          return (
-            <button
-              key={day.id}
-              onClick={() => setSelectedDayId(day.id)}
-              className={cn(
-                "flex flex-col items-center px-3 py-2 rounded-xl border transition-all whitespace-nowrap shrink-0",
-                selectedDayId === day.id
-                  ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]"
-                  : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:text-[#f0f4ff]"
-              )}
-            >
-              <span className="text-xs font-medium">{day.dayName}</span>
-              <span className="text-xs text-[#5a7090]">{day.label}</span>
-              {logged && (
-                <span className="text-[#10b981] text-xs">✓</span>
-              )}
-            </button>
-          );
-        })}
+      <div className="relative flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => scrollDays("left")}
+          aria-label="Nach links scrollen"
+          className={cn(
+            "shrink-0 w-7 h-7 flex items-center justify-center rounded-lg border border-[#1e2d42] bg-[#0f1624] text-[#5a7090] hover:text-[#f0f4ff] hover:border-[#3b82f6]/40 transition-all",
+            !canScrollLeft && "opacity-0 pointer-events-none"
+          )}
+        >
+          <ChevronLeft size={14} />
+        </button>
+
+        <div
+          ref={dayScrollRef}
+          className="flex gap-2 overflow-x-auto pb-1 scrollbar-none flex-1"
+        >
+          {trainingPlan.days.map((day) => {
+            const logged = existingLogs.some(
+              (l) => l.date === selectedDate && l.trainingDayId === day.id
+            );
+            return (
+              <button
+                key={day.id}
+                onClick={() => setSelectedDayId(day.id)}
+                className={cn(
+                  "flex flex-col items-center px-3 py-2 rounded-xl border transition-all whitespace-nowrap shrink-0",
+                  selectedDayId === day.id
+                    ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]"
+                    : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:text-[#f0f4ff]"
+                )}
+              >
+                <span className="text-xs font-medium">{day.dayName}</span>
+                <span className="text-xs text-[#5a7090]">{day.label}</span>
+                {logged && (
+                  <span className="text-[#10b981] text-xs">✓</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => scrollDays("right")}
+          aria-label="Nach rechts scrollen"
+          className={cn(
+            "shrink-0 w-7 h-7 flex items-center justify-center rounded-lg border border-[#1e2d42] bg-[#0f1624] text-[#5a7090] hover:text-[#f0f4ff] hover:border-[#3b82f6]/40 transition-all",
+            !canScrollRight && "opacity-0 pointer-events-none"
+          )}
+        >
+          <ChevronRight size={14} />
+        </button>
       </div>
 
       <button

@@ -6,6 +6,7 @@ import { loadAuth, loadAthletes } from "@/lib/store";
 import { resolveAthleteWeight } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { MealPlanView } from "@/components/athlete/MealPlanView";
+import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { SupplementList } from "@/components/athlete/SupplementList";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,7 @@ export default function AthletePlans() {
   return (
     <AppShell role="athlete" title="Pläne">
       <div className="max-w-lg mx-auto flex flex-col gap-4">
-        {/* Tab bar */}
+        <ToolIntroVideo athleteId={athlete.id} toolKey="plans" title="Einführung: Pläne" position="top" />
         <div className="flex gap-1.5 flex-wrap">
           {TABS.map((t) => (
             <button
@@ -137,6 +138,7 @@ export default function AthletePlans() {
             </motion.div>
           )}
         </AnimatePresence>
+        <ToolIntroVideo athleteId={athlete.id} toolKey="plans" title="Einführung: Pläne" position="bottom" />
       </div>
     </AppShell>
   );

@@ -445,6 +445,16 @@ export interface Athlete {
   weeklyTrendTargetPercent?: number;
 }
 
+export interface VideoFeedback {
+  id: string;
+  athleteId: string;
+  title: string;
+  date: string; // ISO yyyy-mm-dd
+  loomUrl: string;
+  seenAt?: string; // ISO timestamp – set when athlete first opens it
+  createdAt: string;
+}
+
 export interface LoginHelpRequest {
   id: string;
   enteredName: string;

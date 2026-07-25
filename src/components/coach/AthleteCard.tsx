@@ -52,9 +52,11 @@ interface AthleteCardProps {
   hasPendingCheckIn?: boolean;
   isDone?: boolean;
   onToggleDone?: () => void;
+  refreshKey?: number;
+  onTasksChanged?: () => void;
 }
 
-export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCheckIn, isDone, onToggleDone }: AthleteCardProps) {
+export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCheckIn, isDone, onToggleDone, refreshKey, onTasksChanged }: AthleteCardProps) {
   const router = useRouter();
   const analysis = analyzeWeek(athlete);
   const dist = calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight);
@@ -68,7 +70,7 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
 
   useEffect(() => {
     setCoachTasks(loadCoachTasks(athlete.id));
-  }, [athlete.id]);
+  }, [athlete.id, refreshKey]);
 
   function addCoachTask(label: string) {
     const trimmed = label.trim();
@@ -78,6 +80,7 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
     saveCoachTasksToStorage(athlete.id, updated);
     setCustomTaskInput("");
     setShowAddTask(false);
+    onTasksChanged?.();
   }
 
   function toggleCoachTask(taskId: string) {
@@ -87,12 +90,18 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
     );
     setCoachTasks(updated);
     saveCoachTasksToStorage(athlete.id, updated);
+    onTasksChanged?.();
   }
 
   function removeCoachTask(taskId: string) {
-    const updated = coachTasks.filter((t) => t.id !== taskId);
+    // Mark as done instead of immediate delete — disappears overnight
+    const today = todayISO();
+    const updated = coachTasks.map((t) =>
+      t.id === taskId ? { ...t, checkedAt: today } : t
+    );
     setCoachTasks(updated);
     saveCoachTasksToStorage(athlete.id, updated);
+    onTasksChanged?.();
   }
 
   return (

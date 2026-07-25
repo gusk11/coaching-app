@@ -9,7 +9,7 @@ import {
   Athlete, AthleteProfile, LegalConsent, DailyCheckIn, WeeklyCheckIn,
   WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay,
   FoodItem, SupplementDBItem, ExerciseDBItem, GoalType,
-  DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest,
+  DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest, VideoFeedback,
 } from "@/types";
 
 const AUTH_KEY = "coachOS_auth";
@@ -870,6 +870,57 @@ export async function deleteLoginHelpRequest(id: string): Promise<LoginHelpReque
   const { error } = await supabase.from("login_help_requests").delete().eq("id", id);
   if (error) throw error;
   return loadLoginHelpRequests();
+}
+
+// ─── Video Feedbacks ──────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToVideoFeedback(row: any): VideoFeedback {
+  return {
+    id: row.id,
+    athleteId: row.athlete_id,
+    title: row.title,
+    date: row.date,
+    loomUrl: row.loom_url,
+    seenAt: row.seen_at ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+export async function loadVideoFeedbacks(athleteId?: string): Promise<VideoFeedback[]> {
+  let query = supabase.from("video_feedbacks").select("*").order("created_at", { ascending: false });
+  if (athleteId) query = query.eq("athlete_id", athleteId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map(rowToVideoFeedback);
+}
+
+export async function addVideoFeedback(data: Omit<VideoFeedback, "id" | "createdAt">): Promise<VideoFeedback[]> {
+  const id = `vf-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const { error } = await supabase.from("video_feedbacks").insert({
+    id,
+    athlete_id: data.athleteId,
+    title: data.title,
+    date: data.date,
+    loom_url: data.loomUrl,
+    created_at: new Date().toISOString(),
+  });
+  if (error) throw error;
+  return loadVideoFeedbacks();
+}
+
+export async function deleteVideoFeedback(id: string): Promise<VideoFeedback[]> {
+  const { error } = await supabase.from("video_feedbacks").delete().eq("id", id);
+  if (error) throw error;
+  return loadVideoFeedbacks();
+}
+
+export async function markVideoFeedbackSeen(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("video_feedbacks")
+    .update({ seen_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
 }
 
 // ─── Check-In Done Status (sync / localStorage) ───────────────────────────────

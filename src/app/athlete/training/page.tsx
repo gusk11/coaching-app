@@ -2,24 +2,28 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
-import { loadAuth, loadAthletes, saveTrainingLog } from "@/lib/store";
+import { loadAuth, loadAthletes, saveTrainingLog, loadVideoFeedbacks, markVideoFeedbackSeen } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { AppShell } from "@/components/layout/AppShell";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { TrainingLogger } from "@/components/athlete/TrainingLogger";
+import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
 import { TrainingProgressView } from "@/components/athlete/TrainingProgressView";
 import { todayISO } from "@/lib/utils";
+import { VideoFeedback } from "@/types";
+import { ExternalLink, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition } from "@/lib/motion";
 
-type Tab = "log" | "plan" | "progress";
+type Tab = "log" | "plan" | "progress" | "feedback";
 
 export default function AthleteTraining() {
   const router = useRouter();
   const [athlete, setAthlete] = useState<Athlete | null>(null);
   const [tab, setTab] = useState<Tab>("log");
+  const [videoFeedbacks, setVideoFeedbacks] = useState<VideoFeedback[]>([]);
 
   useEffect(() => {
     const auth = loadAuth();
@@ -28,6 +32,7 @@ export default function AthleteTraining() {
       const found = athletes.find((a) => a.id === auth.athleteId);
       if (!found) { router.replace("/login"); return; }
       setAthlete(found);
+      loadVideoFeedbacks(auth.athleteId!).then(setVideoFeedbacks);
     });
   }, [router]);
 
@@ -66,6 +71,7 @@ export default function AthleteTraining() {
     { key: "log", label: "Training tracken" },
     { key: "plan", label: "Trainingsplan" },
     { key: "progress", label: "Trainingsfortschritt" },
+    { key: "feedback", label: "Technik-Feedback" },
   ];
 
   const noplan = (
@@ -79,6 +85,7 @@ export default function AthleteTraining() {
   return (
     <AppShell role="athlete" title="Trainingstracker">
       <div className="max-w-lg mx-auto flex flex-col gap-4">
+        <ToolIntroVideo athleteId={athlete.id} toolKey="training" title="Einführung: Trainingstracker" position="top" />
         {/* Tab selector */}
         <div className="flex rounded-xl bg-[#0f1624] border border-[#1e2d42] p-1 gap-1">
           {tabs.map(({ key, label }) => (
@@ -131,7 +138,47 @@ export default function AthleteTraining() {
               <TrainingProgressView athlete={athlete} onUpdate={handleUpdateLogs} />
             </motion.div>
           )}
+
+          {tab === "feedback" && (
+            <motion.div key="feedback" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit">
+              {videoFeedbacks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-[#141d2e] flex items-center justify-center mb-4">
+                    <Video size={24} className="text-[#5a7090]" />
+                  </div>
+                  <p className="text-[#8fa3c0] font-medium">Noch kein Technik-Feedback</p>
+                  <p className="text-sm text-[#5a7090] mt-1">Dein Coach hat noch kein Video-Feedback hinterlegt.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {videoFeedbacks.map((fb) => (
+                    <a
+                      key={fb.id}
+                      href={fb.loomUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => { if (!fb.seenAt) markVideoFeedbackSeen(fb.id).then(() => setVideoFeedbacks((prev) => prev.map((f) => f.id === fb.id ? { ...f, seenAt: new Date().toISOString() } : f))); }}
+                      className="flex items-center gap-3 p-4 rounded-2xl bg-[#0f1624] border border-[#1e2d42] hover:border-[#3b82f6]/40 hover:bg-[#141d2e] transition-all group"
+                    >
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${fb.seenAt ? "bg-[#141d2e]" : "bg-[#1a2744]"}`}>
+                        <Video size={18} className={fb.seenAt ? "text-[#5a7090]" : "text-[#60a5fa]"} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium truncate ${fb.seenAt ? "text-[#8fa3c0]" : "text-[#f0f4ff]"}`}>{fb.title}</p>
+                        <p className="text-xs text-[#5a7090]">
+                          {new Date(fb.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                          {!fb.seenAt && <span className="ml-2 text-[#60a5fa] font-medium">· Neu</span>}
+                        </p>
+                      </div>
+                      <ExternalLink size={16} className="text-[#5a7090] group-hover:text-[#60a5fa] transition-colors flex-shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
         </AnimatePresence>
+        <ToolIntroVideo athleteId={athlete.id} toolKey="training" title="Einführung: Trainingstracker" position="bottom" />
       </div>
     </AppShell>
   );

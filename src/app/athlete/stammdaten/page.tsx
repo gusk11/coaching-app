@@ -6,6 +6,7 @@ import { loadAuth, loadAthletes, updateAthlete } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { AppShell } from "@/components/layout/AppShell";
 import { AthleteStammdatenForm } from "@/components/athlete/AthleteStammdatenForm";
+import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 export default function AthleteStammdatenPage() {
@@ -54,8 +55,10 @@ export default function AthleteStammdatenPage() {
 
   return (
     <AppShell role="athlete" title="Stammdaten">
-      <div className="max-w-lg mx-auto">
+      <div className="max-w-lg mx-auto flex flex-col gap-4">
+        <ToolIntroVideo athleteId={athlete.id} toolKey="stammdaten" title="Einführung: Stammdaten" position="top" />
         <AthleteStammdatenForm athlete={athlete} mode="athlete" onSave={handleSave} />
+        <ToolIntroVideo athleteId={athlete.id} toolKey="stammdaten" title="Einführung: Stammdaten" position="bottom" />
       </div>
     </AppShell>
   );
