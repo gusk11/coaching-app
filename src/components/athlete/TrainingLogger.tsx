@@ -21,6 +21,8 @@ interface Props {
   onSave: (log: Omit<TrainingLog, "id" | "athleteId">) => void;
 }
 
+const MAX_TRAINING_DURATION_SECONDS = 3 * 60 * 60; // 3 Stunden
+
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -220,6 +222,7 @@ export function TrainingLogger({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoEndedRef = useRef(false);
 
   // Exercise DB + add/remove state
   const [dbExercises, setDbExercises] = useState<ExerciseDBItem[]>([]);
@@ -285,6 +288,19 @@ export function TrainingLogger({
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [session?.startedAt, session?.pausedAt, session?.totalPausedMs]);
+
+  // Automatisches Beenden nach 3 Stunden Trainingszeit
+  useEffect(() => {
+    if (!session) {
+      autoEndedRef.current = false;
+      return;
+    }
+    if (!autoEndedRef.current && elapsedSeconds >= MAX_TRAINING_DURATION_SECONDS) {
+      autoEndedRef.current = true;
+      handleEndSession();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, elapsedSeconds]);
 
   // Debounced Auto-Save in localStorage
   const triggerAutoSave = useCallback((sess: ActiveSession) => {
