@@ -280,6 +280,8 @@ export interface FoodItem {
   servingLabel?: string;
   notes?: string;
   isActive?: boolean;      // undefined = active; false = deactivated
+  /** Origin of the food entry; absent/null = legacy or base food */
+  source?: "manual" | "external";
   createdAt?: string;
   updatedAt?: string;
 }
@@ -400,6 +402,7 @@ export interface Athlete {
   pin: string;
   avatarInitials: string;
   onboardingCompleted?: boolean;
+  introVideoSeen?: boolean;
   legalConsent?: LegalConsent;
   profile?: AthleteProfile;
   /** Optional profile image — base64 dataUrl locally; swap url for remote URL when connecting cloud storage */

@@ -130,7 +130,7 @@ export function AppShell({ children, role, title }: AppShellProps) {
       const weeklyDone = athlete.weeklyCheckIns.some((w) => w.weekStart === weekStart);
       const isWeeklyDay = isCheckInDay(athlete.checkInDay);
       setHasPendingCheckins(!dailyDone || (isWeeklyDay && !weeklyDone));
-      const introSeen = !!localStorage.getItem(`coachOS_introVideoSeen_${auth.athleteId}`);
+      const introSeen = athlete.introVideoSeen === true || !!localStorage.getItem(`coachOS_introVideoSeen_${auth.athleteId}`);
       setHasPendingIntroVideo(athlete.onboardingCompleted === true && !introSeen);
     });
   }, [role, pathname]);

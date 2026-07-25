@@ -23,10 +23,11 @@ function rowToAthlete(row: any): Athlete {
   // legalConsent is embedded in profile JSONB under __lc to avoid an extra column
   const rawProfile = row.profile ?? undefined;
   const legalConsent: LegalConsent | undefined = rawProfile?.__lc ?? undefined;
+  const introVideoSeen: boolean = rawProfile?.__ivs === true;
   let profile: AthleteProfile | undefined;
   if (rawProfile) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { __lc, ...rest } = rawProfile;
+    const { __lc, __ivs, ...rest } = rawProfile;
     profile = Object.keys(rest).length ? (rest as AthleteProfile) : undefined;
   }
   return {
@@ -36,6 +37,7 @@ function rowToAthlete(row: any): Athlete {
     pin: row.pin,
     avatarInitials: row.avatar_initials ?? "",
     onboardingCompleted: row.onboarding_completed ?? false,
+    introVideoSeen,
     legalConsent,
     profile,
     profileImage: row.profile_image ?? undefined,
@@ -72,10 +74,13 @@ function rowToAthlete(row: any): Athlete {
 }
 
 function athleteToRow(a: Athlete): Record<string, unknown> {
-  // Embed legalConsent in profile JSONB under __lc
-  const profileWithLegal = a.legalConsent
-    ? { ...(a.profile ?? {}), __lc: a.legalConsent }
-    : (a.profile ?? null);
+  // Embed legalConsent and introVideoSeen in profile JSONB under __lc / __ivs
+  const profileWithLegal = {
+    ...(a.profile ?? {}),
+    ...(a.legalConsent ? { __lc: a.legalConsent } : {}),
+    ...(a.introVideoSeen ? { __ivs: true } : {}),
+  };
+  const profileOrNull = Object.keys(profileWithLegal).length ? profileWithLegal : null;
   return {
     id: a.id,
     name: a.name,
@@ -83,7 +88,7 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
     pin: a.pin,
     avatar_initials: a.avatarInitials ?? null,
     onboarding_completed: a.onboardingCompleted ?? false,
-    profile: profileWithLegal,
+    profile: profileOrNull,
     profile_image: a.profileImage ?? null,
     start_weight: a.startWeight ?? null,
     current_weight: a.currentWeight ?? null,
@@ -134,13 +139,14 @@ function rowToFoodItem(row: any): FoodItem {
     servingLabel: row.serving_label ?? undefined,
     notes: row.notes ?? undefined,
     isActive: row.is_active ?? true,
+    source: row.source ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };
 }
 
 function foodItemToRow(f: FoodItem): Record<string, unknown> {
-  return {
+  const row: Record<string, unknown> = {
     id: f.id,
     name: f.name,
     category: f.category ?? null,
@@ -156,6 +162,9 @@ function foodItemToRow(f: FoodItem): Record<string, unknown> {
     notes: f.notes ?? null,
     is_active: f.isActive ?? true,
   };
+  // Only include source when defined — column must exist in DB (see migration SQL)
+  if (f.source !== undefined) row.source = f.source;
+  return row;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -289,6 +298,13 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   const { error } = await supabase.from("athletes").update(row).eq("id", id);
   if (error) throw error;
   return loadAthletes();
+}
+
+export async function markIntroVideoSeen(athleteId: string): Promise<void> {
+  const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
+  const merged = { ...(row?.profile ?? {}), __ivs: true };
+  const { error } = await supabase.from("athletes").update({ profile: merged }).eq("id", athleteId);
+  if (error) throw error;
 }
 
 export async function deleteAthlete(id: string): Promise<void> {
@@ -658,6 +674,7 @@ export async function updateCustomFood(id: string, updates: Partial<FoodItem>): 
   if ("servingLabel" in updates) row.serving_label = updates.servingLabel ?? null;
   if ("notes" in updates) row.notes = updates.notes ?? null;
   if ("isActive" in updates) row.is_active = updates.isActive;
+  if ("source" in updates && updates.source !== undefined) row.source = updates.source;
   row.updated_at = new Date().toISOString();
   const { error } = await supabase.from("custom_foods").update(row).eq("id", id);
   if (error) throw error;

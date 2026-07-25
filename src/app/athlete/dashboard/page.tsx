@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
-import { loadAuth, loadAthletes, addDailyCheckIn } from "@/lib/store";
+import { loadAuth, loadAthletes, addDailyCheckIn, markIntroVideoSeen } from "@/lib/store";
 import { DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/ui/StatCard";
@@ -54,7 +54,7 @@ export default function AthleteDashboard() {
       const found = athletes.find((a) => a.id === auth.athleteId);
       if (!found) { router.replace("/login"); return; }
       setAthlete(found);
-      setIntroVideoSeen(!!localStorage.getItem(introSeenKey(found.id)));
+      setIntroVideoSeen(found.introVideoSeen === true || !!localStorage.getItem(introSeenKey(found.id)));
     });
   }, [router]);
 
@@ -63,6 +63,7 @@ export default function AthleteDashboard() {
     localStorage.setItem(introSeenKey(athlete.id), "1");
     setIntroVideoSeen(true);
     window.dispatchEvent(new CustomEvent("introVideoSeen"));
+    markIntroVideoSeen(athlete.id).catch(() => {});
   }
 
   const today = useMemo(() => todayISO(), []);

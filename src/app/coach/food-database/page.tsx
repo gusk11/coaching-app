@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { FoodItem } from "@/types";
 import { foodItems as baseFoodItems } from "@/data/foodItems";
 import {
@@ -14,9 +14,10 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useRouter } from "next/navigation";
 import { loadAuth } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
-import { Plus, Pencil, Trash2, X, Check, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, AlertTriangle, Loader2, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { modalOverlay, modalContent, listContainer, listItem } from "@/lib/motion";
+import { modalOverlay, modalContent } from "@/lib/motion";
+import type { ExternalFoodResult } from "@/app/api/foods/external-search/route";
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 const ALLOWED_CATEGORIES = [
@@ -48,6 +49,7 @@ function emptyForm(): Partial<FoodItem> {
     saltPer100g: 0,
     defaultAmount: 100,
     notes: "",
+    source: "manual",
   };
 }
 
@@ -60,10 +62,12 @@ function FoodForm({
   initial,
   onSave,
   onClose,
+  duplicateWarning,
 }: {
   initial?: Partial<FoodItem>;
   onSave: (data: Partial<FoodItem>) => void;
   onClose: () => void;
+  duplicateWarning?: string;
 }) {
   const [form, setForm] = useState<Partial<FoodItem>>(initial ?? emptyForm());
   const [nutrientInputs, setNutrientInputs] = useState<Record<NutrientKey, string>>(() => {
@@ -129,6 +133,22 @@ function FoodForm({
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-5 overflow-y-auto">
+          {/* External data quality notice */}
+          {initial?.source === "external" && (
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-[#3b82f6]/10 border border-[#3b82f6]/20 text-xs text-[#8fa3c0]">
+              <Globe size={12} className="shrink-0 mt-0.5 text-[#3b82f6]" />
+              Daten aus Open Food Facts (crowd-sourced) — bitte Werte vor dem Speichern prüfen und ggf. korrigieren.
+            </div>
+          )}
+
+          {/* Duplicate warning */}
+          {duplicateWarning && (
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/20 text-xs text-[#f59e0b]">
+              <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+              {duplicateWarning}
+            </div>
+          )}
+
           {/* Name */}
           <div>
             <label className={labelCls}>Name *</label>
@@ -168,7 +188,12 @@ function FoodForm({
 
           {/* Category */}
           <div>
-            <label className={labelCls}>Kategorie</label>
+            <label className={labelCls}>
+              Kategorie
+              {initial?.source === "external" && (
+                <span className="ml-1 text-[#5a7090]">(Vorschlag — bitte prüfen)</span>
+              )}
+            </label>
             <select
               value={form.category ?? "Weitere"}
               onChange={(e) => set("category", e.target.value)}
@@ -303,6 +328,18 @@ function DeleteConfirmModal({
   );
 }
 
+// ─── Similarity check ─────────────────────────────────────────────────────────
+function findSimilarFood(name: string, items: FoodItem[]): FoodItem | undefined {
+  const a = name.toLowerCase().trim();
+  return items.find((f) => {
+    const b = f.name.toLowerCase().trim();
+    if (a === b) return true;
+    if (a.length >= 5 && b.includes(a)) return true;
+    if (b.length >= 5 && a.includes(b)) return true;
+    return false;
+  });
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function FoodDatabase() {
   const router = useRouter();
@@ -313,7 +350,13 @@ export default function FoodDatabase() {
   const [hiddenBaseIds, setHiddenBaseIds] = useState<string[]>([]);
 
   const [editing, setEditing] = useState<Partial<FoodItem> | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<FoodItem | null>(null);
+
+  // ── External search state ──
+  const [externalResults, setExternalResults] = useState<ExternalFoodResult[]>([]);
+  const [externalLoading, setExternalLoading] = useState(false);
+  const [externalError, setExternalError] = useState<string | null>(null);
 
   useEffect(() => {
     const auth = loadAuth();
@@ -347,6 +390,58 @@ export default function FoodDatabase() {
     return matchCat && matchSearch;
   });
 
+  // ── Debounced external search ──
+  useEffect(() => {
+    const trimmed = search.trim();
+    if (trimmed.length < 3) {
+      setExternalResults([]);
+      setExternalError(null);
+      setExternalLoading(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setExternalLoading(true);
+      try {
+        const res = await fetch(`/api/foods/external-search?q=${encodeURIComponent(trimmed)}`);
+        const data = await res.json();
+        setExternalResults(data.results ?? []);
+        setExternalError(data.error ?? null);
+      } catch {
+        setExternalError("Externe Suche nicht verfügbar.");
+        setExternalResults([]);
+      } finally {
+        setExternalLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // ── Import external result → open form pre-filled ──
+  const handleExternalImport = useCallback(
+    (result: ExternalFoodResult) => {
+      const similar = findSimilarFood(result.name, allItems);
+      const prefilled: Partial<FoodItem> = {
+        name: result.name,
+        category: result.category,
+        kcalPer100g: result.kcalPer100g,
+        proteinPer100g: result.proteinPer100g,
+        carbsPer100g: result.carbsPer100g,
+        fatPer100g: result.fatPer100g,
+        fiberPer100g: result.fiberPer100g,
+        saltPer100g: result.saltPer100g,
+        servingLabel: result.servingLabel,
+        defaultAmount: result.defaultAmount,
+        notes: result.brand ? `Marke: ${result.brand}` : undefined,
+        source: "external",
+      };
+      setDuplicateWarning(
+        similar ? `Ähnlicher Eintrag existiert bereits: "${similar.name}"` : undefined
+      );
+      setEditing(prefilled);
+    },
+    [allItems]
+  );
+
   async function handleSave(data: Partial<FoodItem>) {
     const prevCustom = [...customFoods];
     const prevHidden = [...hiddenBaseIds];
@@ -366,6 +461,7 @@ export default function FoodDatabase() {
         setCustomFoods(await addCustomFood(data as Omit<FoodItem, "id" | "createdAt" | "updatedAt">));
       }
       setEditing(null);
+      setDuplicateWarning(undefined);
       showToast("Lebensmittel gespeichert.", "success");
     } catch {
       setCustomFoods(prevCustom);
@@ -381,7 +477,6 @@ export default function FoodDatabase() {
     const prevHidden = [...hiddenBaseIds];
 
     const isCustomTarget = !baseFoodItems.some((b) => b.id === target.id);
-    // When deleting a custom food, also find and hide the matching base food (same name)
     const baseMatch = isCustomTarget
       ? baseFoodItems.find((b) => b.name.toLowerCase() === target.name.toLowerCase())
       : null;
@@ -424,7 +519,7 @@ export default function FoodDatabase() {
             </span>
           </div>
           <button
-            onClick={() => setEditing(emptyForm())}
+            onClick={() => { setDuplicateWarning(undefined); setEditing(emptyForm()); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3b82f6] text-white text-xs font-semibold hover:bg-[#2563eb] transition-colors"
           >
             <Plus size={13} /> Neu
@@ -457,7 +552,7 @@ export default function FoodDatabase() {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Local table */}
         <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">
           <div className="overflow-x-auto">
           <div className="min-w-[560px]">
@@ -483,7 +578,6 @@ export default function FoodDatabase() {
                   key={f.id}
                   className="grid grid-cols-12 px-4 py-3 items-center hover:bg-[#192236] transition-colors"
                 >
-                  {/* Name + category + serving */}
                   <div className="col-span-3 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm text-[#f0f4ff] truncate">{f.name}</p>
@@ -494,7 +588,6 @@ export default function FoodDatabase() {
                     </p>
                   </div>
 
-                  {/* Macros */}
                   <span className="col-span-2 text-sm text-[#f0f4ff] text-right">{f.kcalPer100g}</span>
                   <span className="col-span-1 text-sm text-[#60a5fa] text-right">{f.proteinPer100g}g</span>
                   <span className="col-span-1 text-sm text-[#8fa3c0] text-right">{f.carbsPer100g}g</span>
@@ -502,10 +595,9 @@ export default function FoodDatabase() {
                   <span className="col-span-1 text-sm text-[#5a7090] text-right">{f.fiberPer100g}g</span>
                   <span className="col-span-1 text-sm text-[#5a7090] text-right">{f.saltPer100g ?? 0}g</span>
 
-                  {/* Actions */}
                   <div className="col-span-2 flex items-center justify-end gap-1">
                     <button
-                      onClick={() => setEditing(f)}
+                      onClick={() => { setDuplicateWarning(undefined); setEditing(f); }}
                       title="Bearbeiten"
                       className="p-1.5 rounded hover:bg-[#3b82f6]/10 transition-colors group"
                     >
@@ -530,6 +622,61 @@ export default function FoodDatabase() {
         <p className="text-xs text-[#5a7090] text-center">
           {filtered.length} von {allItems.length} Einträgen
         </p>
+
+        {/* ── External database results ── */}
+        {search.trim().length >= 3 && (
+          <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#1e2d42] bg-[#0f1624] flex items-center gap-2">
+              <Globe size={13} className="text-[#3b82f6]" />
+              <span className="text-xs font-semibold text-[#8fa3c0] uppercase tracking-widest">
+                Aus externer Datenbank
+              </span>
+              {externalLoading && (
+                <Loader2 size={12} className="text-[#5a7090] animate-spin ml-1" />
+              )}
+            </div>
+
+            {externalError && !externalLoading && (
+              <p className="text-xs text-[#f59e0b] px-4 py-3">{externalError}</p>
+            )}
+
+            {!externalLoading && !externalError && externalResults.length === 0 && (
+              <p className="text-sm text-[#5a7090] px-4 py-4 text-center">Keine externen Treffer.</p>
+            )}
+
+            <div className="divide-y divide-[#1e2d42]">
+              {externalResults.map((r, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-[#192236] transition-colors gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                      <p className="text-sm text-[#f0f4ff] truncate">{r.name}</p>
+                      {r.brand && (
+                        <span className="text-xs text-[#5a7090] shrink-0">· {r.brand}</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#5a7090]">
+                      {r.category} · {r.kcalPer100g} kcal · P {r.proteinPer100g}g · K {r.carbsPer100g}g · F {r.fatPer100g}g
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleExternalImport(r)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#3b82f6]/10 text-[#3b82f6] text-xs font-medium hover:bg-[#3b82f6]/20 transition-colors shrink-0"
+                  >
+                    <Plus size={11} /> Übernehmen
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <p className="px-4 py-2 text-[10px] text-[#3a4d60] border-t border-[#1e2d42]">
+              Quelle: Open Food Facts (crowd-sourced) · Werte vor dem Speichern prüfen
+            </p>
+          </div>
+        )}
+
       </div>
 
       {/* Form modal */}
@@ -538,7 +685,8 @@ export default function FoodDatabase() {
           <FoodForm
             initial={editing}
             onSave={handleSave}
-            onClose={() => setEditing(null)}
+            onClose={() => { setEditing(null); setDuplicateWarning(undefined); }}
+            duplicateWarning={duplicateWarning}
           />
         )}
       </AnimatePresence>

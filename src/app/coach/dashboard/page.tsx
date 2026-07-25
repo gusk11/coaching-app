@@ -9,7 +9,7 @@ import { AthleteCard } from "@/components/coach/AthleteCard";
 import { analyzeWeek } from "@/lib/utils";
 import { StatCard } from "@/components/ui/StatCard";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { UserPlus, X, Check, Trash2 } from "lucide-react";
+import { UserPlus, X, Check, Trash2, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { listContainer, listItem, modalOverlay, modalContent } from "@/lib/motion";
 
@@ -42,6 +42,7 @@ export default function CoachDashboard() {
   const [checkInDone, setCheckInDoneState] = useState<Record<string, boolean>>({});
   const [loginHelpRequests, setLoginHelpRequests] = useState<LoginHelpRequest[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [quickSelectId, setQuickSelectId] = useState("");
 
   // New athlete form state
   const [newName, setNewName] = useState("");
@@ -67,8 +68,6 @@ export default function CoachDashboard() {
 
   const todayDayOfWeek = useMemo(() => new Date().getDay() as 0|1|2|3|4|5|6, []);
   const todayStr = useMemo(() => todayDateString(), []);
-
-  const totalAthletes = athletes.length;
 
   const athletesWithStatus = useMemo(() => athletes.map((a) => {
     const mostRecentCheckInDate = getMostRecentCheckInDate(a.checkInDay, todayDayOfWeek, todayStr);
@@ -151,18 +150,11 @@ export default function CoachDashboard() {
     <AppShell role="coach" title="Athleten-Übersicht">
       <div className="max-w-2xl mx-auto flex flex-col gap-5">
         {/* Summary KPIs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <StatCard
-            label={<><span className="sm:hidden">Athleten</span><span className="hidden sm:inline">Athleten gesamt</span></>}
-            value={totalAthletes}
-          />
-          <StatCard
-            label={<><span className="sm:hidden">Heute</span><span className="hidden sm:inline">Check-ins heute</span></>}
-            value={checkInsToday}
-          />
-          <StatCard
-            label={<><span className="sm:hidden">Erledigt</span><span className="hidden sm:inline">Bearbeitet</span></>}
-            value={checkInsToday === 0 ? "0 / 0" : `${checkInsProcessed} / ${checkInsToday}`}
+            label="Check-Ins"
+            value={`${checkInsProcessed} von ${checkInsToday}`}
+            sub="bearbeitet"
           />
           <StatCard
             label={<><span className="sm:hidden">Tag</span><span className="hidden sm:inline">Wochentag</span></>}
@@ -171,14 +163,23 @@ export default function CoachDashboard() {
           />
         </div>
 
-        {/* Add athlete button */}
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-[#3b82f6]/40 text-[#60a5fa] text-sm font-medium hover:bg-[#3b82f6]/5 transition-colors"
-        >
-          <UserPlus size={16} />
-          Neuen Athleten anlegen
-        </button>
+        {/* Athlete quick-select dropdown */}
+        <div className="relative">
+          <select
+            value={quickSelectId}
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id) { router.push(`/coach/athlete/${id}`); setQuickSelectId(""); }
+            }}
+            className="w-full bg-[#141d2e] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-sm appearance-none cursor-pointer hover:border-[#3b82f6]/40 transition-colors focus:outline-none focus:border-[#3b82f6] text-[#8fa3c0]"
+          >
+            <option value="" disabled>Athleten-Profil öffnen…</option>
+            {athletes.map((a) => (
+              <option key={a.id} value={a.id} className="text-[#f0f4ff] bg-[#141d2e]">{a.name}</option>
+            ))}
+          </select>
+          <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5a7090] pointer-events-none" />
+        </div>
 
         {/* Login help requests */}
         {loginHelpRequests.some((r) => r.status === "open") && (
@@ -269,6 +270,15 @@ export default function CoachDashboard() {
           ))}
         </motion.div>
         )}
+
+        {/* Add athlete button */}
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-[#3b82f6]/40 text-[#60a5fa] text-sm font-medium hover:bg-[#3b82f6]/5 transition-colors"
+        >
+          <UserPlus size={16} />
+          Neuen Athleten anlegen
+        </button>
       </div>
 
       {/* Create athlete modal */}
