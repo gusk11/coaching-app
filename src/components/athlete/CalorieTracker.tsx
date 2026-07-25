@@ -2,7 +2,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { CalorieTrackerDay, CalorieTrackerEntry, CalorieTrackerMeal, FoodItem, MealPlan } from "@/types";
 import { getAllFoodItems } from "@/lib/store";
-import { Plus, Trash2, Search, ChevronDown, ChevronUp, CheckCircle2, X, Check } from "lucide-react";
+import { Plus, Trash2, Search, ChevronDown, ChevronUp, CheckCircle2, X, Check, Globe, Loader2 } from "lucide-react";
+import type { ExternalFoodResult } from "@/app/api/foods/external-search/route";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 
@@ -77,7 +78,7 @@ function FoodSearchPanel({
   onClose,
   allFoods,
 }: {
-  onSelect: (amountG: number, foodId: string) => void;
+  onSelect: (amountG: number, food: FoodItem) => void;
   onClose: () => void;
   allFoods: FoodItem[];
 }) {
@@ -85,6 +86,10 @@ function FoodSearchPanel({
   const [selected, setSelected] = useState<FoodItem | null>(null);
   const [amountInput, setAmountInput] = useState("");
   const [amountError, setAmountError] = useState("");
+
+  const [externalResults, setExternalResults] = useState<ExternalFoodResult[]>([]);
+  const [externalLoading, setExternalLoading] = useState(false);
+  const [externalError, setExternalError] = useState(false);
 
   const filtered = useMemo(
     () => {
@@ -97,6 +102,32 @@ function FoodSearchPanel({
     [allFoods, query]
   );
 
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed.length < 3) {
+      setExternalResults([]);
+      setExternalError(false);
+      setExternalLoading(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setExternalLoading(true);
+      setExternalError(false);
+      try {
+        const res = await fetch(`/api/foods/external-search?q=${encodeURIComponent(trimmed)}`);
+        const data = await res.json();
+        setExternalResults(data.results ?? []);
+        if (data.error) setExternalError(true);
+      } catch {
+        setExternalError(true);
+        setExternalResults([]);
+      } finally {
+        setExternalLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const parsedAmount = parseFloat(amountInput);
   const isValidAmount = !isNaN(parsedAmount) && parsedAmount > 0;
   const amountG = isValidAmount && selected ? toInternalAmountG(parsedAmount, selected) : 0;
@@ -105,6 +136,26 @@ function FoodSearchPanel({
 
   const inputCls =
     "bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors";
+
+  function selectExternal(r: ExternalFoodResult, index: number) {
+    const food: FoodItem = {
+      id: `ext-${Date.now()}-${index}`,
+      name: r.name,
+      category: r.category,
+      kcalPer100g: r.kcalPer100g,
+      proteinPer100g: r.proteinPer100g,
+      carbsPer100g: r.carbsPer100g,
+      fatPer100g: r.fatPer100g,
+      fiberPer100g: r.fiberPer100g,
+      saltPer100g: r.saltPer100g,
+      defaultAmount: r.defaultAmount,
+      servingLabel: r.servingLabel,
+      source: "external",
+    };
+    setSelected(food);
+    setAmountInput(String(r.defaultAmount));
+    setAmountError("");
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -120,8 +171,9 @@ function FoodSearchPanel({
               className={`${inputCls} pl-8 w-full`}
             />
           </div>
-          <div className="flex flex-col gap-1 max-h-52 overflow-y-auto">
-            {filtered.slice(0, 20).map((f) => (
+          <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
+            {/* Local results */}
+            {filtered.slice(0, 10).map((f) => (
               <button
                 key={f.id}
                 type="button"
@@ -132,16 +184,60 @@ function FoodSearchPanel({
                 }}
                 className="text-left px-3 py-2 rounded-xl hover:bg-[#141d2e] transition-colors"
               >
-                <span className="text-sm text-[#f0f4ff]">{f.name}</span>
-                <span className="text-xs text-[#5a7090] ml-2">{f.category}</span>
-                <span className="text-xs text-[#5a7090] ml-2">
-                  {f.kcalPer100g} kcal · P {f.proteinPer100g}g / K {f.carbsPer100g}g / F {f.fatPer100g}g
+                <p className="text-sm text-[#f0f4ff]">{f.name}</p>
+                <p className="text-xs text-[#5a7090]">
+                  {f.category} · {f.kcalPer100g} kcal · P {f.proteinPer100g}g / K {f.carbsPer100g}g / F {f.fatPer100g}g
                   {f.servingLabel ? ` per ${f.servingLabel}` : " per 100g"}
-                </span>
+                </p>
               </button>
             ))}
-            {filtered.length === 0 && (
+
+            {filtered.length === 0 && query.trim().length < 3 && (
               <p className="text-sm text-[#5a7090] px-3 py-4 text-center">Kein Lebensmittel gefunden.</p>
+            )}
+
+            {/* External results */}
+            {query.trim().length >= 3 && (
+              <>
+                <div className="flex items-center gap-2 px-2 py-1.5">
+                  <div className="flex-1 h-px bg-[#1e2d42]" />
+                  <span className="text-[10px] text-[#5a7090] uppercase tracking-widest flex items-center gap-1">
+                    {externalLoading
+                      ? <Loader2 size={10} className="animate-spin" />
+                      : <Globe size={10} />}
+                    Open Food Facts
+                  </span>
+                  <div className="flex-1 h-px bg-[#1e2d42]" />
+                </div>
+
+                {externalError && (
+                  <p className="text-xs text-[#f59e0b] px-3 py-1">Externe Suche momentan nicht verfügbar.</p>
+                )}
+
+                {!externalLoading && !externalError && externalResults.length === 0 && (
+                  <p className="text-sm text-[#5a7090] px-3 py-2 text-center">
+                    {filtered.length === 0 ? "Kein Lebensmittel gefunden." : "Keine externen Treffer."}
+                  </p>
+                )}
+
+                {externalResults.map((r, i) => (
+                  <button
+                    key={`ext-${i}`}
+                    type="button"
+                    onClick={() => selectExternal(r, i)}
+                    className="text-left px-3 py-2 rounded-xl hover:bg-[#141d2e] transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm text-[#f0f4ff]">{r.name}</p>
+                      {r.brand && <span className="text-xs text-[#5a7090]">· {r.brand}</span>}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#3b82f6]/15 text-[#3b82f6]">extern</span>
+                    </div>
+                    <p className="text-xs text-[#5a7090]">
+                      {r.category} · {r.kcalPer100g} kcal · P {r.proteinPer100g}g / K {r.carbsPer100g}g / F {r.fatPer100g}g per 100g
+                    </p>
+                  </button>
+                ))}
+              </>
             )}
           </div>
         </>
@@ -150,6 +246,9 @@ function FoodSearchPanel({
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => setSelected(null)} className="text-xs text-[#5a7090] hover:text-[#f0f4ff]">← Zurück</button>
             <p className="text-sm font-semibold text-[#f0f4ff]">{selected.name}</p>
+            {selected.source === "external" && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#3b82f6]/15 text-[#3b82f6]">extern</span>
+            )}
           </div>
 
           <div className="flex items-end gap-3">
@@ -191,7 +290,7 @@ function FoodSearchPanel({
                   setAmountError("Bitte Menge größer als 0 eingeben.");
                   return;
                 }
-                onSelect(amountG, selected.id);
+                onSelect(amountG, selected);
                 onClose();
               }}
               className="flex-1 py-2 rounded-xl bg-[#3b82f6] text-white text-xs font-medium hover:bg-[#2563eb] transition-colors"
@@ -441,16 +540,14 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
     setMeals((prev) => [...prev, ...imported]);
   }
 
-  function addFoodToMeal(mealId: string, amountG: number, foodId: string) {
-    const food = allFoods.find((f) => f.id === foodId);
-    if (!food) return;
+  function addFoodToMeal(mealId: string, amountG: number, food: FoodItem) {
     const macros = calcEntry(food, amountG);
     const entry: CalorieTrackerEntry = {
       id: uid(),
       name: food.name,
       amountG,
       ...macros,
-      foodItemId: food.id,
+      foodItemId: food.source === "external" ? undefined : food.id,
       servingLabel: food.servingLabel,
     };
     setMeals((prev) =>
@@ -570,7 +667,7 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
                   {foodSearchMealId === meal.id ? (
                     <div className="p-3 rounded-xl bg-[#0f1624] border border-[#3b82f6]/30">
                       <FoodSearchPanel
-                        onSelect={(amountG, foodId) => addFoodToMeal(meal.id, amountG, foodId)}
+                        onSelect={(amountG, food) => addFoodToMeal(meal.id, amountG, food)}
                         onClose={() => setFoodSearchMealId(null)}
                         allFoods={allFoods}
                       />
