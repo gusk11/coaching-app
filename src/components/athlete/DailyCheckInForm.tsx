@@ -66,6 +66,14 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
 
   const [submitted, setSubmitted] = useState(false);
 
+  const [customValues, setCustomValues] = useState<Record<string, string | number | boolean>>(
+    () => init?.customFieldValues ?? {}
+  );
+
+  function setCustomValue(id: string, value: string | number | boolean) {
+    setCustomValues((prev) => ({ ...prev, [id]: value }));
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -102,6 +110,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       selectedMealPlanId: cfg.nutritionCompliance && nutritionStatus === "meal_plan_followed" && selectedMealPlanId ? selectedMealPlanId : undefined,
       noExactNutritionReason: cfg.nutritionCompliance && nutritionStatus === "no_exact_info" ? noExactNutritionReason : undefined,
       deviationReason: cfg.nutritionCompliance && nutritionStatus === "no_exact_info" ? noExactNutritionReason : undefined,
+      customFieldValues: Object.keys(customValues).length > 0 ? customValues : undefined,
     });
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 3000);
@@ -353,6 +362,71 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3}
             placeholder="Wie war der Tag? Was fällt auf?"
             className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none" />
+        </div>
+      )}
+
+      {/* Custom fields */}
+      {(cfg.customFields ?? []).length > 0 && (
+        <div className="flex flex-col gap-4">
+          {(cfg.customFields ?? []).map((field) => {
+            const val = customValues[field.id];
+            if (field.type === "scale_1_5") {
+              const current = (typeof val === "number" ? val : 3) as 1|2|3|4|5;
+              return (
+                <SliderInput
+                  key={field.id}
+                  label={field.label + (field.unit ? ` (${field.unit})` : "")}
+                  value={current}
+                  min={1} max={5} step={1}
+                  onChange={(v) => setCustomValue(field.id, v as 1|2|3|4|5)}
+                />
+              );
+            }
+            if (field.type === "number") {
+              return (
+                <div key={field.id} className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-[#8fa3c0]">
+                    {field.label}{field.unit ? ` (${field.unit})` : ""}
+                  </label>
+                  <input
+                    type="number"
+                    value={typeof val === "number" ? val : ""}
+                    onChange={(e) => setCustomValue(field.id, parseFloat(e.target.value) || 0)}
+                    placeholder="0"
+                    className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                  />
+                </div>
+              );
+            }
+            if (field.type === "boolean") {
+              const active = typeof val === "boolean" ? val : false;
+              return (
+                <div key={field.id} className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-[#8fa3c0]">{field.label}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCustomValue(field.id, !active)}
+                    className={cn("w-10 h-5 rounded-full transition-all relative", active ? "bg-[#3b82f6]" : "bg-[#1e2d42]")}
+                  >
+                    <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all", active ? "left-5" : "left-0.5")} />
+                  </button>
+                </div>
+              );
+            }
+            // text
+            return (
+              <div key={field.id} className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-[#8fa3c0]">{field.label}</label>
+                <textarea
+                  value={typeof val === "string" ? val : ""}
+                  onChange={(e) => setCustomValue(field.id, e.target.value)}
+                  rows={2}
+                  placeholder="Freitext …"
+                  className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none"
+                />
+              </div>
+            );
+          })}
         </div>
       )}
 

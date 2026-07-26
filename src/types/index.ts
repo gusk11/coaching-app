@@ -63,6 +63,13 @@ export type TrackingDevice =
   | "none"
   | "other";
 
+export interface CustomCheckField {
+  id: string;
+  label: string;
+  type: "scale_1_5" | "number" | "boolean" | "text";
+  unit?: string;
+}
+
 /** Which fields are active in the daily check-in for this athlete */
 export interface DailyCheckConfig {
   bodyweight: boolean;
@@ -85,7 +92,42 @@ export interface DailyCheckConfig {
   nutritionCompliance: boolean;
   calorieTracking: boolean;
   notes: boolean;
+  customFields?: CustomCheckField[];
 }
+
+/** Which fields are active in the weekly check-in for this athlete */
+export interface WeeklyCheckConfig {
+  overallWeekRating: boolean;
+  weekSatisfaction: boolean;
+  selfSatisfaction: boolean;
+  nutritionAdherence: boolean;
+  hungerCravings: boolean;
+  trainingRating: boolean;
+  stressAvg: boolean;
+  energyAvg: boolean;
+  recoveryRating: boolean;
+  sleepAvg: boolean;
+  specialEvents: boolean;
+  freeNote: boolean;
+  progressPhotos: boolean;
+  customFields?: CustomCheckField[];
+}
+
+export const DEFAULT_WEEKLY_CHECK_CONFIG: WeeklyCheckConfig = {
+  overallWeekRating: true,
+  weekSatisfaction: true,
+  selfSatisfaction: true,
+  nutritionAdherence: true,
+  hungerCravings: true,
+  trainingRating: true,
+  stressAvg: true,
+  energyAvg: true,
+  recoveryRating: false,
+  sleepAvg: false,
+  specialEvents: true,
+  freeNote: true,
+  progressPhotos: false,
+};
 
 export const DEFAULT_DAILY_CHECK_CONFIG: DailyCheckConfig = {
   bodyweight: true,
@@ -154,6 +196,7 @@ export interface DailyCheckIn {
   carbs?: number;
   fat?: number;
   fiber?: number;
+  customFieldValues?: Record<string, string | number | boolean>;
 }
 
 export interface ProgressImage {
@@ -187,6 +230,7 @@ export interface WeeklyCheckIn {
   progressImages?: ProgressImage[];
   /** @deprecated use progressImages instead */
   photos?: string[];
+  customFieldValues?: Record<string, string | number | boolean>;
 }
 
 export interface WeeklyAdjustment {
@@ -427,6 +471,7 @@ export interface Athlete {
 
   // Check-in configuration
   dailyCheckConfig?: DailyCheckConfig;
+  weeklyCheckConfig?: WeeklyCheckConfig;
 
   coachNote: string;
   visibleNote: string;

@@ -630,23 +630,6 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
         <FieldInput label="Besonderheiten / Coach-Notizen" value={specialNotes} onChange={setSpecialNotes} placeholder="Interne Anmerkungen zum Athleten" rows={2} />
       </div>
 
-      {/* Daily Check-in Felder */}
-      <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
-        <p className="text-xs text-[#5a7090] uppercase tracking-widest">Daily Check-in Felder</p>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs text-[#5a7090]">Check-in-Tag</label>
-          <div className="flex flex-wrap gap-2">
-            {CHECKIN_DAY_OPTIONS.map((o) => (
-              <SelBtn key={o.value} active={checkInDay === o.value} onClick={() => setCheckInDay(o.value)} className="min-w-[44px] text-center">
-                {o.label}
-              </SelBtn>
-            ))}
-          </div>
-        </div>
-        <p className="text-xs text-[#5a7090]">Welche Daten soll dieser Athlet täglich tracken?</p>
-        <CheckConfigToggles config={checkConfig} onToggle={toggleConfig} />
-      </div>
-
       {/* Coaching-Profil (Onboarding-Fragebogen) */}
       {athlete.profile ? (
         <div className="flex flex-col gap-3">

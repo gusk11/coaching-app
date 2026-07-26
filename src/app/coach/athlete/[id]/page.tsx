@@ -19,6 +19,7 @@ import { MealPlanEditor } from "@/components/coach/MealPlanEditor";
 import { TrainingEditor } from "@/components/coach/TrainingEditor";
 import { SupplementEditor } from "@/components/coach/SupplementEditor";
 import { AthleteProfileEditor } from "@/components/coach/AthleteProfileEditor";
+import { CheckInConfigEditor } from "@/components/coach/CheckInConfigEditor";
 import { ProgressAnalytics } from "@/components/coach/ProgressAnalytics";
 import { TrainingProgressView } from "@/components/athlete/TrainingProgressView";
 import { DailyCheckDetailModal } from "@/components/coach/DailyCheckDetailModal";
@@ -732,6 +733,9 @@ export default function CoachAthletePage() {
                 </>
               )}
             </div>
+
+            {/* Check-in field configuration */}
+            <CheckInConfigEditor athlete={athlete} onSave={saveAthleteProfile} />
 
             {/* Athlete profile (formerly own tab) */}
             <AthleteProfileEditor athlete={athlete} onSave={saveAthleteProfile} />
