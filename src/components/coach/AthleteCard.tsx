@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Athlete } from "@/types";
+import { getAthleteCardStatus } from "@/lib/store";
 import {
   analyzeWeek, calculateDistanceToGoal, calculateGoalProgressPercent,
   getGoalLabel, getGoalColor, getTrendIcon, getTrendColor,
@@ -13,14 +14,13 @@ import { Check } from "lucide-react";
 
 const DAY_NAMES = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
-interface StoredTask { id: string; checkedAt: string | null; }
+interface StoredTask { id: string; label: string; checkedAt: string | null; createdAt: string; }
 
-function loadVisibleTasks(athleteId: string): StoredTask[] {
+function loadVisibleTasks(athleteId: string, today: string): StoredTask[] {
   try {
     const raw = localStorage.getItem(`coach_tasks_v1_${athleteId}`);
     if (!raw) return [];
     const tasks: StoredTask[] = JSON.parse(raw);
-    const today = new Date().toISOString().slice(0, 10);
     return tasks.filter((t) => t.checkedAt === null || t.checkedAt >= today);
   } catch { return []; }
 }
@@ -38,27 +38,38 @@ interface AthleteCardProps {
   checkInDate?: string;
   isCheckInToday?: boolean;
   hasPendingCheckIn?: boolean;
-  isDone?: boolean;
+  /** ISO date when the coach marked this check-in as done; undefined = not done. */
+  completedAt?: string;
   onToggleDone?: () => void;
 }
 
-export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCheckIn, isDone, onToggleDone }: AthleteCardProps) {
+export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCheckIn, completedAt, onToggleDone }: AthleteCardProps) {
   const router = useRouter();
+  const today = new Date().toISOString().slice(0, 10);
   const analysis = analyzeWeek(athlete);
   const dist = calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight);
   const progress = calculateGoalProgressPercent(athlete.startWeight, athlete.currentWeight, athlete.targetWeight);
   const trendColor = getTrendColor(analysis.trend, athlete.goalType);
   const checkInDayLabel = athlete.checkInDay != null ? DAY_NAMES[athlete.checkInDay] : null;
 
+  const isDone = !!completedAt;
+  const isCompletedToday = completedAt === today;
+
   const [tasks, setTasks] = useState<StoredTask[]>([]);
-  useEffect(() => { setTasks(loadVisibleTasks(athlete.id)); }, [athlete.id]);
+  useEffect(() => { setTasks(loadVisibleTasks(athlete.id, today)); }, [athlete.id, today]);
 
   const hasPendingTasks = tasks.some((t) => t.checkedAt === null);
 
-  // Priority: orange > yellow > green > blue
-  const isOrange = isCheckInToday && !isDone;
-  const isYellow = isDone && hasPendingTasks;
-  const isGreen = isDone && !hasPendingTasks;
+  const status = getAthleteCardStatus({
+    isCheckInDueToday: isCheckInToday ?? false,
+    completedAt,
+    hasPendingTasks,
+    today,
+  });
+
+  const isOrange = status === "checkin-open";
+  const isYellow = status === "checkin-done-task-open" || status === "task-open";
+  const isGreen = status === "checkin-done";
 
   const cardBg = isOrange
     ? "bg-[#1a1300] border-[#f59e0b]/25"
@@ -75,6 +86,27 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
     : isGreen
     ? "bg-[#10b981]/15 text-[#10b981]"
     : "bg-[#1d4ed8]/20 text-[#60a5fa]";
+
+  const accentBorderColor = isGreen
+    ? "border-[#10b981]/15"
+    : isYellow
+    ? "border-[#eab308]/10"
+    : isOrange
+    ? "border-[#f59e0b]/10"
+    : "border-[#1e2d42]";
+
+  const handleToggleTask = useCallback((taskId: string) => {
+    try {
+      const raw = localStorage.getItem(`coach_tasks_v1_${athlete.id}`);
+      if (!raw) return;
+      const allTasks: StoredTask[] = JSON.parse(raw);
+      const updated = allTasks.map((t) =>
+        t.id === taskId ? { ...t, checkedAt: t.checkedAt ? null : today } : t
+      );
+      localStorage.setItem(`coach_tasks_v1_${athlete.id}`, JSON.stringify(updated));
+      setTasks(updated.filter((t) => t.checkedAt === null || t.checkedAt >= today));
+    } catch { }
+  }, [athlete.id, today]);
 
   return (
     <div
@@ -106,7 +138,7 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            {(hasPendingCheckIn || (isCheckInToday && isDone)) && (
+            {(hasPendingCheckIn || isCheckInToday || isCompletedToday) && (
               <span className={cn(
                 "text-[10px] font-medium px-2 py-0.5 rounded-full border",
                 isGreen
@@ -156,11 +188,39 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
         </div>
       </button>
 
+      {/* Tasks */}
+      {tasks.length > 0 && (
+        <div className={cn("mt-3 pt-3 border-t flex flex-col gap-1.5", accentBorderColor)}>
+          {tasks.map((t) => (
+            <button
+              key={t.id}
+              onClick={(e) => { e.stopPropagation(); handleToggleTask(t.id); }}
+              className="flex items-center gap-2 text-left w-full group/task"
+            >
+              <span className={cn(
+                "w-3.5 h-3.5 rounded flex-shrink-0 border flex items-center justify-center transition-all",
+                t.checkedAt
+                  ? "bg-[#10b981] border-[#10b981]"
+                  : "border-[#5a7090] group-hover/task:border-[#8fa3c0]"
+              )}>
+                {t.checkedAt && <Check size={8} strokeWidth={3} className="text-black" />}
+              </span>
+              <span className={cn(
+                "text-xs text-[#8fa3c0] group-hover/task:text-[#f0f4ff] transition-colors",
+                t.checkedAt && "line-through opacity-50"
+              )}>
+                {t.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Coach check-in done toggle */}
       {onToggleDone && (
         <div className={cn(
           "mt-3 pt-3 border-t flex items-center justify-end",
-          isGreen ? "border-[#10b981]/15" : isYellow ? "border-[#eab308]/10" : "border-[#f59e0b]/10"
+          accentBorderColor
         )}>
           <button
             onClick={(e) => { e.stopPropagation(); onToggleDone(); }}

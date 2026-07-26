@@ -67,7 +67,7 @@ export default function CoachDashboard() {
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [checkInDone, setCheckInDoneState] = useState<Record<string, boolean>>({});
+  const [checkInDone, setCheckInDoneState] = useState<Record<string, string>>({});
   const [loginHelpRequests, setLoginHelpRequests] = useState<LoginHelpRequest[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [quickSelectId, setQuickSelectId] = useState("");
@@ -120,9 +120,10 @@ export default function CoachDashboard() {
     const mostRecentCheckInDate = getMostRecentCheckInDate(a.checkInDay, todayDayOfWeek, todayStr);
     const joinedDate = a.joinedAt.split("T")[0];
     const isCheckInToday = a.checkInDay === todayDayOfWeek;
-    const isDone = checkInDone[`${a.id}_${mostRecentCheckInDate}`] === true;
+    const completedAt = checkInDone[`${a.id}_${mostRecentCheckInDate}`]; // ISO date string or undefined
+    const isDone = !!completedAt;
     const hasPendingCheckIn = mostRecentCheckInDate >= joinedDate && !isDone;
-    return { athlete: a, mostRecentCheckInDate, isCheckInToday, isDone, hasPendingCheckIn };
+    return { athlete: a, mostRecentCheckInDate, isCheckInToday, completedAt, isDone, hasPendingCheckIn };
   }), [athletes, checkInDone, todayDayOfWeek, todayStr]);
 
   const checkInsTotal = athletes.length;
@@ -144,11 +145,17 @@ export default function CoachDashboard() {
 
   const handleToggleDone = useCallback((athleteId: string, date: string) => {
     const key = `${athleteId}_${date}`;
-    const current = checkInDone[key] ?? false;
-    const optimistic = { ...checkInDone, [key]: !current };
+    const isDoneNow = !!checkInDone[key];
+    const today = new Date().toISOString().slice(0, 10);
+    const optimistic = { ...checkInDone };
+    if (isDoneNow) {
+      delete optimistic[key];
+    } else {
+      optimistic[key] = today;
+    }
     setCheckInDoneState(optimistic);
     try {
-      const persisted = setCheckInDone(athleteId, date, !current);
+      const persisted = setCheckInDone(athleteId, date, !isDoneNow);
       setCheckInDoneState(persisted);
     } catch {
       setCheckInDoneState(checkInDone);
@@ -336,8 +343,8 @@ export default function CoachDashboard() {
                 checkInDate={s.mostRecentCheckInDate}
                 isCheckInToday={s.isCheckInToday}
                 hasPendingCheckIn={s.hasPendingCheckIn}
-                isDone={s.isDone}
-                onToggleDone={(s.hasPendingCheckIn || s.isCheckInToday)
+                completedAt={s.completedAt}
+                onToggleDone={(s.hasPendingCheckIn || s.isCheckInToday || s.completedAt === todayStr)
                   ? () => handleToggleDone(s.athlete.id, s.mostRecentCheckInDate)
                   : undefined}
               />

@@ -6,7 +6,7 @@ import {
 } from "@/types";
 import { cn, getGoalLabel } from "@/lib/utils";
 import { Pencil, Check, X } from "lucide-react";
-import { ProfileDisplaySections } from "@/components/athlete/ProfileSections";
+import { ProfileDisplaySections, ProfileEditSections } from "@/components/athlete/ProfileSections";
 import { showToast } from "@/components/ui/Toast";
 
 const GOAL_OPTIONS: { value: GoalType; label: string }[] = [
@@ -198,9 +198,11 @@ interface Props {
    *  "coach"   = always-edit form, includes specialNotes, no weight/goal/checkInDay fields. */
   mode: "coach" | "athlete";
   onSave: (updates: Partial<Athlete>) => void;
+  /** Coach mode only: called when a questionnaire section is saved. */
+  onSaveProfile?: (profile: import("@/types").AthleteProfile) => void;
 }
 
-export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
+export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: Props) {
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -484,31 +486,19 @@ export function AthleteStammdatenForm({ athlete, mode, onSave }: Props) {
         <FieldInput label="Besonderheiten / Coach-Notizen" value={specialNotes} onChange={setSpecialNotes} placeholder="Interne Anmerkungen zum Athleten" rows={2} />
       </div>
 
-      {/* Coaching-Profil (Onboarding-Fragebogen) */}
-      {athlete.profile ? (
-        <div className="flex flex-col gap-3">
-          <p className="text-xs text-[#5a7090] uppercase tracking-widest">Coaching-Fragebogen</p>
+      {/* Coaching-Fragebogen */}
+      <div className="flex flex-col gap-3">
+        <p className="text-xs text-[#5a7090] uppercase tracking-widest">Coaching-Fragebogen</p>
+        {athlete.profile && onSaveProfile ? (
+          <ProfileEditSections profile={athlete.profile} onSave={onSaveProfile} />
+        ) : athlete.profile ? (
           <ProfileDisplaySections profile={athlete.profile} trackingDeviceLabel={coachTrackingLabel} />
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {coachTrackingLabel && (
-            <>
-              <p className="text-xs text-[#5a7090] uppercase tracking-widest">Coaching-Fragebogen</p>
-              <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-2">
-                <p className="text-xs text-[#8fa3c0] font-semibold uppercase tracking-widest">Alltag / Tracking</p>
-                <div className="flex justify-between items-start py-1.5">
-                  <span className="text-xs text-[#5a7090]">Trackinggerät</span>
-                  <span className="text-xs text-[#c0cfe0]">{coachTrackingLabel}</span>
-                </div>
-              </div>
-            </>
-          )}
+        ) : (
           <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
             <p className="text-sm text-[#5a7090]">Kein Coaching-Fragebogen ausgefüllt. Der Athlet muss sich über den Registrierungs-Prozess anmelden.</p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Rechtliches */}
       <LegalSection consent={athlete.legalConsent} coachMode />

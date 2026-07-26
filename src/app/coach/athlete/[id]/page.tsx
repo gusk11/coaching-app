@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn } from "@/lib/store";
+import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
-import { Athlete, GoalType, MealPlan, TrainingPlan, SupplementPlan } from "@/types";
+import { Athlete, AthleteProfile, GoalType, MealPlan, TrainingPlan, SupplementPlan } from "@/types";
 import {
   copyMealPlan, copyTrainingPlan, copySupplementPlan,
   getMealPlanClipboard, getTrainingPlanClipboard, getSupplementPlanClipboard,
@@ -321,6 +321,18 @@ export default function CoachAthletePage() {
       const updated = await updateAthlete(athlete!.id, updates);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       showToast("Profil gespeichert.", "success");
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
+  }
+
+  async function handleSaveQuestionnaire(profile: AthleteProfile) {
+    const previous = athlete;
+    try {
+      const updated = await updateAthleteProfile(athlete!.id, profile);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      showToast("Fragebogen gespeichert.", "success");
     } catch {
       setAthlete(previous);
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
@@ -738,7 +750,7 @@ export default function CoachAthletePage() {
             <CheckInConfigEditor athlete={athlete} onSave={saveAthleteProfile} />
 
             {/* Athlete profile (formerly own tab) */}
-            <AthleteProfileEditor athlete={athlete} onSave={saveAthleteProfile} />
+            <AthleteProfileEditor athlete={athlete} onSave={saveAthleteProfile} onSaveProfile={handleSaveQuestionnaire} />
 
             {/* Anmeldedaten */}
             <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">

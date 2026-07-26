@@ -197,6 +197,8 @@ export interface DailyCheckIn {
   fat?: number;
   fiber?: number;
   customFieldValues?: Record<string, string | number | boolean>;
+  /** ISO date (yyyy-mm-dd) when the coach marked this check-in as reviewed/done. */
+  completedAt?: string;
 }
 
 export interface ProgressImage {
@@ -231,6 +233,8 @@ export interface WeeklyCheckIn {
   /** @deprecated use progressImages instead */
   photos?: string[];
   customFieldValues?: Record<string, string | number | boolean>;
+  /** ISO date (yyyy-mm-dd) when the coach marked this check-in as reviewed/done. */
+  completedAt?: string;
 }
 
 export interface WeeklyAdjustment {

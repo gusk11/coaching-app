@@ -983,6 +983,48 @@ export function getOpenCheckInCounts(
   return { daily, weekly };
 }
 
+export async function updateAthleteProfile(
+  athleteId: string,
+  profile: import("@/types").AthleteProfile
+): Promise<Athlete[]> {
+  const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
+  const currentRaw = row?.profile ?? {};
+  const merged = { ...currentRaw, ...profile };
+  const { error } = await supabase
+    .from("athletes")
+    .update({ profile: merged, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
+export function getExercisesFromAthleteTrainingPlan(
+  athlete: Athlete | undefined,
+  allExercises: ExerciseDBItem[]
+): ExerciseDBItem[] {
+  const plan = athlete?.trainingPlan;
+  if (!plan) return [];
+  const seenIds = new Set<string>();
+  const result: ExerciseDBItem[] = [];
+  for (const day of plan.days) {
+    for (const ex of day.exercises) {
+      if (ex.exerciseDbId) {
+        if (!seenIds.has(ex.exerciseDbId)) {
+          const dbItem = allExercises.find((e) => e.id === ex.exerciseDbId);
+          if (dbItem) { seenIds.add(ex.exerciseDbId); result.push(dbItem); }
+        }
+      } else {
+        const key = `name:${ex.name.toLowerCase()}`;
+        if (!seenIds.has(key)) {
+          const dbItem = allExercises.find((e) => e.name.toLowerCase() === ex.name.toLowerCase());
+          if (dbItem) { seenIds.add(key); result.push(dbItem); }
+        }
+      }
+    }
+  }
+  return result.sort((a, b) => a.name.localeCompare(b.name, "de"));
+}
+
 export function getLastTrainingLogPerExercise(logs: TrainingLog[]): Map<string, TrainingLog> {
   const result = new Map<string, TrainingLog>();
   const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));
@@ -996,24 +1038,69 @@ export function getLastTrainingLogPerExercise(logs: TrainingLog[]): Map<string, 
 
 // ─── Check-In Done Status (sync / localStorage) ───────────────────────────────
 
-export function loadCheckInDone(): Record<string, boolean> {
+// Value = ISO date (yyyy-mm-dd) when the coach marked it done. Missing key = not done.
+
+export function loadCheckInDone(): Record<string, string> {
   if (typeof window === "undefined") return {};
   try {
     const stored = localStorage.getItem(CHECK_IN_DONE_KEY);
-    return stored ? JSON.parse(stored) : {};
+    if (!stored) return {};
+    const raw: Record<string, unknown> = JSON.parse(stored);
+    const result: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof v === "string" && v) {
+        result[k] = v;
+      } else if (v === true) {
+        // Migrate old boolean-true: use the date embedded in the key as completedAt.
+        const parts = k.split("_");
+        result[k] = parts[parts.length - 1];
+      }
+      // false / null / unknown → omit
+    }
+    return result;
   } catch {
     return {};
   }
 }
 
-export function setCheckInDone(athleteId: string, date: string, done: boolean): Record<string, boolean> {
+export function setCheckInDone(athleteId: string, date: string, done: boolean): Record<string, string> {
   const current = loadCheckInDone();
   const key = `${athleteId}_${date}`;
-  const updated = { ...current, [key]: done };
+  const today = new Date().toISOString().slice(0, 10);
+  const updated = { ...current };
+  if (done) {
+    updated[key] = today;
+  } else {
+    delete updated[key];
+  }
   if (typeof window !== "undefined") {
     localStorage.setItem(CHECK_IN_DONE_KEY, JSON.stringify(updated));
   }
   return updated;
+}
+
+// ─── Athlete Card Status ───────────────────────────────────────────────────────
+
+export type AthleteCardStatus =
+  | "checkin-open"           // today is check-in day, not yet done → orange
+  | "checkin-done-task-open" // done today, open task → yellow
+  | "checkin-done"           // done today, no open tasks → green
+  | "task-open"              // open task, no today check-in → yellow
+  | "neutral";               // nothing pending → blue
+
+export function getAthleteCardStatus(opts: {
+  isCheckInDueToday: boolean;
+  completedAt: string | undefined;
+  hasPendingTasks: boolean;
+  today: string;
+}): AthleteCardStatus {
+  const { isCheckInDueToday, completedAt, hasPendingTasks, today } = opts;
+  const isCompletedToday = completedAt === today;
+  if (isCheckInDueToday && !isCompletedToday) return "checkin-open";
+  if (isCompletedToday && hasPendingTasks) return "checkin-done-task-open";
+  if (isCompletedToday) return "checkin-done";
+  if (hasPendingTasks) return "task-open";
+  return "neutral";
 }
 
 // ─── Active Training Session (sync / localStorage) ────────────────────────────

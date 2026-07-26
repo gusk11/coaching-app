@@ -4,6 +4,7 @@ import { Athlete, VideoFeedback, ExerciseDBItem } from "@/types";
 import {
   loadAthletes, loadVideoFeedbacks, addVideoFeedback, deleteVideoFeedback,
   loadAuth, loadExerciseDB, linkVideoFeedbackToExercises,
+  getExercisesFromAthleteTrainingPlan,
 } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { useRouter } from "next/navigation";
@@ -49,14 +50,22 @@ function AddFeedbackModal({
 }) {
   const [form, setForm] = useState(emptyForm());
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [exerciseSearch, setExerciseSearch] = useState("");
 
   function setField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: "" }));
   }
 
+  function handleAthleteChange(athleteId: string) {
+    setForm((prev) => ({ ...prev, athleteId, linkedExerciseIds: [] }));
+    setErrors((prev) => ({ ...prev, athleteId: "" }));
+    setExerciseSearch("");
+  }
+
   function setCategory(value: VideoFeedback["category"]) {
     setForm((prev) => ({ ...prev, category: value, linkedExerciseIds: [] }));
+    setExerciseSearch("");
   }
 
   function toggleExercise(id: string) {
@@ -67,6 +76,12 @@ function AddFeedbackModal({
         : [...prev.linkedExerciseIds, id],
     }));
   }
+
+  const selectedAthlete = athletes.find((a) => a.id === form.athleteId);
+  const planExercises = getExercisesFromAthleteTrainingPlan(selectedAthlete, exercises);
+  const filteredExercises = exerciseSearch.trim()
+    ? planExercises.filter((ex) => ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()))
+    : planExercises;
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
@@ -122,7 +137,7 @@ function AddFeedbackModal({
               <label className="text-xs font-medium text-[#8fa3c0]">Athlet</label>
               <select
                 value={form.athleteId}
-                onChange={(e) => setField("athleteId", e.target.value)}
+                onChange={(e) => handleAthleteChange(e.target.value)}
                 className="w-full rounded-xl bg-[#141d2e] border border-[#1e2d42] text-[#f0f4ff] px-3 py-2 text-sm focus:outline-none focus:border-[#3b82f6]"
               >
                 <option value="">Athleten auswählen…</option>
@@ -188,33 +203,48 @@ function AddFeedbackModal({
                     <span className="ml-1.5 text-[#60a5fa]">({form.linkedExerciseIds.length} ausgewählt)</span>
                   )}
                 </label>
-                {exercises.length === 0 ? (
-                  <p className="text-xs text-[#5a7090] px-1">Keine Übungen in der Datenbank gefunden.</p>
+                {!form.athleteId ? (
+                  <p className="text-xs text-[#5a7090] px-1">Bitte zuerst einen Athleten auswählen.</p>
+                ) : planExercises.length === 0 ? (
+                  <p className="text-xs text-[#5a7090] px-1">Keine Übungen im Trainingsplan gefunden.</p>
                 ) : (
-                  <div className="max-h-44 overflow-y-auto flex flex-col gap-0.5 rounded-xl border border-[#1e2d42] bg-[#141d2e] p-2">
-                    {exercises.map((ex) => {
-                      const checked = form.linkedExerciseIds.includes(ex.id);
-                      return (
-                        <label
-                          key={ex.id}
-                          className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
-                            checked ? "bg-[#3b82f6]/10" : "hover:bg-[#1e2d42]"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleExercise(ex.id)}
-                            className="accent-[#3b82f6] w-3.5 h-3.5 flex-shrink-0"
-                          />
-                          <span className="text-sm text-[#f0f4ff] flex-1 min-w-0 truncate">{ex.name}</span>
-                          {ex.muscleGroup && (
-                            <span className="text-xs text-[#5a7090] flex-shrink-0">{ex.muscleGroup}</span>
-                          )}
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <>
+                    <input
+                      type="text"
+                      value={exerciseSearch}
+                      onChange={(e) => setExerciseSearch(e.target.value)}
+                      placeholder="Übung suchen…"
+                      className="w-full rounded-xl bg-[#141d2e] border border-[#1e2d42] text-[#f0f4ff] px-3 py-2 text-sm placeholder:text-[#3a4f6a] focus:outline-none focus:border-[#3b82f6]"
+                    />
+                    <div className="max-h-44 overflow-y-auto flex flex-col gap-0.5 rounded-xl border border-[#1e2d42] bg-[#141d2e] p-2">
+                      {filteredExercises.length === 0 ? (
+                        <p className="text-xs text-[#5a7090] px-1 py-1">Keine Übereinstimmung.</p>
+                      ) : (
+                        filteredExercises.map((ex) => {
+                          const checked = form.linkedExerciseIds.includes(ex.id);
+                          return (
+                            <label
+                              key={ex.id}
+                              className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                                checked ? "bg-[#3b82f6]/10" : "hover:bg-[#1e2d42]"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleExercise(ex.id)}
+                                className="accent-[#3b82f6] w-3.5 h-3.5 flex-shrink-0"
+                              />
+                              <span className="text-sm text-[#f0f4ff] flex-1 min-w-0 truncate">{ex.name}</span>
+                              {ex.muscleGroup && (
+                                <span className="text-xs text-[#5a7090] flex-shrink-0">{ex.muscleGroup}</span>
+                              )}
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             )}
