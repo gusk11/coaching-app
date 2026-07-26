@@ -265,3 +265,20 @@ export function getLastCheckIn(
 export function isCheckInDay(checkInDay: number): boolean {
   return new Date().getDay() === checkInDay;
 }
+
+/**
+ * Returns the ISO date of the first day of the check-in period for a given date.
+ * Each period ends on `checkInDay` and covers the 7 days leading up to it.
+ * If `today` is past the check-in day (late submission), the weekStart still
+ * maps to the period that already ended — so late entries never drift into the
+ * next period.
+ */
+export function getCheckInWeekStart(today: string, checkInDay: number): string {
+  const d = new Date(today + "T12:00:00");
+  const daysSince = (d.getDay() - checkInDay + 7) % 7;
+  const lastCheckInDate = new Date(d);
+  lastCheckInDate.setDate(d.getDate() - daysSince);
+  const start = new Date(lastCheckInDate);
+  start.setDate(lastCheckInDate.getDate() - 6);
+  return start.toISOString().split("T")[0];
+}

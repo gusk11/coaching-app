@@ -6,6 +6,23 @@ import { SliderInput } from "@/components/ui/SliderInput";
 import { NumberSliderInput } from "@/components/ui/NumberSliderInput";
 import { cn, normalizeNutritionStatus, todayISO } from "@/lib/utils";
 
+type CheckInDraft = {
+  weight?: number; weightInput?: string; measurementTime?: string;
+  appetite?: number; digestion?: number; caffeine?: number; steps?: number;
+  cardio?: boolean; cardioDuration?: number; training?: boolean; trainingQuality?: number;
+  sleepHours?: number; sleepQuality?: number; sleepScore?: number;
+  restingHeartRate?: number; hrv?: number; spO2?: number; bpSystolic?: number; bpDiastolic?: number;
+  energyLevel?: number; stressLevel?: number; mood?: number; note?: string;
+  nutritionStatus?: NutritionStatusType; selectedMealPlanId?: string; noExactNutritionReason?: string;
+  customValues?: Record<string, string | number | boolean>;
+};
+
+function readDraft(key: string): CheckInDraft | null {
+  if (typeof window === "undefined") return null;
+  try { const raw = sessionStorage.getItem(key); return raw ? (JSON.parse(raw) as CheckInDraft) : null; }
+  catch { return null; }
+}
+
 interface DailyCheckInFormProps {
   athleteId: string;
   existingToday?: DailyCheckIn;
@@ -26,52 +43,68 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
   const init = existingToday;
   const router = useRouter();
 
-  const [weight, setWeight] = useState(init?.weight ?? 80);
+  const draftKey = `daily-checkin-draft-${athleteId}-${date ?? todayISO()}`;
+  const [draft] = useState<CheckInDraft | null>(() => !init ? readDraft(draftKey) : null);
+
+  const [weight, setWeight] = useState(draft?.weight ?? init?.weight ?? 80);
   const [weightInput, setWeightInput] = useState(
-    init?.weight != null ? String(init.weight).replace(".", ",") : "80"
+    draft?.weightInput ?? (init?.weight != null ? String(init.weight).replace(".", ",") : "80")
   );
-  const [measurementTime, setMeasurementTime] = useState(init?.measurementTime ?? "07:00");
-  const [appetite, setAppetite] = useState<1|2|3|4|5>(init?.appetite ?? 3);
-  const [digestion, setDigestion] = useState<1|2|3|4|5>(init?.digestion ?? 3);
-  const [caffeine, setCaffeine] = useState(init?.caffeine ?? 200);
-  const [steps, setSteps] = useState(init?.steps ?? 8000);
-  const [cardio, setCardio] = useState(init?.cardio ?? false);
-  const [cardioDuration, setCardioDuration] = useState(init?.cardioDuration ?? 30);
-  const [training, setTraining] = useState(init?.training ?? false);
-  const [trainingQuality, setTrainingQuality] = useState<1|2|3|4|5>(init?.trainingQuality ?? 3);
-  const [sleepHours, setSleepHours] = useState(init?.sleepHours ?? 7);
+  const [measurementTime, setMeasurementTime] = useState(draft?.measurementTime ?? init?.measurementTime ?? "07:00");
+  const [appetite, setAppetite] = useState<1|2|3|4|5>((draft?.appetite ?? init?.appetite ?? 3) as 1|2|3|4|5);
+  const [digestion, setDigestion] = useState<1|2|3|4|5>((draft?.digestion ?? init?.digestion ?? 3) as 1|2|3|4|5);
+  const [caffeine, setCaffeine] = useState(draft?.caffeine ?? init?.caffeine ?? 200);
+  const [steps, setSteps] = useState(draft?.steps ?? init?.steps ?? 8000);
+  const [cardio, setCardio] = useState(draft?.cardio ?? init?.cardio ?? false);
+  const [cardioDuration, setCardioDuration] = useState(draft?.cardioDuration ?? init?.cardioDuration ?? 30);
+  const [training, setTraining] = useState(draft?.training ?? init?.training ?? false);
+  const [trainingQuality, setTrainingQuality] = useState<1|2|3|4|5>((draft?.trainingQuality ?? init?.trainingQuality ?? 3) as 1|2|3|4|5);
+  const [sleepHours, setSleepHours] = useState(draft?.sleepHours ?? init?.sleepHours ?? 7);
   const [sleepQuality, setSleepQuality] = useState<1|2|3|4|5>(
-    (init?.sleepQuality && init.sleepQuality <= 5 ? init.sleepQuality : 3) as 1|2|3|4|5
+    (draft?.sleepQuality ?? (init?.sleepQuality && init.sleepQuality <= 5 ? init.sleepQuality : 3) ?? 3) as 1|2|3|4|5
   );
-  const [sleepScore, setSleepScore] = useState(init?.sleepScore ?? 75);
-  const [restingHeartRate, setRestingHeartRate] = useState(init?.restingHeartRate ?? 55);
-  const [hrv, setHrv] = useState(init?.hrv ?? 50);
-  const [spO2, setSpO2] = useState(init?.spO2 ?? 98);
-  const [bpSystolic, setBpSystolic] = useState(init?.bloodPressure?.systolic ?? 120);
-  const [bpDiastolic, setBpDiastolic] = useState(init?.bloodPressure?.diastolic ?? 80);
-  const [energyLevel, setEnergyLevel] = useState<1|2|3|4|5>(init?.energyLevel ?? 3);
-  const [stressLevel, setStressLevel] = useState<1|2|3|4|5>(init?.stressLevel ?? 3);
-  const [mood, setMood] = useState<1|2|3|4|5>(init?.mood ?? 3);
-  const [note, setNote] = useState(init?.note ?? "");
+  const [sleepScore, setSleepScore] = useState(draft?.sleepScore ?? init?.sleepScore ?? 75);
+  const [restingHeartRate, setRestingHeartRate] = useState(draft?.restingHeartRate ?? init?.restingHeartRate ?? 55);
+  const [hrv, setHrv] = useState(draft?.hrv ?? init?.hrv ?? 50);
+  const [spO2, setSpO2] = useState(draft?.spO2 ?? init?.spO2 ?? 98);
+  const [bpSystolic, setBpSystolic] = useState(draft?.bpSystolic ?? init?.bloodPressure?.systolic ?? 120);
+  const [bpDiastolic, setBpDiastolic] = useState(draft?.bpDiastolic ?? init?.bloodPressure?.diastolic ?? 80);
+  const [energyLevel, setEnergyLevel] = useState<1|2|3|4|5>((draft?.energyLevel ?? init?.energyLevel ?? 3) as 1|2|3|4|5);
+  const [stressLevel, setStressLevel] = useState<1|2|3|4|5>((draft?.stressLevel ?? init?.stressLevel ?? 3) as 1|2|3|4|5);
+  const [mood, setMood] = useState<1|2|3|4|5>((draft?.mood ?? init?.mood ?? 3) as 1|2|3|4|5);
+  const [note, setNote] = useState(draft?.note ?? init?.note ?? "");
 
   const [nutritionStatus, setNutritionStatus] = useState<NutritionStatusType>(
-    () => init ? normalizeNutritionStatus(init) : "meal_plan_followed"
+    () => draft?.nutritionStatus ?? (init ? normalizeNutritionStatus(init) : "meal_plan_followed")
   );
   const [selectedMealPlanId, setSelectedMealPlanId] = useState<string>(
-    init?.selectedMealPlanId ?? mealPlans?.[0]?.id ?? ""
+    draft?.selectedMealPlanId ?? init?.selectedMealPlanId ?? mealPlans?.[0]?.id ?? ""
   );
   const [noExactNutritionReason, setNoExactNutritionReason] = useState(
-    init?.noExactNutritionReason ?? init?.deviationReason ?? ""
+    draft?.noExactNutritionReason ?? init?.noExactNutritionReason ?? init?.deviationReason ?? ""
   );
 
   const [submitted, setSubmitted] = useState(false);
 
   const [customValues, setCustomValues] = useState<Record<string, string | number | boolean>>(
-    () => init?.customFieldValues ?? {}
+    () => draft?.customValues ?? init?.customFieldValues ?? {}
   );
 
   function setCustomValue(id: string, value: string | number | boolean) {
     setCustomValues((prev) => ({ ...prev, [id]: value }));
+  }
+
+  function handleCalorieTrackerClick() {
+    try {
+      sessionStorage.setItem(draftKey, JSON.stringify({
+        weight, weightInput, measurementTime, appetite, digestion, caffeine, steps,
+        cardio, cardioDuration, training, trainingQuality, sleepHours, sleepQuality,
+        sleepScore, restingHeartRate, hrv, spO2, bpSystolic, bpDiastolic,
+        energyLevel, stressLevel, mood, note, nutritionStatus, selectedMealPlanId,
+        noExactNutritionReason, customValues,
+      } as CheckInDraft));
+    } catch {}
+    router.push("/athlete/calorie-tracker");
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -112,6 +145,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       deviationReason: cfg.nutritionCompliance && nutritionStatus === "no_exact_info" ? noExactNutritionReason : undefined,
       customFieldValues: Object.keys(customValues).length > 0 ? customValues : undefined,
     });
+    try { sessionStorage.removeItem(draftKey); } catch {}
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 3000);
   }
@@ -328,7 +362,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
           {nutritionStatus === "calorie_tracker_used" && (
             <button
               type="button"
-              onClick={() => router.push("/athlete/calorie-tracker")}
+              onClick={handleCalorieTrackerClick}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#3b82f6]/30 text-[#60a5fa] text-sm hover:bg-[#3b82f6]/10 transition-colors self-start"
             >
               → Zum Kalorientracker

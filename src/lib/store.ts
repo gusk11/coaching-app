@@ -11,6 +11,7 @@ import {
   FoodItem, SupplementDBItem, ExerciseDBItem, GoalType,
   DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest, VideoFeedback,
 } from "@/types";
+import { getCheckInWeekStart } from "@/lib/utils";
 
 const AUTH_KEY = "coachOS_auth";
 const CHECK_IN_DONE_KEY = "coachOS_checkInDone";
@@ -465,8 +466,11 @@ export async function addWeeklyCheckIn(
   checkIn: Omit<WeeklyCheckIn, "id" | "athleteId">
 ): Promise<Athlete[]> {
   const a = await getAthlete(athleteId);
-  const newCheckIn: WeeklyCheckIn = { ...checkIn, id: `wc-${athleteId}-${Date.now()}`, athleteId };
-  const filtered = a.weeklyCheckIns.filter((c) => c.weekStart !== checkIn.weekStart);
+  // Always derive weekStart from the athlete's configured checkInDay, not the caller's value,
+  // so late or early submissions land in the correct period regardless of fill-in date.
+  const weekStart = getCheckInWeekStart(checkIn.date, a.checkInDay);
+  const newCheckIn: WeeklyCheckIn = { ...checkIn, weekStart, id: `wc-${athleteId}-${Date.now()}`, athleteId };
+  const filtered = a.weeklyCheckIns.filter((c) => c.weekStart !== weekStart);
   const weekly_check_ins = [...filtered, newCheckIn];
   const { error } = await supabase.from("athletes")
     .update({ weekly_check_ins, updated_at: new Date().toISOString() })
@@ -912,7 +916,10 @@ export async function addVideoFeedback(data: Omit<VideoFeedback, "id" | "created
     linked_exercise_ids: data.linkedExerciseIds ?? null,
     created_at: new Date().toISOString(),
   });
-  if (error) throw error;
+  if (error) {
+    console.error("[addVideoFeedback] Supabase error:", error);
+    throw error;
+  }
   return loadVideoFeedbacks();
 }
 
@@ -940,13 +947,20 @@ export async function linkVideoFeedbackToExercises(
       .from("exercise_db")
       .update({ current_tech_feedback_video_id: videoFeedbackId, updated_at: now })
       .eq("id", exerciseId);
-    if (error) throw error;
+    if (error) {
+      console.error("[linkVideoFeedbackToExercises] exercise_db update error:", error);
+      throw error;
+    }
   }
+  // video_feedbacks has no updated_at column — only update linked_exercise_ids
   const { error } = await supabase
     .from("video_feedbacks")
-    .update({ linked_exercise_ids: exerciseIds, updated_at: now })
+    .update({ linked_exercise_ids: exerciseIds })
     .eq("id", videoFeedbackId);
-  if (error) throw error;
+  if (error) {
+    console.error("[linkVideoFeedbackToExercises] video_feedbacks update error:", error);
+    throw error;
+  }
 }
 
 // ─── Check-In & Training Counters ─────────────────────────────────────────────

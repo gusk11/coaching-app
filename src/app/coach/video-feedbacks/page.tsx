@@ -45,12 +45,13 @@ function AddFeedbackModal({
 }: {
   athletes: Athlete[];
   exercises: ExerciseDBItem[];
-  onSave: (data: Omit<VideoFeedback, "id" | "createdAt">) => void;
+  onSave: (data: Omit<VideoFeedback, "id" | "createdAt">) => Promise<void>;
   onClose: () => void;
 }) {
   const [form, setForm] = useState(emptyForm());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [exerciseSearch, setExerciseSearch] = useState("");
+  const [saving, setSaving] = useState(false);
 
   function setField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -97,19 +98,26 @@ function AddFeedbackModal({
     return Object.keys(errs).length === 0;
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!validate()) return;
-    onSave({
-      athleteId: form.athleteId,
-      title: form.title.trim(),
-      date: form.date,
-      loomUrl: form.loomUrl.trim(),
-      category: form.category,
-      linkedExerciseIds: form.category === "technik-feedback" && form.linkedExerciseIds.length > 0
-        ? form.linkedExerciseIds
-        : undefined,
-    });
+    if (!validate() || saving) return;
+    setSaving(true);
+    try {
+      await onSave({
+        athleteId: form.athleteId,
+        title: form.title.trim(),
+        date: form.date,
+        loomUrl: form.loomUrl.trim(),
+        category: form.category,
+        linkedExerciseIds: form.category === "technik-feedback" && form.linkedExerciseIds.length > 0
+          ? form.linkedExerciseIds
+          : undefined,
+      });
+    } catch {
+      // error already shown by parent handler
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -272,9 +280,10 @@ function AddFeedbackModal({
               </button>
               <button
                 type="submit"
-                className="flex-1 py-2 rounded-xl bg-[#3b82f6] text-white text-sm font-medium hover:bg-[#2563eb] transition-colors"
+                disabled={saving}
+                className={`flex-1 py-2 rounded-xl bg-[#3b82f6] text-white text-sm font-medium transition-colors ${saving ? "opacity-50 cursor-not-allowed" : "hover:bg-[#2563eb]"}`}
               >
-                Speichern
+                {saving ? "Speichern…" : "Speichern"}
               </button>
             </div>
           </form>
@@ -301,7 +310,7 @@ export default function CoachVideoFeedbacks() {
     });
   }, [router]);
 
-  async function handleAdd(data: Omit<VideoFeedback, "id" | "createdAt">) {
+  async function handleAdd(data: Omit<VideoFeedback, "id" | "createdAt">): Promise<void> {
     try {
       const updated = await addVideoFeedback(data);
       if (data.category === "technik-feedback" && data.linkedExerciseIds?.length) {
@@ -311,8 +320,11 @@ export default function CoachVideoFeedbacks() {
       setFeedbacks(updated);
       setShowModal(false);
       showToast("Video Feedback gespeichert.", "success");
-    } catch {
-      showToast("Fehler beim Speichern.", "error");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[VideoFeedback] Fehler beim Speichern:", err);
+      showToast(`Fehler beim Speichern: ${msg}`, "error");
+      throw err;
     }
   }
 

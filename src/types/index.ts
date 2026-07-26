@@ -214,7 +214,7 @@ export interface ProgressImage {
 export interface WeeklyCheckIn {
   id: string;
   athleteId: string;
-  weekStart: string; // ISO yyyy-mm-dd (Monday)
+  weekStart: string; // ISO yyyy-mm-dd — first day of the check-in period (= checkInDay − 6 days)
   date: string;
   overallWeekRating: 1 | 2 | 3 | 4 | 5;
   weekSatisfaction: 1 | 2 | 3 | 4 | 5;

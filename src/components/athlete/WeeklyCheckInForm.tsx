@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { WeeklyCheckIn, Athlete } from "@/types";
 import { SliderInput } from "@/components/ui/SliderInput";
-import { analyzeWeek, todayISO, getWeekDates } from "@/lib/utils";
+import { analyzeWeek, todayISO, getCheckInWeekStart } from "@/lib/utils";
 import { StatCard } from "@/components/ui/StatCard";
 
 interface WeeklyCheckInFormProps {
@@ -15,7 +15,7 @@ interface WeeklyCheckInFormProps {
 
 export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, weekStartOverride }: WeeklyCheckInFormProps) {
   const today = todayISO();
-  const { start: weekStart } = getWeekDates(today);
+  const weekStart = getCheckInWeekStart(today, athlete.checkInDay);
   const analysis = analyzeWeek(athlete);
 
   const [overallWeekRating, setOverallWeekRating] = useState<1|2|3|4|5>((initialValues?.overallWeekRating as 1|2|3|4|5) ?? 3);

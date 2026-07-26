@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { pageTransition } from "@/lib/motion";
-import { isCheckInDay, getWeekDates, todayISO } from "@/lib/utils";
+import { isCheckInDay, getCheckInWeekStart, todayISO } from "@/lib/utils";
 import { isToolIntroSeen } from "@/lib/toolIntros";
 
 interface NavItem {
@@ -26,7 +26,7 @@ const athleteNav: NavItem[] = [
   { label: "Kalorientracker", href: "/athlete/calorie-tracker", icon: <Flame size={20} />, toolIntroKey: "calorie-tracker" },
   { label: "Trainingstracker", href: "/athlete/training", icon: <Dumbbell size={20} />, toolIntroKey: "training" },
   { label: "Pläne", href: "/athlete/plans", icon: <Salad size={20} />, toolIntroKey: "plans" },
-  { label: "Stammdaten", href: "/athlete/stammdaten", icon: <User size={20} />, toolIntroKey: "stammdaten" },
+  { label: "Stammdaten", href: "/athlete/stammdaten", icon: <User size={20} /> },
 ];
 
 const coachNav: NavItem[] = [
@@ -130,8 +130,7 @@ export function AppShell({ children, role, title }: AppShellProps) {
       if (!athlete) return;
       const today = todayISO();
       const dailyDone = athlete.dailyCheckIns.some((c) => c.date === today);
-      const { start: weekStart } = getWeekDates(today);
-      const weeklyDone = athlete.weeklyCheckIns.some((w) => w.weekStart === weekStart);
+      const weeklyDone = athlete.weeklyCheckIns.some((w) => w.weekStart === getCheckInWeekStart(today, athlete.checkInDay));
       const isWeeklyDay = isCheckInDay(athlete.checkInDay);
       setHasPendingCheckins(!dailyDone || (isWeeklyDay && !weeklyDone));
       const introSeen = athlete.introVideoSeen === true || !!localStorage.getItem(`coachOS_introVideoSeen_${auth.athleteId}`);

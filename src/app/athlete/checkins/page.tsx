@@ -10,8 +10,8 @@ import { DailyCheckInForm } from "@/components/athlete/DailyCheckInForm";
 import { WeeklyCheckInForm } from "@/components/athlete/WeeklyCheckInForm";
 import { WeekBulkBackfill } from "@/components/athlete/WeekBulkBackfill";
 import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
-import { isCheckInDay, getWeekDates, todayISO } from "@/lib/utils";
-import { Pencil, Trash2, X } from "lucide-react";
+import { isCheckInDay, getCheckInWeekStart, todayISO } from "@/lib/utils";
+import { ChevronRight, Pencil, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -33,10 +33,11 @@ export default function CheckInsPage() {
 
   // Daily state
   const [dayModalDate, setDayModalDate] = useState<string | null>(null);
-  const [dayRange, setDayRange] = useState<7 | 14>(7);
+  const [pastDailyOpen, setPastDailyOpen] = useState(false);
 
   // Weekly state
   const [editing, setEditing] = useState(false);
+  const [pastWeeklyOpen, setPastWeeklyOpen] = useState(false);
 
   // Delete confirmation (unified — used for current-week weekly delete button)
   const [deleteConfirmCI, setDeleteConfirmCI] = useState<{ type: "daily" | "weekly"; id: string } | null>(null);
@@ -59,7 +60,7 @@ export default function CheckInsPage() {
   }, [router]);
 
   const today = todayISO();
-  const { start: weekStart } = getWeekDates(today);
+  const weekStart = getCheckInWeekStart(today, athlete?.checkInDay ?? 1);
 
   // Days going back from the most recent check-in day
   const checkInDay = athlete?.checkInDay ?? 1;
@@ -70,13 +71,13 @@ export default function CheckInsPage() {
     const checkInDayDate = new Date(todayDate);
     checkInDayDate.setDate(todayDate.getDate() - daysSinceCheckInDay);
     const days: string[] = [];
-    for (let i = dayRange; i >= 0; i--) {
+    for (let i = 14; i >= 0; i--) {
       const d = new Date(checkInDayDate);
       d.setDate(checkInDayDate.getDate() - i);
       days.push(d.toISOString().split("T")[0]);
     }
     return days;
-  }, [today, checkInDay, dayRange]);
+  }, [today, checkInDay]);
 
   if (!athlete) {
     return (
@@ -214,23 +215,7 @@ export default function CheckInsPage() {
         {activeTab === "daily" && (
           <div className="flex flex-col gap-4">
 
-            {/* Day range selector */}
-            <div className="flex gap-1 p-0.5 bg-[#0f1624] rounded-xl border border-[#1e2d42] self-start">
-              {([7, 14] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setDayRange(r)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                    dayRange === r ? "bg-[#1e2d42] text-[#f0f4ff]" : "text-[#5a7090] hover:text-[#8fa3c0]"
-                  )}
-                >
-                  {r} Tage
-                </button>
-              ))}
-            </div>
-
-            {/* Check-in period tiles — dayRange days before + check-in day */}
+            {/* Check-in period tiles — last 14 days */}
             {(() => {
               const renderTile = (day: string) => {
                 const hasCI = athlete.dailyCheckIns.some((ci) => ci.date === day);
@@ -268,14 +253,6 @@ export default function CheckInsPage() {
                   </button>
                 );
               };
-
-              if (dayRange === 7) {
-                return (
-                  <div className="grid grid-cols-8 gap-1">
-                    {checkInPeriodDays.map(renderTile)}
-                  </div>
-                );
-              }
               return (
                 <div className="flex flex-col gap-1">
                   <div className="grid grid-cols-8 gap-1">
@@ -294,10 +271,19 @@ export default function CheckInsPage() {
             {/* Past daily check-ins */}
             {pastDailyCheckIns.length > 0 && (
               <div className="flex flex-col gap-3">
-                <p className="text-xs text-[#5a7090] uppercase tracking-widest px-1">
-                  Vergangene Check-ins ({pastDailyCheckIns.length})
-                </p>
-                {pastDailyCheckIns.map((ci) => (
+                <button
+                  onClick={() => setPastDailyOpen((o) => !o)}
+                  className="flex items-center gap-2 px-1 py-0.5 text-left"
+                >
+                  <ChevronRight
+                    size={14}
+                    className={cn("text-[#5a7090] transition-transform shrink-0", pastDailyOpen && "rotate-90")}
+                  />
+                  <p className="text-xs text-[#5a7090] uppercase tracking-widest">
+                    Vergangene Check-ins ({pastDailyCheckIns.length})
+                  </p>
+                </button>
+                {pastDailyOpen && pastDailyCheckIns.map((ci) => (
                   <div key={ci.id} className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-semibold text-[#f0f4ff]">
@@ -424,15 +410,24 @@ export default function CheckInsPage() {
             {/* Past weekly check-ins */}
             {pastWeeklyCheckIns.length > 0 && (
               <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3 px-1 pt-2">
+                <button
+                  onClick={() => setPastWeeklyOpen((o) => !o)}
+                  className="flex items-center gap-3 px-1 pt-2 w-full"
+                >
                   <div className="h-px flex-1 bg-[#1e2d42]" />
-                  <p className="text-xs text-[#5a7090] uppercase tracking-widest shrink-0">
-                    Vergangene Weekly Check-ins ({pastWeeklyCheckIns.length})
-                  </p>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <ChevronRight
+                      size={12}
+                      className={cn("text-[#5a7090] transition-transform", pastWeeklyOpen && "rotate-90")}
+                    />
+                    <p className="text-xs text-[#5a7090] uppercase tracking-widest">
+                      Vergangene Weekly Check-ins ({pastWeeklyCheckIns.length})
+                    </p>
+                  </div>
                   <div className="h-px flex-1 bg-[#1e2d42]" />
-                </div>
+                </button>
 
-                {pastWeeklyCheckIns.map((ci) => (
+                {pastWeeklyOpen && pastWeeklyCheckIns.map((ci) => (
                   <div key={ci.id} className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-semibold text-[#f0f4ff]">
