@@ -38,7 +38,7 @@ const EQUIPMENT_OPTIONS = [
 ] as const;
 
 function emptyForm(): Partial<ExerciseDBItem> {
-  return { name: "", muscleGroup: "", equipment: "", laterality: "bilateral", notes: "", executionLink: "" };
+  return { name: "", muscleGroup: "", equipmentType: "", laterality: "bilateral", notes: "", executionLink: "" };
 }
 
 // ─── Form Modal ───────────────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ function ExerciseForm({
     onSave({
       name: form.name?.trim() ?? "",
       muscleGroup: form.muscleGroup?.trim() ?? "",
-      equipment: form.equipment?.trim() || undefined,
+      equipmentType: form.equipmentType?.trim() || undefined,
       laterality: form.laterality ?? "bilateral",
       notes: form.notes?.trim() || undefined,
       executionLink: form.executionLink?.trim() || undefined,
@@ -160,8 +160,8 @@ function ExerciseForm({
           <div>
             <label className={labelCls}>Equipment</label>
             <select
-              value={form.equipment ?? ""}
-              onChange={(e) => set("equipment", e.target.value)}
+              value={form.equipmentType ?? ""}
+              onChange={(e) => set("equipmentType", e.target.value)}
               className={inputCls}
             >
               <option value="">— auswählen —</option>
@@ -404,9 +404,10 @@ export default function ExerciseDatabase() {
           <div className="grid grid-cols-12 px-4 py-2 text-xs text-[#5a7090] uppercase tracking-widest border-b border-[#1e2d42] bg-[#0f1624]">
             <span className="col-span-3">Übungsname</span>
             <span className="col-span-2">Muskelgruppe</span>
-            <span className="col-span-1">Typ</span>
-            <span className="col-span-3">Anmerkungen</span>
-            <span className="col-span-2">Link</span>
+            <span className="col-span-2">Ausrüstung</span>
+            <span className="col-span-1">Ausführung</span>
+            <span className="col-span-2">Anmerkungen</span>
+            <span className="col-span-1">Link</span>
             <span className="col-span-1 text-right">Aktionen</span>
           </div>
 
@@ -431,24 +432,25 @@ export default function ExerciseDatabase() {
                     </p>
                   </div>
 
-                  {/* Muskelgruppe + Equipment */}
-                  <div className="col-span-2 pr-3 flex flex-col gap-0.5">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20">
-                        {e.muscleGroup}
+                  {/* Muskelgruppe */}
+                  <div className="col-span-2 pr-3">
+                    <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20">
+                      {e.muscleGroup}
+                    </span>
+                  </div>
+
+                  {/* Ausrüstung */}
+                  <div className="col-span-2 pr-3">
+                    {e.equipmentType ? (
+                      <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#1e3a5f]/40 text-[#7cb3e0] border border-[#1e3a5f]/60">
+                        {e.equipmentType}
                       </span>
-                      {e.laterality === "unilateral" && (
-                        <span className="inline-block text-xs font-medium px-1.5 py-0.5 rounded-full bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20">
-                          Uni
-                        </span>
-                      )}
-                    </div>
-                    {e.equipment && (
-                      <p className="text-xs text-[#3a5070]">{e.equipment}</p>
+                    ) : (
+                      <span className="text-xs text-[#5a7090] italic">—</span>
                     )}
                   </div>
 
-                  {/* Lateralität */}
+                  {/* Ausführung (bilateral / unilateral) */}
                   <div className="col-span-1 pr-2">
                     {(e.laterality ?? "bilateral") === "unilateral" ? (
                       <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20 whitespace-nowrap">
@@ -462,14 +464,14 @@ export default function ExerciseDatabase() {
                   </div>
 
                   {/* Anmerkungen */}
-                  <div className="col-span-3 pr-3">
+                  <div className="col-span-2 pr-3">
                     <p className="text-sm text-[#8fa3c0] line-clamp-2 leading-snug">
                       {e.notes || <span className="text-[#5a7090] italic">—</span>}
                     </p>
                   </div>
 
                   {/* Link */}
-                  <div className="col-span-2 pr-2">
+                  <div className="col-span-1 pr-2">
                     {e.executionLink ? (
                       <a
                         href={e.executionLink}
@@ -482,7 +484,7 @@ export default function ExerciseDatabase() {
                         Öffnen
                       </a>
                     ) : (
-                      <span className="text-xs text-[#5a7090] italic">Kein Link</span>
+                      <span className="text-xs text-[#5a7090] italic">—</span>
                     )}
                   </div>
 

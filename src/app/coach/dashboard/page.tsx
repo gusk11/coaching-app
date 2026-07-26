@@ -26,16 +26,15 @@ const DEFAULT_TASK_TYPES = ["Technik", "Feedback", "WhatsApp", "Plananpassung", 
 
 interface StoredTask { id: string; label: string; checkedAt: string | null; createdAt: string; }
 
-function loadTaskStats(athleteIds: string[], today: string): { total: number; done: number } {
+function loadTaskStats(athleteIds: string[]): { total: number; done: number } {
   let total = 0, done = 0;
   for (const id of athleteIds) {
     try {
       const raw = localStorage.getItem(`coach_tasks_v1_${id}`);
       if (!raw) continue;
       const tasks: StoredTask[] = JSON.parse(raw);
-      const visible = tasks.filter((t) => t.checkedAt === null || t.checkedAt >= today);
-      total += visible.length;
-      done += visible.filter((t) => t.checkedAt !== null).length;
+      total += tasks.length;
+      done += tasks.filter((t) => t.checkedAt !== null).length;
     } catch { }
   }
   return { total, done };
@@ -76,7 +75,6 @@ export default function CoachDashboard() {
   const [taskAthleteId, setTaskAthleteId] = useState("");
   const [taskType, setTaskType] = useState("");
   const [taskCustom, setTaskCustom] = useState("");
-  const [taskRefreshKey, setTaskRefreshKey] = useState(0);
   const [taskTypes, setTaskTypes] = useState<string[]>(DEFAULT_TASK_TYPES);
   const [editingTypes, setEditingTypes] = useState(false);
   const [newTypeInput, setNewTypeInput] = useState("");
@@ -127,14 +125,13 @@ export default function CoachDashboard() {
     return { athlete: a, mostRecentCheckInDate, isCheckInToday, isDone, hasPendingCheckIn };
   }), [athletes, checkInDone, todayDayOfWeek, todayStr]);
 
-  const checkInsToday = athletesWithStatus.filter((s) => s.isCheckInToday).length;
-  const checkInsProcessed = athletesWithStatus.filter((s) => s.isCheckInToday && s.isDone).length;
+  const checkInsTotal = athletes.length;
+  const checkInsProcessed = athletesWithStatus.filter((s) => s.isDone).length;
 
   const taskStats = useMemo(() => {
     if (!isLoaded) return { total: 0, done: 0 };
-    return loadTaskStats(athletes.map((a) => a.id), todayStr);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [athletes, todayStr, taskRefreshKey]);
+    return loadTaskStats(athletes.map((a) => a.id));
+  }, [athletes, isLoaded]);
 
   const sortedAthletes = useMemo(() => {
     const pending = athletesWithStatus
@@ -205,7 +202,6 @@ export default function CoachDashboard() {
     if (!taskAthleteId || !taskType) return;
     const label = taskCustom.trim() ? `${taskType}: ${taskCustom.trim()}` : taskType;
     addTaskToStorage(taskAthleteId, label, todayStr);
-    setTaskRefreshKey((k) => k + 1);
     setShowTaskModal(false);
     setTaskAthleteId(""); setTaskType(""); setTaskCustom("");
     showToast("Aufgabe gesetzt.", "success");
@@ -218,7 +214,7 @@ export default function CoachDashboard() {
         <div className="grid grid-cols-3 gap-2">
           <StatCard
             label="Check-Ins"
-            value={`${checkInsProcessed} von ${checkInsToday}`}
+            value={`${checkInsProcessed} von ${checkInsTotal}`}
             sub="bearbeitet"
           />
           <StatCard
@@ -344,8 +340,6 @@ export default function CoachDashboard() {
                 onToggleDone={(s.hasPendingCheckIn || s.isCheckInToday)
                   ? () => handleToggleDone(s.athlete.id, s.mostRecentCheckInDate)
                   : undefined}
-                refreshKey={taskRefreshKey}
-                onTasksChanged={() => setTaskRefreshKey((k) => k + 1)}
               />
             </motion.div>
           ))}

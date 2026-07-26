@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Athlete, VideoFeedback } from "@/types";
+import { Athlete, VideoFeedback, ExerciseDBItem } from "@/types";
 import {
-  loadAthletes, loadVideoFeedbacks, addVideoFeedback, deleteVideoFeedback, loadAuth,
+  loadAthletes, loadVideoFeedbacks, addVideoFeedback, deleteVideoFeedback,
+  loadAuth, loadExerciseDB, linkVideoFeedbackToExercises,
 } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { useRouter } from "next/navigation";
@@ -12,25 +13,59 @@ import { motion, AnimatePresence } from "framer-motion";
 import { modalOverlay, modalContent } from "@/lib/motion";
 import { todayISO } from "@/lib/utils";
 
+const CATEGORIES: { value: VideoFeedback["category"]; label: string }[] = [
+  { value: "technik-feedback", label: "Technik-Feedback" },
+  { value: "checkin", label: "Check-in" },
+  { value: "sonstiges", label: "Sonstiges" },
+];
+
+const CATEGORY_COLORS: Record<VideoFeedback["category"], string> = {
+  "technik-feedback": "text-[#f59e0b] bg-[#f59e0b]/10",
+  checkin: "text-[#22c55e] bg-[#22c55e]/10",
+  sonstiges: "text-[#8fa3c0] bg-[#8fa3c0]/10",
+};
+
 function emptyForm() {
-  return { athleteId: "", title: "", date: todayISO(), loomUrl: "" };
+  return {
+    athleteId: "",
+    title: "",
+    date: todayISO(),
+    loomUrl: "",
+    category: "sonstiges" as VideoFeedback["category"],
+    linkedExerciseIds: [] as string[],
+  };
 }
 
 function AddFeedbackModal({
   athletes,
+  exercises,
   onSave,
   onClose,
 }: {
   athletes: Athlete[];
+  exercises: ExerciseDBItem[];
   onSave: (data: Omit<VideoFeedback, "id" | "createdAt">) => void;
   onClose: () => void;
 }) {
   const [form, setForm] = useState(emptyForm());
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  function set(field: string, value: string) {
+  function setField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: "" }));
+  }
+
+  function setCategory(value: VideoFeedback["category"]) {
+    setForm((prev) => ({ ...prev, category: value, linkedExerciseIds: [] }));
+  }
+
+  function toggleExercise(id: string) {
+    setForm((prev) => ({
+      ...prev,
+      linkedExerciseIds: prev.linkedExerciseIds.includes(id)
+        ? prev.linkedExerciseIds.filter((x) => x !== id)
+        : [...prev.linkedExerciseIds, id],
+    }));
   }
 
   function validate(): boolean {
@@ -50,7 +85,16 @@ function AddFeedbackModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
-    onSave({ athleteId: form.athleteId, title: form.title.trim(), date: form.date, loomUrl: form.loomUrl.trim() });
+    onSave({
+      athleteId: form.athleteId,
+      title: form.title.trim(),
+      date: form.date,
+      loomUrl: form.loomUrl.trim(),
+      category: form.category,
+      linkedExerciseIds: form.category === "technik-feedback" && form.linkedExerciseIds.length > 0
+        ? form.linkedExerciseIds
+        : undefined,
+    });
   }
 
   return (
@@ -78,7 +122,7 @@ function AddFeedbackModal({
               <label className="text-xs font-medium text-[#8fa3c0]">Athlet</label>
               <select
                 value={form.athleteId}
-                onChange={(e) => set("athleteId", e.target.value)}
+                onChange={(e) => setField("athleteId", e.target.value)}
                 className="w-full rounded-xl bg-[#141d2e] border border-[#1e2d42] text-[#f0f4ff] px-3 py-2 text-sm focus:outline-none focus:border-[#3b82f6]"
               >
                 <option value="">Athleten auswählen…</option>
@@ -95,7 +139,7 @@ function AddFeedbackModal({
               <input
                 type="date"
                 value={form.date}
-                onChange={(e) => set("date", e.target.value)}
+                onChange={(e) => setField("date", e.target.value)}
                 className="w-full rounded-xl bg-[#141d2e] border border-[#1e2d42] text-[#f0f4ff] px-3 py-2 text-sm focus:outline-none focus:border-[#3b82f6]"
               />
               {errors.date && <p className="text-xs text-red-400">{errors.date}</p>}
@@ -107,12 +151,73 @@ function AddFeedbackModal({
               <input
                 type="text"
                 value={form.title}
-                onChange={(e) => set("title", e.target.value)}
+                onChange={(e) => setField("title", e.target.value)}
                 placeholder="z.B. Kniebeuge Technik KW 30"
                 className="w-full rounded-xl bg-[#141d2e] border border-[#1e2d42] text-[#f0f4ff] px-3 py-2 text-sm placeholder:text-[#3a4f6a] focus:outline-none focus:border-[#3b82f6]"
               />
               {errors.title && <p className="text-xs text-red-400">{errors.title}</p>}
             </div>
+
+            {/* Kategorie */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-[#8fa3c0]">Kategorie</label>
+              <div className="flex gap-2">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    onClick={() => setCategory(cat.value)}
+                    className={`flex-1 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                      form.category === cat.value
+                        ? "border-[#3b82f6] bg-[#3b82f6]/10 text-[#60a5fa]"
+                        : "border-[#1e2d42] text-[#5a7090] hover:border-[#2a3d5a]"
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Übungen (nur bei Technik-Feedback) */}
+            {form.category === "technik-feedback" && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-[#8fa3c0]">
+                  Betroffene Übungen
+                  {form.linkedExerciseIds.length > 0 && (
+                    <span className="ml-1.5 text-[#60a5fa]">({form.linkedExerciseIds.length} ausgewählt)</span>
+                  )}
+                </label>
+                {exercises.length === 0 ? (
+                  <p className="text-xs text-[#5a7090] px-1">Keine Übungen in der Datenbank gefunden.</p>
+                ) : (
+                  <div className="max-h-44 overflow-y-auto flex flex-col gap-0.5 rounded-xl border border-[#1e2d42] bg-[#141d2e] p-2">
+                    {exercises.map((ex) => {
+                      const checked = form.linkedExerciseIds.includes(ex.id);
+                      return (
+                        <label
+                          key={ex.id}
+                          className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                            checked ? "bg-[#3b82f6]/10" : "hover:bg-[#1e2d42]"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleExercise(ex.id)}
+                            className="accent-[#3b82f6] w-3.5 h-3.5 flex-shrink-0"
+                          />
+                          <span className="text-sm text-[#f0f4ff] flex-1 min-w-0 truncate">{ex.name}</span>
+                          {ex.muscleGroup && (
+                            <span className="text-xs text-[#5a7090] flex-shrink-0">{ex.muscleGroup}</span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Loom URL */}
             <div className="flex flex-col gap-1">
@@ -120,7 +225,7 @@ function AddFeedbackModal({
               <input
                 type="url"
                 value={form.loomUrl}
-                onChange={(e) => set("loomUrl", e.target.value)}
+                onChange={(e) => setField("loomUrl", e.target.value)}
                 placeholder="https://www.loom.com/share/…"
                 className="w-full rounded-xl bg-[#141d2e] border border-[#1e2d42] text-[#f0f4ff] px-3 py-2 text-sm placeholder:text-[#3a4f6a] focus:outline-none focus:border-[#3b82f6]"
               />
@@ -153,20 +258,26 @@ export default function CoachVideoFeedbacks() {
   const router = useRouter();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [feedbacks, setFeedbacks] = useState<VideoFeedback[]>([]);
+  const [exercises, setExercises] = useState<ExerciseDBItem[]>([]);
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "coach") { router.replace("/login"); return; }
-    Promise.all([loadAthletes(), loadVideoFeedbacks()]).then(([aths, fbs]) => {
+    Promise.all([loadAthletes(), loadVideoFeedbacks(), loadExerciseDB()]).then(([aths, fbs, exs]) => {
       setAthletes(aths);
       setFeedbacks(fbs);
+      setExercises(exs);
     });
   }, [router]);
 
   async function handleAdd(data: Omit<VideoFeedback, "id" | "createdAt">) {
     try {
       const updated = await addVideoFeedback(data);
+      if (data.category === "technik-feedback" && data.linkedExerciseIds?.length) {
+        // updated is sorted by created_at desc — new video is first
+        await linkVideoFeedbackToExercises(updated[0].id, data.linkedExerciseIds);
+      }
       setFeedbacks(updated);
       setShowModal(false);
       showToast("Video Feedback gespeichert.", "success");
@@ -187,6 +298,10 @@ export default function CoachVideoFeedbacks() {
 
   function getAthleteName(athleteId: string) {
     return athletes.find((a) => a.id === athleteId)?.name ?? "Unbekannt";
+  }
+
+  function getCategoryLabel(cat: VideoFeedback["category"]) {
+    return CATEGORIES.find((c) => c.value === cat)?.label ?? cat;
   }
 
   function formatDate(iso: string) {
@@ -232,10 +347,20 @@ export default function CoachVideoFeedbacks() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[#f0f4ff] truncate">{fb.title}</p>
-                  <p className="text-xs text-[#5a7090]">
-                    {getAthleteName(fb.athleteId)} · {formatDate(fb.date)}
-                    {fb.seenAt && <span className="ml-2 text-[#22c55e]">· gesehen</span>}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                    <span className="text-xs text-[#5a7090]">
+                      {getAthleteName(fb.athleteId)} · {formatDate(fb.date)}
+                    </span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${CATEGORY_COLORS[fb.category ?? "sonstiges"]}`}>
+                      {getCategoryLabel(fb.category ?? "sonstiges")}
+                    </span>
+                    {fb.linkedExerciseIds && fb.linkedExerciseIds.length > 0 && (
+                      <span className="text-xs text-[#5a7090]">
+                        · {fb.linkedExerciseIds.length} {fb.linkedExerciseIds.length === 1 ? "Übung" : "Übungen"}
+                      </span>
+                    )}
+                    {fb.seenAt && <span className="text-xs text-[#22c55e]">· gesehen</span>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <a
@@ -264,6 +389,7 @@ export default function CoachVideoFeedbacks() {
       {showModal && (
         <AddFeedbackModal
           athletes={athletes}
+          exercises={exercises}
           onSave={handleAdd}
           onClose={() => setShowModal(false)}
         />

@@ -43,7 +43,7 @@ export default function AthleteNutrition() {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-4xl mb-4">🍽</p>
             <p className="text-[#8fa3c0] font-medium">Noch kein Ernährungsplan</p>
-            <p className="text-sm text-[#5a7090] mt-1">Dein Coach arbeitet gerade daran.</p>
+            <p className="text-sm text-[#5a7090] mt-1">Gustav arbeitet gerade daran.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -51,7 +51,7 @@ export default function AthleteNutrition() {
               <h2 className="text-base font-semibold text-[#f0f4ff]">
                 {plans.length === 1 ? plans[0].title : `${plans.length} Ernährungspläne`}
               </h2>
-              <p className="text-xs text-[#5a7090]">Erstellt von deinem Coach</p>
+              <p className="text-xs text-[#5a7090]">Erstellt von Gustav</p>
             </div>
             <MealPlanView plans={plans} athleteWeight={resolveAthleteWeight(athlete)} />
           </div>

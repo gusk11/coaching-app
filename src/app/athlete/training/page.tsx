@@ -78,7 +78,7 @@ export default function AthleteTraining() {
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <p className="text-4xl mb-4">🏋️</p>
       <p className="text-[#8fa3c0] font-medium">Noch kein Trainingsplan</p>
-      <p className="text-sm text-[#5a7090] mt-1">Dein Coach arbeitet gerade daran.</p>
+      <p className="text-sm text-[#5a7090] mt-1">Gustav arbeitet gerade daran.</p>
     </div>
   );
 
@@ -114,6 +114,7 @@ export default function AthleteTraining() {
                   today={today}
                   athleteId={athlete.id}
                   onSave={handleSaveLog}
+                  videoFeedbacks={videoFeedbacks}
                 />
               ) : noplan}
             </motion.div>
@@ -147,7 +148,7 @@ export default function AthleteTraining() {
                     <Video size={24} className="text-[#5a7090]" />
                   </div>
                   <p className="text-[#8fa3c0] font-medium">Noch kein Technik-Feedback</p>
-                  <p className="text-sm text-[#5a7090] mt-1">Dein Coach hat noch kein Video-Feedback hinterlegt.</p>
+                  <p className="text-sm text-[#5a7090] mt-1">Gustav hat noch kein Video-Feedback hinterlegt.</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">

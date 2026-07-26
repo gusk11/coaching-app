@@ -252,6 +252,8 @@ export interface TrainingSetLog {
   rir?: number | null;
   rpe?: number | null;
   notes?: string;
+  cadence?: { eccentric: number; bottomHold: number; concentric: number; topHold: number };
+  customValue?: number;
   // pairwise fields for unilateral exercises
   weightLeft?: number | null;
   repsLeft?: number | null;
@@ -268,6 +270,8 @@ export interface TrainingExerciseLog {
   note?: string;
   /** One-off note ("Haftnotiz") for just this single session; never carried to future sessions. */
   sessionNote?: string;
+  /** True when the athlete added this exercise themselves during a session (not from the coach's plan). */
+  addedByAthlete?: boolean;
 }
 
 export interface TrainingLog {
@@ -296,12 +300,13 @@ export interface SupplementDBItem {
 
 export interface ExerciseDBItem {
   id: string;
-  name: string;             // Übungsname
-  muscleGroup: string;      // Muskelgruppe
-  equipment?: string;       // z.B. "Langhantel", "Kurzhantel", "Kabelzug", "Maschine", "Körpergewicht"
+  name: string;
+  muscleGroup: string;
+  equipmentType?: string;   // "Langhantel" | "Kurzhantel" | "Kabelzug" | "Maschine" | "Körpergewicht"
   laterality?: "bilateral" | "unilateral";
-  notes?: string;           // Anmerkungen
-  executionLink?: string;   // Link zur Übungsausführung
+  notes?: string;
+  executionLink?: string;
+  currentTechFeedbackVideoId?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -380,6 +385,8 @@ export interface Exercise {
   laterality?: "bilateral" | "unilateral"; // snapshot from ÜbungenDB
   exerciseDbNote?: string; // snapshot of DB notes
   exerciseDbId?: string;   // reference to ExerciseDBItem (snapshot approach)
+  cadence?: { eccentric: number; bottomHold: number; concentric: number; topHold: number };
+  customValue?: number;
 }
 
 export interface TrainingDay {
@@ -400,6 +407,13 @@ export interface TrainingPlan {
   createdAt: string;
   mode?: TrainingPlanMode; // "weekday" = fixed days, "flexible" = Training A/B/C
   generalCardio?: string; // General cardio instructions for this plan
+  trackedFields?: {
+    weight: boolean;
+    reps: boolean;
+    rir: boolean;
+    cadence: boolean;
+    custom?: { label: string; enabled: boolean };
+  };
 }
 
 export interface Supplement {
@@ -498,6 +512,8 @@ export interface VideoFeedback {
   loomUrl: string;
   seenAt?: string; // ISO timestamp – set when athlete first opens it
   createdAt: string;
+  category: "technik-feedback" | "checkin" | "sonstiges";
+  linkedExerciseIds?: string[]; // only relevant for category === 'technik-feedback'
 }
 
 export interface LoginHelpRequest {

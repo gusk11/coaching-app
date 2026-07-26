@@ -166,12 +166,12 @@ export default function LoginPage() {
                 <div>
                   <p className="text-base font-semibold text-[#f0f4ff]">Anmeldedaten vergessen</p>
                   <p className="text-xs text-[#5a7090] mt-1">
-                    Dein Coach sieht die Anfrage und meldet sich bei dir.
+                    Gustav sieht die Anfrage und meldet sich bei dir.
                   </p>
                 </div>
                 <form onSubmit={handleForgotSubmit} className="flex flex-col gap-3">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs text-[#5a7090]">Welchen Namen sollen wir deinem Coach anzeigen? *</label>
+                    <label className="text-xs text-[#5a7090]">Welchen Namen sollen wir Gustav anzeigen? *</label>
                     <input
                       type="text"
                       value={forgotName}

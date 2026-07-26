@@ -143,7 +143,7 @@ export function MealPlanView({ plans, athleteWeight }: { plans: MealPlan[]; athl
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <p className="text-4xl mb-4">🍽</p>
         <p className="text-[#8fa3c0] font-medium">Noch kein Ernährungsplan</p>
-        <p className="text-sm text-[#5a7090] mt-1">Dein Coach arbeitet gerade daran.</p>
+        <p className="text-sm text-[#5a7090] mt-1">Gustav arbeitet gerade daran.</p>
       </div>
     );
   }

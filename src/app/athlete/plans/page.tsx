@@ -13,9 +13,15 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition } from "@/lib/motion";
+import { Utensils, Dumbbell, Pill } from "lucide-react";
 
 type Tab = "Ernährungsplan" | "Trainingsplan" | "Supplementplan";
 const TABS: Tab[] = ["Ernährungsplan", "Trainingsplan", "Supplementplan"];
+const TAB_ICONS: Record<Tab, React.ReactNode> = {
+  "Ernährungsplan": <Utensils className="w-3.5 h-3.5" />,
+  "Trainingsplan": <Dumbbell className="w-3.5 h-3.5" />,
+  "Supplementplan": <Pill className="w-3.5 h-3.5" />,
+};
 
 export default function AthletePlans() {
   const router = useRouter();
@@ -58,12 +64,13 @@ export default function AthletePlans() {
               key={t}
               onClick={() => setTab(t)}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                 tab === t
                   ? "bg-[#3b82f6] text-white"
                   : "bg-[#141d2e] border border-[#1e2d42] text-[#8fa3c0] hover:text-[#f0f4ff]"
               )}
             >
+              {TAB_ICONS[t]}
               {t}
             </button>
           ))}
@@ -79,7 +86,7 @@ export default function AthletePlans() {
                   <div className="flex flex-col items-center justify-center py-16 text-center">
                     <p className="text-4xl mb-4">🍽</p>
                     <p className="text-[#8fa3c0] font-medium">Noch kein Ernährungsplan</p>
-                    <p className="text-sm text-[#5a7090] mt-1">Dein Coach arbeitet gerade daran.</p>
+                    <p className="text-sm text-[#5a7090] mt-1">Gustav arbeitet gerade daran.</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
@@ -87,7 +94,7 @@ export default function AthletePlans() {
                       <h2 className="text-base font-semibold text-[#f0f4ff]">
                         {plans.length === 1 ? plans[0].title : `${plans.length} Ernährungspläne`}
                       </h2>
-                      <p className="text-xs text-[#5a7090]">Erstellt von deinem Coach</p>
+                      <p className="text-xs text-[#5a7090]">Erstellt von Gustav</p>
                     </div>
                     <MealPlanView plans={plans} athleteWeight={resolveAthleteWeight(athlete)} />
                   </div>
@@ -117,7 +124,7 @@ export default function AthletePlans() {
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <p className="text-4xl mb-4">🏋️</p>
                   <p className="text-[#8fa3c0] font-medium">Noch kein Trainingsplan</p>
-                  <p className="text-sm text-[#5a7090] mt-1">Dein Coach arbeitet gerade daran.</p>
+                  <p className="text-sm text-[#5a7090] mt-1">Gustav arbeitet gerade daran.</p>
                 </div>
               )}
             </motion.div>
@@ -132,7 +139,7 @@ export default function AthletePlans() {
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <p className="text-4xl mb-4">💊</p>
                   <p className="text-[#8fa3c0] font-medium">Noch kein Supplementplan</p>
-                  <p className="text-sm text-[#5a7090] mt-1">Dein Coach arbeitet gerade daran.</p>
+                  <p className="text-sm text-[#5a7090] mt-1">Gustav arbeitet gerade daran.</p>
                 </div>
               )}
             </motion.div>

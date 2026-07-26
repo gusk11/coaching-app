@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
-import { loadAuth, loadAthletes, addDailyCheckIn, markIntroVideoSeen, loadVideoFeedbacks, markVideoFeedbackSeen } from "@/lib/store";
+import { loadAuth, loadAthletes, addDailyCheckIn, loadVideoFeedbacks, markVideoFeedbackSeen } from "@/lib/store";
 import { DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/ui/StatCard";
@@ -15,11 +15,12 @@ import {
   getLastCheckIn, todayISO, getGoalLabel, getTrendIcon, getTrendColor,
   getWeekDates,
 } from "@/lib/utils";
-import { ClipboardCheck, CalendarPlus, PlayCircle, Video } from "lucide-react";
+import { ClipboardCheck, CalendarPlus, Video } from "lucide-react";
 import { VideoFeedback } from "@/types";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { listContainer, listItem } from "@/lib/motion";
+import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
 
 function getWeekday(isoDate: string): string {
   return new Date(isoDate + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long" });
@@ -37,16 +38,12 @@ function minBackfillISO(): string {
   return d.toISOString().split("T")[0];
 }
 
-const LOOM_URL = "https://www.loom.com/share/ac3530f71b7649c19289920e1c604d3f";
-const introSeenKey = (id: string) => `coachOS_introVideoSeen_${id}`;
-
 export default function AthleteDashboard() {
   const router = useRouter();
   const [athlete, setAthlete] = useState<Athlete | null>(null);
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [showBackfill, setShowBackfill] = useState(false);
   const [backfillDate, setBackfillDate] = useState(yesterdayISO);
-  const [introVideoSeen, setIntroVideoSeen] = useState(false);
   const [unseenFeedbacks, setUnseenFeedbacks] = useState<VideoFeedback[]>([]);
 
   useEffect(() => {
@@ -56,18 +53,9 @@ export default function AthleteDashboard() {
       const found = athletes.find((a) => a.id === auth.athleteId);
       if (!found) { router.replace("/login"); return; }
       setAthlete(found);
-      setIntroVideoSeen(found.introVideoSeen === true || !!localStorage.getItem(introSeenKey(found.id)));
       loadVideoFeedbacks(auth.athleteId!).then((fbs) => setUnseenFeedbacks(fbs.filter((f) => !f.seenAt)));
     });
   }, [router]);
-
-  function handleIntroVideoClick() {
-    if (!athlete) return;
-    localStorage.setItem(introSeenKey(athlete.id), "1");
-    setIntroVideoSeen(true);
-    window.dispatchEvent(new CustomEvent("introVideoSeen"));
-    markIntroVideoSeen(athlete.id).catch(() => {});
-  }
 
   const today = useMemo(() => todayISO(), []);
   const weekStart = useMemo(() => getWeekDates(today).start, [today]);
@@ -148,25 +136,8 @@ export default function AthleteDashboard() {
           </div>
         </div>
 
-        {/* Einführungsvideo – oben (noch nicht gesehen) */}
-        {athlete.onboardingCompleted && !introVideoSeen && (
-          <a
-            href={LOOM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleIntroVideoClick}
-            className="flex items-center gap-4 p-4 rounded-2xl bg-[#1c0a00]/50 border border-[#f97316]/40 hover:border-[#f97316]/70 hover:bg-[#1c0a00]/70 transition-all group"
-          >
-            <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#f97316]/20 flex items-center justify-center group-hover:bg-[#f97316]/30 transition-colors">
-              <PlayCircle size={22} className="text-[#fb923c]" />
-            </div>
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <p className="text-sm font-semibold text-[#f0f4ff]">Einführungsvideo ansehen</p>
-              <p className="text-xs text-[#fb923c]/80 truncate">Bitte jetzt ansehen – wichtige Infos für dein Coaching</p>
-            </div>
-            <span className="ml-auto text-[#f97316] text-lg flex-shrink-0">→</span>
-          </a>
-        )}
+        {/* Einführungsvideo – oben */}
+        <ToolIntroVideo athleteId={athlete.id} toolKey="dashboard" title="Einführung: Dashboard" position="top" />
 
         {/* Neue Video Feedbacks Banner */}
         {unseenFeedbacks.map((fb) => (
@@ -362,24 +333,8 @@ export default function AthleteDashboard() {
         {/* Data analysis */}
         <ProgressAnalytics checkIns={athlete.dailyCheckIns} />
 
-        {/* Einführungsvideo – unten (bereits gesehen) */}
-        {athlete.onboardingCompleted && introVideoSeen && (
-          <a
-            href={LOOM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-4 p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] hover:border-[#3b82f6]/30 hover:bg-[#1a2744] transition-all group"
-          >
-            <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#1e2d42] flex items-center justify-center group-hover:bg-[#3b82f6]/20 transition-colors">
-              <PlayCircle size={22} className="text-[#5a7090] group-hover:text-[#60a5fa] transition-colors" />
-            </div>
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <p className="text-sm font-medium text-[#8fa3c0]">Einführungsvideo</p>
-              <p className="text-xs text-[#5a7090] truncate">Jederzeit erneut ansehen</p>
-            </div>
-            <span className="ml-auto text-[#5a7090] group-hover:text-[#60a5fa] text-lg flex-shrink-0 transition-colors">→</span>
-          </a>
-        )}
+        {/* Einführungsvideo – unten */}
+        <ToolIntroVideo athleteId={athlete.id} toolKey="dashboard" title="Einführung: Dashboard" position="bottom" />
 
       </div>
     </AppShell>

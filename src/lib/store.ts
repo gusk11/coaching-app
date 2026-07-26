@@ -189,10 +189,11 @@ function rowToExercise(row: any): ExerciseDBItem {
     id: row.id,
     name: row.name,
     muscleGroup: row.muscle_group ?? "",
-    equipment: row.equipment ?? undefined,
+    equipmentType: row.equipment ?? undefined,
     laterality: (row.laterality === "unilateral" ? "unilateral" : "bilateral") as "bilateral" | "unilateral",
     notes: row.notes ?? undefined,
     executionLink: row.execution_link ?? undefined,
+    currentTechFeedbackVideoId: row.current_tech_feedback_video_id ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };
@@ -793,7 +794,8 @@ export async function loadExerciseDB(): Promise<ExerciseDBItem[]> {
   if (!data || data.length === 0) {
     const rows = seedExerciseDB.map((e) => ({
       id: e.id, name: e.name, muscle_group: e.muscleGroup ?? null,
-      equipment: e.equipment ?? null, notes: e.notes ?? null, execution_link: e.executionLink ?? null,
+      equipment: e.equipmentType ?? null, laterality: e.laterality ?? "bilateral",
+      notes: e.notes ?? null, execution_link: e.executionLink ?? null,
     }));
     const { error: seedError } = await supabase.from("exercise_db").insert(rows);
     if (seedError) console.error("Seed exercise_db error:", seedError);
@@ -807,7 +809,7 @@ export async function addExerciseDBItem(
 ): Promise<ExerciseDBItem[]> {
   const { error } = await supabase.from("exercise_db").insert({
     id: `ex-${Date.now()}`, name: item.name, muscle_group: item.muscleGroup ?? null,
-    equipment: item.equipment ?? null, laterality: item.laterality ?? "bilateral",
+    equipment: item.equipmentType ?? null, laterality: item.laterality ?? "bilateral",
     notes: item.notes ?? null, execution_link: item.executionLink ?? null,
   });
   if (error) throw error;
@@ -821,10 +823,11 @@ export async function updateExerciseDBItem(
   const row: Record<string, unknown> = {};
   if ("name" in updates) row.name = updates.name;
   if ("muscleGroup" in updates) row.muscle_group = updates.muscleGroup ?? null;
-  if ("equipment" in updates) row.equipment = updates.equipment ?? null;
+  if ("equipmentType" in updates) row.equipment = updates.equipmentType ?? null;
   if ("laterality" in updates) row.laterality = updates.laterality ?? "bilateral";
   if ("notes" in updates) row.notes = updates.notes ?? null;
   if ("executionLink" in updates) row.execution_link = updates.executionLink ?? null;
+  if ("currentTechFeedbackVideoId" in updates) row.current_tech_feedback_video_id = updates.currentTechFeedbackVideoId ?? null;
   row.updated_at = new Date().toISOString();
   const { error } = await supabase.from("exercise_db").update(row).eq("id", id);
   if (error) throw error;
@@ -884,6 +887,8 @@ function rowToVideoFeedback(row: any): VideoFeedback {
     loomUrl: row.loom_url,
     seenAt: row.seen_at ?? undefined,
     createdAt: row.created_at,
+    category: row.category ?? "sonstiges",
+    linkedExerciseIds: row.linked_exercise_ids ?? undefined,
   };
 }
 
@@ -903,6 +908,8 @@ export async function addVideoFeedback(data: Omit<VideoFeedback, "id" | "created
     title: data.title,
     date: data.date,
     loom_url: data.loomUrl,
+    category: data.category,
+    linked_exercise_ids: data.linkedExerciseIds ?? null,
     created_at: new Date().toISOString(),
   });
   if (error) throw error;
@@ -921,6 +928,70 @@ export async function markVideoFeedbackSeen(id: string): Promise<void> {
     .update({ seen_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw error;
+}
+
+export async function linkVideoFeedbackToExercises(
+  videoFeedbackId: string,
+  exerciseIds: string[]
+): Promise<void> {
+  const now = new Date().toISOString();
+  for (const exerciseId of exerciseIds) {
+    const { error } = await supabase
+      .from("exercise_db")
+      .update({ current_tech_feedback_video_id: videoFeedbackId, updated_at: now })
+      .eq("id", exerciseId);
+    if (error) throw error;
+  }
+  const { error } = await supabase
+    .from("video_feedbacks")
+    .update({ linked_exercise_ids: exerciseIds, updated_at: now })
+    .eq("id", videoFeedbackId);
+  if (error) throw error;
+}
+
+// ─── Check-In & Training Counters ─────────────────────────────────────────────
+
+export function getOpenCheckInCounts(
+  athlete: Athlete,
+  asOfDate: string
+): { daily: number; weekly: number } {
+  const windowStart = athlete.startDate ?? athlete.joinedAt;
+
+  const submittedDailyDates = new Set(athlete.dailyCheckIns.map((c) => c.date));
+  let daily = 0;
+  const dayIter = new Date(windowStart < asOfDate ? windowStart : asOfDate);
+  const dayEnd = new Date(asOfDate);
+  while (dayIter <= dayEnd) {
+    if (!submittedDailyDates.has(dayIter.toISOString().split("T")[0])) daily++;
+    dayIter.setDate(dayIter.getDate() + 1);
+  }
+
+  const submittedWeekStarts = new Set(athlete.weeklyCheckIns.map((c) => c.weekStart));
+  let weekly = 0;
+  const toMonday = (d: Date) => {
+    const copy = new Date(d);
+    copy.setDate(copy.getDate() - ((copy.getDay() + 6) % 7));
+    return copy;
+  };
+  const weekIter = toMonday(new Date(windowStart < asOfDate ? windowStart : asOfDate));
+  const weekEnd = toMonday(new Date(asOfDate));
+  while (weekIter <= weekEnd) {
+    if (!submittedWeekStarts.has(weekIter.toISOString().split("T")[0])) weekly++;
+    weekIter.setDate(weekIter.getDate() + 7);
+  }
+
+  return { daily, weekly };
+}
+
+export function getLastTrainingLogPerExercise(logs: TrainingLog[]): Map<string, TrainingLog> {
+  const result = new Map<string, TrainingLog>();
+  const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));
+  for (const log of sorted) {
+    for (const ex of log.exercises) {
+      result.set(ex.exerciseId, log);
+    }
+  }
+  return result;
 }
 
 // ─── Check-In Done Status (sync / localStorage) ───────────────────────────────

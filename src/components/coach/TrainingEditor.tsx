@@ -4,6 +4,8 @@ import { TrainingPlan, TrainingDay, Exercise, TrainingPlanMode, ExerciseDBItem }
 import { loadExerciseDB } from "@/lib/store";
 import { Trash2, Plus, ChevronDown, ChevronUp, GripVertical, ExternalLink, Database, X, ArrowUp, ArrowDown } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { CadenceInput } from "@/components/ui/CadenceInput";
+import { cn } from "@/lib/utils";
 
 interface Props {
   plan?: TrainingPlan;
@@ -103,7 +105,7 @@ function ExerciseDBPicker({ exercises, onSelect, onClose }: DBPickerProps) {
               <span className="text-xs font-medium text-[#f0f4ff] block">{item.name}</span>
               <span className="text-[10px] text-[#5a7090]">
                 {item.muscleGroup}
-                {item.equipment && <span className="text-[#3a5070]"> · {item.equipment}</span>}
+                {item.equipmentType && <span className="text-[#3a5070]"> · {item.equipmentType}</span>}
               </span>
             </button>
           ))}
@@ -121,9 +123,10 @@ interface ExerciseRowProps {
   onMoveDown: () => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  showCadence?: boolean;
 }
 
-function ExerciseRow({ exercise, onChange, onDelete, onMoveUp, onMoveDown, canMoveUp, canMoveDown }: ExerciseRowProps) {
+function ExerciseRow({ exercise, onChange, onDelete, onMoveUp, onMoveDown, canMoveUp, canMoveDown, showCadence }: ExerciseRowProps) {
   const isFromDB = !!exercise.exerciseDbId;
 
   return (
@@ -232,6 +235,16 @@ function ExerciseRow({ exercise, onChange, onDelete, onMoveUp, onMoveDown, canMo
           placeholder={isFromDB ? "Weitere Anmerkungen (individuell)" : "Notiz (optional)"}
           className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2.5 py-1.5 text-[#5a7090] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
         />
+
+        {showCadence && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="text-[10px] text-[#5a7090] shrink-0">Kadenz (E–B–K–O, Sek.)</label>
+            <CadenceInput
+              value={exercise.cadence}
+              onChange={(cadence) => onChange({ ...exercise, cadence })}
+            />
+          </div>
+        )}
       </div>
 
       <Tooltip label="Übung entfernen">
@@ -264,6 +277,9 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
   const [coachNote, setCoachNote] = useState(initPlan.coachNote ?? "");
   const [mode, setMode] = useState<TrainingPlanMode>(initPlan.mode ?? "weekday");
   const [generalCardio, setGeneralCardio] = useState(initPlan.generalCardio ?? "");
+  const [trackedFields, setTrackedFields] = useState(
+    initPlan.trackedFields ?? { weight: true, reps: true, rir: true, cadence: false, custom: { label: "", enabled: false } }
+  );
   const [days, setDays] = useState<TrainingDay[]>(initPlan.days);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(initPlan.days.map((d) => d.id)));
   const [dbExercises, setDbExercises] = useState<ExerciseDBItem[]>([]);
@@ -356,7 +372,7 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
   }
 
   function handleSave() {
-    onSave({ ...initPlan, title, coachNote, days, mode, generalCardio });
+    onSave({ ...initPlan, title, coachNote, days, mode, generalCardio, trackedFields });
   }
 
   return (
@@ -425,6 +441,68 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
             placeholder="z.B. 4× pro Woche 25 min nüchtern · 30 min Stairmaster nach dem Training · täglich 10.000 Schritte"
             className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none"
           />
+        </div>
+
+        {/* Tracking-Felder */}
+        <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
+          <label className="text-xs font-medium text-[#8fa3c0]">Tracking-Felder (pro Satz)</label>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { key: "weight" as const, label: "Gewicht" },
+                { key: "reps" as const, label: "Wiederholungen" },
+                { key: "rir" as const, label: "RIR" },
+                { key: "cadence" as const, label: "Kadenz" },
+              ] as const
+            ).map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTrackedFields((prev) => ({ ...prev, [key]: !prev[key] }))}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                  trackedFields[key]
+                    ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]"
+                    : "bg-[#0f1624] border-[#1e2d42] text-[#5a7090]"
+                )}
+              >
+                {trackedFields[key] ? "✓ " : ""}{label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() =>
+                setTrackedFields((prev) => ({
+                  ...prev,
+                  custom: { label: prev.custom?.label ?? "", enabled: !prev.custom?.enabled },
+                }))
+              }
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                trackedFields.custom?.enabled
+                  ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]"
+                  : "bg-[#0f1624] border-[#1e2d42] text-[#5a7090]"
+              )}
+            >
+              {trackedFields.custom?.enabled ? "✓ " : ""}Custom-Feld
+            </button>
+          </div>
+          {trackedFields.custom?.enabled && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-[#5a7090] shrink-0">Label:</label>
+              <input
+                value={trackedFields.custom?.label ?? ""}
+                onChange={(e) =>
+                  setTrackedFields((prev) => ({
+                    ...prev,
+                    custom: { enabled: true, label: e.target.value },
+                  }))
+                }
+                placeholder="z.B. Tempo, Distanz, Dauer"
+                className="flex-1 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2.5 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6]"
+              />
+            </div>
+          )}
         </div>
 
         {/* Training days */}
@@ -517,6 +595,7 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
                       onMoveDown={() => moveExercise(day.id, ex.id, 1)}
                       canMoveUp={exIdx > 0}
                       canMoveDown={exIdx < day.exercises.length - 1}
+                      showCadence={!!trackedFields.cadence}
                     />
                   ))}
 
