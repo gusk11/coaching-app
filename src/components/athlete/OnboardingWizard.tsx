@@ -1406,7 +1406,6 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
         email: data.email.trim(),
         pin: data.pin,
         birthDate: data.birthDate || undefined,
-        height: data.height || undefined,
         currentWeight: data.currentWeight || undefined,
         targetWeight: data.targetWeightUnknown ? undefined : (data.targetWeight || undefined),
         checkInDay: data.preferredCheckInDay as 0 | 1 | 2 | 3 | 4 | 5 | 6,

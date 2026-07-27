@@ -22,7 +22,6 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
     goal_type: a.goalType ?? null,
     goal_text: a.goalText ?? null,
     check_in_day: a.checkInDay ?? 1,
-    height: a.height ?? null,
     start_date: a.startDate ?? null,
     competition_date: a.competitionDate ?? null,
     experience_level: a.experienceLevel ?? null,

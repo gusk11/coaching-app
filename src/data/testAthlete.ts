@@ -665,7 +665,6 @@ export const testAthlete: Athlete = {
   goalText: "10 kg Körperfett abbauen in 16 Wochen, Muskelmasse erhalten",
   checkInDay: 1,
 
-  height: 181,
   startDate: "2026-05-19",
   experienceLevel: "intermediate",
   trainingHistory: "4 Jahre Krafttraining, davon 2 Jahre strukturiert. Push/Pull/Legs Split. Früher auch Fußball (bis 18 Jahre).",

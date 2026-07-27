@@ -491,9 +491,9 @@ export interface Athlete {
   checkInDay: 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Sunday
 
   // Coach-internal profile data
-  height?: number; // cm
-  startDate?: string; // ISO yyyy-mm-dd
-  competitionDate?: string; // ISO yyyy-mm-dd
+  startDate?: string; // ISO yyyy-mm-dd — auto-set at creation, not editable
+  competitionDate?: string; // ISO yyyy-mm-dd (label: "Zieldatum")
+  zielBeschreibung?: string; // free-text goal description
   experienceLevel?: ExperienceLevel;
   trainingHistory?: string;
   injuries?: string;

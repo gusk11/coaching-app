@@ -208,8 +208,6 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
   const [saved, setSaved] = useState(false);
 
   // Shared fields
-  const [height, setHeight] = useState(String(athlete.height ?? ""));
-  const [startDate, setStartDate] = useState(athlete.startDate ?? "");
   const [competitionDate, setCompetitionDate] = useState(athlete.competitionDate ?? "");
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | "">(athlete.experienceLevel ?? "");
   const [injuries, setInjuries] = useState(athlete.injuries ?? "");
@@ -228,10 +226,9 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
 
   // Coach-mode-only fields
   const [specialNotes, setSpecialNotes] = useState(athlete.specialNotes ?? "");
+  const [zielBeschreibung, setZielBeschreibung] = useState(athlete.zielBeschreibung ?? "");
 
   function resetToAthlete(a: Athlete) {
-    setHeight(String(a.height ?? ""));
-    setStartDate(a.startDate ?? "");
     setCompetitionDate(a.competitionDate ?? "");
     setExperienceLevel(a.experienceLevel ?? "");
     setInjuries(a.injuries ?? "");
@@ -246,12 +243,11 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
     setGoalText(a.goalText ?? "");
     setCheckInDay(a.checkInDay);
     setSpecialNotes(a.specialNotes ?? "");
+    setZielBeschreibung(a.zielBeschreibung ?? "");
   }
 
   function buildUpdates(): Partial<Athlete> {
     const common: Partial<Athlete> = {
-      height: height ? Number(height) : undefined,
-      startDate: startDate || undefined,
       competitionDate: competitionDate || undefined,
       experienceLevel: (experienceLevel as ExperienceLevel) || undefined,
       trainingHistory: trainingHistory.trim() || undefined,
@@ -271,7 +267,7 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
         checkInDay,
       };
     }
-    return { ...common, specialNotes: specialNotes.trim() || undefined, checkInDay };
+    return { ...common, specialNotes: specialNotes.trim() || undefined, zielBeschreibung: zielBeschreibung.trim() || undefined, checkInDay };
   }
 
   function handleSave() {
@@ -360,7 +356,6 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
           {editing ? (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <FieldInput label="Körpergröße (cm)" value={height} onChange={setHeight} type="number" placeholder="z. B. 180" />
                 <FieldInput label="Startgewicht (kg)" value={startWeight} onChange={setStartWeight} type="number" placeholder="z. B. 90.0" />
                 <FieldInput label="Aktuelles Gewicht (kg)" value={currentWeight} onChange={setCurrentWeight} type="number" placeholder="z. B. 87.5" />
                 <FieldInput label="Zielgewicht (kg)" value={targetWeight} onChange={setTargetWeight} type="number" placeholder="z. B. 80.0" />
@@ -379,7 +374,6 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
             </>
           ) : (
             <>
-              <DataRow label="Körpergröße" value={athlete.height ? `${athlete.height} cm` : undefined} />
               <DataRow label="Startgewicht" value={`${athlete.startWeight} kg`} />
               <DataRow label="Aktuelles Gewicht" value={`${athlete.currentWeight} kg`} />
               <DataRow label="Zielgewicht" value={`${athlete.targetWeight} kg`} />
@@ -394,13 +388,12 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
           <SectionHeader>Coachingdaten</SectionHeader>
           {editing ? (
             <div className="grid grid-cols-2 gap-3">
-              <FieldInput label="Coaching-Startdatum" value={startDate} onChange={setStartDate} type="date" />
-              <FieldInput label="Wettkampfdatum (optional)" value={competitionDate} onChange={setCompetitionDate} type="date" />
+              <FieldInput label="Zieldatum (optional)" value={competitionDate} onChange={setCompetitionDate} type="date" />
             </div>
           ) : (
             <>
               <DataRow label="Coaching-Startdatum" value={formatDate(athlete.startDate)} />
-              <DataRow label="Wettkampfdatum" value={formatDate(athlete.competitionDate)} />
+              <DataRow label="Zieldatum" value={formatDate(athlete.competitionDate)} />
               <DataRow label="Dabei seit" value={new Date(athlete.joinedAt).getFullYear().toString()} />
             </>
           )}
@@ -468,9 +461,12 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
       <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-4">
         <p className="text-xs text-[#5a7090] uppercase tracking-widest">Athleten-Stammdaten (Coach-intern)</p>
         <div className="grid grid-cols-2 gap-3">
-          <FieldInput label="Körpergröße (cm)" value={height} onChange={setHeight} type="number" placeholder="z.B. 180" />
-          <FieldInput label="Startdatum Coaching" value={startDate} onChange={setStartDate} type="date" />
-          <FieldInput label="Wettkampfdatum (optional)" value={competitionDate} onChange={setCompetitionDate} type="date" />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-[#5a7090]">Startdatum Coaching</label>
+            <p className="text-sm text-[#8fa3c0] py-2">{formatDate(athlete.startDate)}</p>
+          </div>
+          <FieldInput label="Zieldatum (optional)" value={competitionDate} onChange={setCompetitionDate} type="date" />
+          <FieldInput label="Ziel" value={zielBeschreibung} onChange={setZielBeschreibung} placeholder="z.B. Wettkampf XY oder auf 75 kg" />
         </div>
         <FieldInput label="Besonderheiten / Coach-Notizen" value={specialNotes} onChange={setSpecialNotes} placeholder="Interne Anmerkungen zum Athleten" rows={2} />
       </div>

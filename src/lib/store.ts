@@ -49,9 +49,9 @@ function rowToAthlete(row: any): Athlete {
     goalType: row.goal_type ?? "maintenance",
     goalText: row.goal_text ?? undefined,
     checkInDay: row.check_in_day ?? 1,
-    height: row.height ?? undefined,
     startDate: row.start_date ?? undefined,
     competitionDate: row.competition_date ?? undefined,
+    zielBeschreibung: row.ziel_beschreibung ?? undefined,
     experienceLevel: row.experience_level ?? undefined,
     trainingHistory: row.training_history ?? undefined,
     injuries: row.injuries ?? undefined,
@@ -100,9 +100,9 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
     goal_type: a.goalType ?? null,
     goal_text: a.goalText ?? null,
     check_in_day: a.checkInDay ?? 1,
-    height: a.height ?? null,
     start_date: a.startDate ?? null,
     competition_date: a.competitionDate ?? null,
+    ziel_beschreibung: a.zielBeschreibung ?? null,
     experience_level: a.experienceLevel ?? null,
     training_history: a.trainingHistory ?? null,
     injuries: a.injuries ?? null,
@@ -278,9 +278,8 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   if ("goalType" in updates) row.goal_type = updates.goalType ?? null;
   if ("goalText" in updates) row.goal_text = updates.goalText ?? null;
   if ("checkInDay" in updates) row.check_in_day = updates.checkInDay;
-  if ("height" in updates) row.height = updates.height ?? null;
-  if ("startDate" in updates) row.start_date = updates.startDate ?? null;
   if ("competitionDate" in updates) row.competition_date = updates.competitionDate ?? null;
+  if ("zielBeschreibung" in updates) row.ziel_beschreibung = updates.zielBeschreibung ?? null;
   if ("experienceLevel" in updates) row.experience_level = updates.experienceLevel ?? null;
   if ("trainingHistory" in updates) row.training_history = updates.trainingHistory ?? null;
   if ("injuries" in updates) row.injuries = updates.injuries ?? null;
@@ -339,7 +338,6 @@ export interface RegistrationData {
   email: string;
   pin: string;
   birthDate?: string;
-  height?: number;
   currentWeight?: number;
   targetWeight?: number;
   checkInDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -377,7 +375,7 @@ export async function registerAthlete(data: RegistrationData): Promise<Athlete> 
     goalType: deriveGoalType(data.goalPriorities ?? []),
     goalText: data.goalText,
     checkInDay: data.checkInDay ?? 1,
-    height: data.height,
+    startDate: today,
     experienceLevel: (data.experienceLevel as Athlete["experienceLevel"]) ?? undefined,
     injuries: data.injuries,
     trainingHistory: data.trainingHistory,

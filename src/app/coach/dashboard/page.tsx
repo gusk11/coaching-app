@@ -234,6 +234,7 @@ export default function CoachDashboard() {
       weeklyCheckIns: [],
       notes: [],
       joinedAt: new Date().toISOString(),
+      startDate: todayStr,
     };
     const updated = await addAthlete(newAthlete);
     setAthletes(updated);
