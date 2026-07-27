@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { SupplementPlan, Supplement, SupplementDBItem } from "@/types";
 import { Trash2, Plus, Database, Search, X, ExternalLink } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 import { loadSupplementDB } from "@/lib/store";
 
 interface Props {
@@ -402,14 +403,7 @@ export function SupplementEditor({ plan, athleteId, onSave }: Props) {
         </button>
       </div>
 
-      {/* ── Save ── */}
-      <button
-        type="button"
-        onClick={handleSave}
-        className="w-full py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors"
-      >
-        Plan speichern
-      </button>
+      <FloatingSaveButton onClick={handleSave} label="Plan speichern" />
     </div>
   );
 }

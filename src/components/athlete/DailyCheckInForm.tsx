@@ -1,9 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { DailyCheckIn, MealPlan, NutritionStatusType, DailyCheckConfig, DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { SliderInput } from "@/components/ui/SliderInput";
 import { NumberSliderInput } from "@/components/ui/NumberSliderInput";
+import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 import { cn, normalizeNutritionStatus, todayISO } from "@/lib/utils";
 
 type CheckInDraft = {
@@ -85,6 +86,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
   );
 
   const [submitted, setSubmitted] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [customValues, setCustomValues] = useState<Record<string, string | number | boolean>>(
     () => draft?.customValues ?? init?.customFieldValues ?? {}
@@ -153,7 +155,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
   const inputCls = "bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors";
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-6">
       {/* Weight + Time */}
       {cfg.bodyweight && (
         <div className="grid grid-cols-2 gap-4">
@@ -464,9 +466,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
         </div>
       )}
 
-      <button type="submit" className="w-full py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors">
-        {submitted ? "✓ Gespeichert!" : "Check-in speichern"}
-      </button>
+      <FloatingSaveButton onClick={() => formRef.current?.requestSubmit()} label="Check-in speichern" />
     </form>
   );
 }

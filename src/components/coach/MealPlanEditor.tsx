@@ -5,6 +5,7 @@ import { getAllFoodItems } from "@/lib/store";
 import { copyMeal, getMealClipboard } from "@/lib/planClipboard";
 import { Trash2, Plus, ChevronDown, ChevronUp, Pencil, ArrowLeft, ArrowUp, ArrowDown, Search, X, Copy, ClipboardPaste } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 import { calculateMealMacros, calculateDayMacros, roundMacro, roundSalt } from "@/lib/utils";
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -667,10 +668,8 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
       {saveError && (
         <p className="text-xs text-[#ef4444] text-center -mt-2">{saveError}</p>
       )}
-      <button type="button" onClick={handleSave}
-        className="w-full py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors">
-        Plan speichern
-      </button>
+
+      <FloatingSaveButton onClick={handleSave} label="Plan speichern" />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
 import { CHECK_CONFIG_LABELS } from "@/components/athlete/AthleteStammdatenForm";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 
 const WEEKLY_CONFIG_LABELS: { key: keyof Omit<WeeklyCheckConfig, "customFields">; label: string }[] = [
   { key: "overallWeekRating", label: "Gesamtbewertung der Woche" },
@@ -240,6 +241,10 @@ export function CheckInConfigEditor({ athlete, onSave }: Props) {
     saveWeeklyConfig({ ...weeklyCfg, customFields: (weeklyCfg.customFields ?? []).filter((f) => f.id !== id) });
   }
 
+  function handleSave() {
+    onSave({ dailyCheckConfig: dailyCfg, weeklyCheckConfig: weeklyCfg });
+  }
+
   return (
     <div className="flex flex-col gap-3">
       {/* ── Daily ── */}
@@ -331,6 +336,8 @@ export function CheckInConfigEditor({ athlete, onSave }: Props) {
           </div>
         )}
       </div>
+
+      <FloatingSaveButton onClick={handleSave} label="Konfiguration speichern" />
 
       {/* ── Weekly ── */}
       <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">

@@ -123,10 +123,11 @@ export default function CoachDashboard() {
     const completedAt = checkInDone[`${a.id}_${mostRecentCheckInDate}`]; // ISO date string or undefined
     const isDone = !!completedAt;
     const hasPendingCheckIn = mostRecentCheckInDate >= joinedDate && !isDone;
-    return { athlete: a, mostRecentCheckInDate, isCheckInToday, completedAt, isDone, hasPendingCheckIn };
+    const hasSubmittedCheckIn = a.dailyCheckIns.some((c) => c.date === mostRecentCheckInDate);
+    return { athlete: a, mostRecentCheckInDate, isCheckInToday, completedAt, isDone, hasPendingCheckIn, hasSubmittedCheckIn };
   }), [athletes, checkInDone, todayDayOfWeek, todayStr]);
 
-  const checkInsTotal = athletes.length;
+  const checkInsTotal = athletesWithStatus.filter((s) => s.hasSubmittedCheckIn || s.isDone).length;
   const checkInsProcessed = athletesWithStatus.filter((s) => s.isDone).length;
 
   const taskStats = useMemo(() => {

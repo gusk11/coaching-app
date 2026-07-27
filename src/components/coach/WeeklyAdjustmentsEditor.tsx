@@ -3,6 +3,7 @@ import { useState } from "react";
 import { WeeklyAdjustment } from "@/types";
 import { Trash2, Plus } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 
 interface Props {
   adjustments: WeeklyAdjustment[];
@@ -108,10 +109,7 @@ export function WeeklyAdjustmentsEditor({ adjustments, onAdd, onDelete }: Props)
                 </button>
                 <span className="text-xs text-[#8fa3c0]">Für Athleten sichtbar</span>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => setOpen(false)} className="px-3 py-1.5 rounded-lg border border-[#1e2d42] text-xs text-[#5a7090]">Abbrechen</button>
-                <button onClick={handleAdd} className="px-3 py-1.5 rounded-lg bg-[#3b82f6] text-white text-xs font-medium hover:bg-[#2563eb] transition-colors">Speichern</button>
-              </div>
+              <button onClick={() => setOpen(false)} className="px-3 py-1.5 rounded-lg border border-[#1e2d42] text-xs text-[#5a7090]">Abbrechen</button>
             </div>
           </div>
         )}
@@ -123,6 +121,8 @@ export function WeeklyAdjustmentsEditor({ adjustments, onAdd, onDelete }: Props)
           <AdjCard key={adj.id} adj={adj} onDelete={onDelete} />
         ))}
       </div>
+
+      {open && <FloatingSaveButton onClick={handleAdd} label="Anpassung speichern" />}
 
       {/* Older */}
       {older.length > 0 && (

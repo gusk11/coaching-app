@@ -8,6 +8,7 @@ import { cn, getGoalLabel } from "@/lib/utils";
 import { Pencil, Check, X } from "lucide-react";
 import { ProfileDisplaySections, ProfileEditSections } from "@/components/athlete/ProfileSections";
 import { showToast } from "@/components/ui/Toast";
+import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 
 const GOAL_OPTIONS: { value: GoalType; label: string }[] = [
   { value: "cut", label: "Diät / Abnehmen" },
@@ -447,21 +448,7 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
         {/* Rechtliches */}
         {!editing && <LegalSection consent={athlete.legalConsent} />}
 
-        {/* Bottom save/cancel */}
-        {editing && (
-          <div className="flex gap-3">
-            <button type="button" onClick={handleSave}
-              className="flex-1 py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors flex items-center justify-center gap-2"
-            >
-              <Check size={15} /> Speichern
-            </button>
-            <button type="button" onClick={handleCancel}
-              className="px-6 py-3 rounded-xl border border-[#1e2d42] text-[#8fa3c0] font-semibold text-sm hover:bg-[#141d2e] transition-colors"
-            >
-              Abbrechen
-            </button>
-          </div>
-        )}
+        {editing && <FloatingSaveButton onClick={handleSave} label="Speichern" />}
       </div>
     );
   }
@@ -503,11 +490,7 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
       {/* Rechtliches */}
       <LegalSection consent={athlete.legalConsent} coachMode />
 
-      <button type="button" onClick={handleSave}
-        className="w-full py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors flex items-center justify-center gap-2"
-      >
-        <Check size={15} /> Profil speichern
-      </button>
+      <FloatingSaveButton onClick={handleSave} label="Profil speichern" />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { loadExerciseDB } from "@/lib/store";
 import { Trash2, Plus, ChevronDown, ChevronUp, GripVertical, ExternalLink, Database, X, ArrowUp, ArrowDown } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { CadenceInput } from "@/components/ui/CadenceInput";
+import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -664,15 +665,9 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
           {mode === "weekday" ? "Tag hinzufügen" : "Training hinzufügen"}
         </button>
 
-        {/* Save */}
-        <button
-          type="button"
-          onClick={handleSave}
-          className="w-full py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors"
-        >
-          Plan speichern
-        </button>
       </div>
+
+      <FloatingSaveButton onClick={handleSave} label="Plan speichern" />
 
       {/* Delete confirmation modal */}
       {deleteConfirm && (

@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { WeeklyCheckIn, Athlete } from "@/types";
 import { SliderInput } from "@/components/ui/SliderInput";
+import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 import { analyzeWeek, todayISO, getCheckInWeekStart } from "@/lib/utils";
 import { StatCard } from "@/components/ui/StatCard";
 
@@ -29,6 +30,7 @@ export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, we
   const [specialEvents, setSpecialEvents] = useState(initialValues?.specialEvents ?? "");
   const [freeNote, setFreeNote] = useState(initialValues?.freeNote ?? "");
   const [submitted, setSubmitted] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,7 +58,7 @@ export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, we
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-6">
       {/* Auto-Analyse */}
       <div className="p-4 rounded-2xl bg-[#0f1624] border border-[#1e2d42]">
         <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-3">Automatische Wochenanalyse</p>
@@ -137,10 +139,10 @@ export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, we
         />
       </div>
 
-      <button type="submit"
-        className="w-full py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors">
-        {isEdit ? "Änderungen speichern" : "Wochen-Check-in absenden"}
-      </button>
+      <FloatingSaveButton
+        onClick={() => formRef.current?.requestSubmit()}
+        label={isEdit ? "Änderungen speichern" : "Check-in absenden"}
+      />
     </form>
   );
 }

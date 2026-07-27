@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search, MoreVertical, FileText, Pin, Hourglass, ChevronLeft, ChevronRight, ExternalLink, Info } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { CadenceInput } from "@/components/ui/CadenceInput";
+import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 
 interface Props {
   trainingPlan: TrainingPlan;
@@ -963,6 +964,8 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
             </div>
           </div>
         )}
+
+        <FloatingSaveButton onClick={handleEndSession} label="Training beenden" />
 
         {/* Übung hinzufügen – Modal */}
         {showAddModal && (
