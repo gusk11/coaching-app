@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { loadAuth, loadAthletes, addAthlete, loadCheckInDone, setCheckInDone, loadLoginHelpRequests, resolveLoginHelpRequest, deleteLoginHelpRequest } from "@/lib/store";
+import { loadAuth, loadAthletes, addAthlete, loadCheckInDone, setCheckInDone, loadLoginHelpRequests, resolveLoginHelpRequest, deleteLoginHelpRequest, approvePlanChangeRequest, rejectPlanChangeRequest } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
-import { Athlete, GoalType, LoginHelpRequest } from "@/types";
+import { Athlete, GoalType, LoginHelpRequest, PlanChangeRequest } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { AthleteCard } from "@/components/coach/AthleteCard";
-import { analyzeWeek } from "@/lib/utils";
+import { PlanChangeReviewModal } from "@/components/coach/PlanChangeReviewModal";
+import { analyzeWeek, getCheckInWeekStart } from "@/lib/utils";
 import { StatCard } from "@/components/ui/StatCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { UserPlus, X, Check, Trash2, ChevronDown, Plus, Pencil } from "lucide-react";
@@ -16,8 +17,8 @@ import { listContainer, listItem, modalOverlay, modalContent } from "@/lib/motio
 const GOAL_OPTIONS: { value: GoalType; label: string }[] = [
   { value: "cut", label: "Diät / Abnehmen" },
   { value: "bulk", label: "Muskelaufbau" },
-  { value: "recomp", label: "Recomposition" },
   { value: "maintenance", label: "Erhaltung" },
+  { value: "custom", label: "Individuell" },
 ];
 
 const DAY_NAMES = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -79,6 +80,9 @@ export default function CoachDashboard() {
   const [editingTypes, setEditingTypes] = useState(false);
   const [newTypeInput, setNewTypeInput] = useState("");
 
+  // Plan change review
+  const [reviewState, setReviewState] = useState<{ athlete: Athlete; request: PlanChangeRequest } | null>(null);
+
   // New athlete form state
   const [newName, setNewName] = useState("");
   const [newPin, setNewPin] = useState("");
@@ -127,8 +131,18 @@ export default function CoachDashboard() {
     return { athlete: a, mostRecentCheckInDate, isCheckInToday, completedAt, isDone, hasPendingCheckIn, hasSubmittedCheckIn };
   }), [athletes, checkInDone, todayDayOfWeek, todayStr]);
 
-  const checkInsTotal = athletesWithStatus.filter((s) => s.hasSubmittedCheckIn || s.isDone).length;
-  const checkInsProcessed = athletesWithStatus.filter((s) => s.isDone).length;
+  const weeklyCheckInStats = useMemo(() => {
+    let submitted = 0, processed = 0;
+    for (const s of athletesWithStatus) {
+      const currentWeekStart = getCheckInWeekStart(todayStr, s.athlete.checkInDay);
+      const hasSubmittedThisPeriod = s.athlete.weeklyCheckIns.some((ci) => ci.weekStart === currentWeekStart);
+      if (hasSubmittedThisPeriod) {
+        submitted++;
+        if (s.isDone) processed++;
+      }
+    }
+    return { submitted, processed };
+  }, [athletesWithStatus, todayStr]);
 
   const taskStats = useMemo(() => {
     if (!isLoaded) return { total: 0, done: 0 };
@@ -163,6 +177,30 @@ export default function CoachDashboard() {
       showToast("Check-in konnte nicht aktualisiert werden.", "error");
     }
   }, [checkInDone]);
+
+  async function handleApprovePlanChange() {
+    if (!reviewState) return;
+    try {
+      const updated = await approvePlanChangeRequest(reviewState.athlete.id, reviewState.request.id);
+      setAthletes(updated);
+      setReviewState(null);
+      showToast("Planänderung übernommen.", "success");
+    } catch {
+      showToast("Fehler beim Bestätigen.", "error");
+    }
+  }
+
+  async function handleRejectPlanChange() {
+    if (!reviewState) return;
+    try {
+      const updated = await rejectPlanChangeRequest(reviewState.athlete.id, reviewState.request.id);
+      setAthletes(updated);
+      setReviewState(null);
+      showToast("Planänderung abgelehnt.", "success");
+    } catch {
+      showToast("Fehler beim Ablehnen.", "error");
+    }
+  }
 
   async function handleResolveLoginHelp(id: string) {
     const updated = await resolveLoginHelpRequest(id);
@@ -222,7 +260,7 @@ export default function CoachDashboard() {
         <div className="grid grid-cols-3 gap-2">
           <StatCard
             label="Check-Ins"
-            value={`${checkInsProcessed} von ${checkInsTotal}`}
+            value={`${weeklyCheckInStats.processed} von ${weeklyCheckInStats.submitted}`}
             sub="bearbeitet"
           />
           <StatCard
@@ -348,6 +386,7 @@ export default function CoachDashboard() {
                 onToggleDone={(s.hasPendingCheckIn || s.isCheckInToday || s.completedAt === todayStr)
                   ? () => handleToggleDone(s.athlete.id, s.mostRecentCheckInDate)
                   : undefined}
+                onReviewPlanChange={(req) => setReviewState({ athlete: s.athlete, request: req })}
               />
             </motion.div>
           ))}
@@ -580,15 +619,17 @@ export default function CoachDashboard() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-[#8fa3c0]">Individuelles Ziel (optional)</label>
-                <input
-                  value={newGoalText}
-                  onChange={(e) => setNewGoalText(e.target.value)}
-                  placeholder="z.B. Wettkampfvorbereitung Mai 2026"
-                  className="bg-[#141d2e] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
-                />
-              </div>
+              {newGoal === "custom" && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-[#8fa3c0]">Individuelles Ziel</label>
+                  <input
+                    value={newGoalText}
+                    onChange={(e) => setNewGoalText(e.target.value)}
+                    placeholder="z.B. Wettkampfvorbereitung Mai 2026"
+                    className="bg-[#141d2e] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                  />
+                </div>
+              )}
 
               {/* Weights */}
               <div className="grid grid-cols-2 gap-3">
@@ -676,6 +717,19 @@ export default function CoachDashboard() {
             </form>
           </motion.div>
         </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Plan change review modal */}
+      <AnimatePresence>
+        {reviewState && (
+          <PlanChangeReviewModal
+            athlete={reviewState.athlete}
+            request={reviewState.request}
+            onApprove={handleApprovePlanChange}
+            onReject={handleRejectPlanChange}
+            onClose={() => setReviewState(null)}
+          />
         )}
       </AnimatePresence>
     </AppShell>

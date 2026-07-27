@@ -231,7 +231,9 @@ function buildTrainingPlan(athleteId: string) {
     athleteId,
     title: "Trainings Programming",
     mode: "weekday",
-    generalCardio: "Ziel: 17.000 Schritte/Tag; 90 min Cardio pro Woche.",
+    schritteProTag: 17000,
+    cardioMinuten: 90,
+    cardioFrequenz: "woche",
     coachNote: "Kadenz: 4 Ziffern = Exzentrik / Pause unten / Konzentrik / Pause oben (z. B. 3010). RIR = Wiederholungen im Tank. Lieber zu lang pausieren als zu kurz.",
     createdAt: NOW,
     days: [

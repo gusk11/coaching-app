@@ -271,13 +271,17 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
     coachNote: "",
     createdAt: new Date().toISOString(),
     mode: "weekday" as TrainingPlanMode,
-    generalCardio: "",
+    schritteProTag: 0,
+    cardioMinuten: 0,
+    cardioFrequenz: "woche" as const,
   };
 
   const [title, setTitle] = useState(initPlan.title);
   const [coachNote, setCoachNote] = useState(initPlan.coachNote ?? "");
   const [mode, setMode] = useState<TrainingPlanMode>(initPlan.mode ?? "weekday");
-  const [generalCardio, setGeneralCardio] = useState(initPlan.generalCardio ?? "");
+  const [schritteProTag, setSchritteProTag] = useState(initPlan.schritteProTag ?? 0);
+  const [cardioMinuten, setCardioMinuten] = useState(initPlan.cardioMinuten ?? 0);
+  const [cardioFrequenz, setCardioFrequenz] = useState<"woche" | "taeglich">(initPlan.cardioFrequenz ?? "woche");
   const [trackedFields, setTrackedFields] = useState(
     initPlan.trackedFields ?? { weight: true, reps: true, rir: true, cadence: false, custom: { label: "", enabled: false } }
   );
@@ -373,7 +377,7 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
   }
 
   function handleSave() {
-    onSave({ ...initPlan, title, coachNote, days, mode, generalCardio, trackedFields });
+    onSave({ ...initPlan, title, coachNote, days, mode, schritteProTag, cardioMinuten, cardioFrequenz, trackedFields });
   }
 
   return (
@@ -433,15 +437,60 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
         </div>
 
         {/* General cardio */}
-        <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-2">
+        <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
           <label className="text-xs font-medium text-[#8fa3c0]">Allgemeine Cardio-Vorgaben</label>
-          <textarea
-            value={generalCardio}
-            onChange={(e) => setGeneralCardio(e.target.value)}
-            rows={3}
-            placeholder="z.B. 4× pro Woche 25 min nüchtern · 30 min Stairmaster nach dem Training · täglich 10.000 Schritte"
-            className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none"
-          />
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-[#5a7090]">Schritte pro Tag</label>
+            <input
+              type="number"
+              min={0}
+              step={500}
+              value={schritteProTag || ""}
+              onChange={(e) => setSchritteProTag(parseInt(e.target.value) || 0)}
+              placeholder="z.B. 10000"
+              className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-[#5a7090]">Cardio-Minuten</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={0}
+                step={5}
+                value={cardioMinuten || ""}
+                onChange={(e) => setCardioMinuten(parseInt(e.target.value) || 0)}
+                placeholder="z.B. 90"
+                className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors flex-1"
+              />
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCardioFrequenz("woche")}
+                  className={`px-3 py-2 rounded-xl border text-xs font-medium transition-all ${
+                    cardioFrequenz === "woche"
+                      ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]"
+                      : "bg-[#0f1624] border-[#1e2d42] text-[#8fa3c0]"
+                  }`}
+                >
+                  Pro Woche
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCardioFrequenz("taeglich")}
+                  className={`px-3 py-2 rounded-xl border text-xs font-medium transition-all ${
+                    cardioFrequenz === "taeglich"
+                      ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]"
+                      : "bg-[#0f1624] border-[#1e2d42] text-[#8fa3c0]"
+                  }`}
+                >
+                  Täglich
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Tracking-Felder */}

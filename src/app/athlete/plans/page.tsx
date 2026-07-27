@@ -204,12 +204,23 @@ export default function AthletePlans() {
                     <h2 className="text-base font-semibold text-[#f0f4ff]">{athlete.trainingPlan.title}</h2>
                     <p className="text-xs text-[#5a7090]">Wochenübersicht — tippe auf einen Tag zum Aufklappen</p>
                   </div>
-                  {athlete.trainingPlan.generalCardio && (
+                  {(athlete.trainingPlan.schritteProTag || athlete.trainingPlan.cardioMinuten) ? (
                     <div className="p-3 rounded-xl bg-[#141d2e] border border-[#1e2d42]">
                       <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-1">Cardio-Vorgaben</p>
-                      <p className="text-sm text-[#8fa3c0]">{athlete.trainingPlan.generalCardio}</p>
+                      <p className="text-sm text-[#8fa3c0]">
+                        {[
+                          athlete.trainingPlan.schritteProTag
+                            ? `${athlete.trainingPlan.schritteProTag.toLocaleString("de-DE")} Schritte/Tag`
+                            : null,
+                          athlete.trainingPlan.cardioMinuten
+                            ? `${athlete.trainingPlan.cardioMinuten} Min Cardio ${athlete.trainingPlan.cardioFrequenz === "taeglich" ? "täglich" : "pro Woche"}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
                     </div>
-                  )}
+                  ) : null}
                   <TrainingAccordion plan={athlete.trainingPlan} />
                 </div>
               ) : (

@@ -13,8 +13,8 @@ import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 const GOAL_OPTIONS: { value: GoalType; label: string }[] = [
   { value: "cut", label: "Diät / Abnehmen" },
   { value: "bulk", label: "Muskelaufbau" },
-  { value: "recomp", label: "Recomposition" },
   { value: "maintenance", label: "Erhaltung" },
+  { value: "custom", label: "Individuell" },
 ];
 
 const EXPERIENCE_OPTIONS: { value: ExperienceLevel; label: string }[] = [
@@ -373,7 +373,9 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
                   ))}
                 </div>
               </div>
-              <FieldInput label="Zielbeschreibung (optional)" value={goalText} onChange={setGoalText} placeholder="z. B. Wettkampf Mai 2026" />
+              {goalType === "custom" && (
+                <FieldInput label="Individuelles Ziel" value={goalText} onChange={setGoalText} placeholder="z. B. Wettkampfvorbereitung Mai 2026" />
+              )}
             </>
           ) : (
             <>
@@ -381,8 +383,8 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
               <DataRow label="Startgewicht" value={`${athlete.startWeight} kg`} />
               <DataRow label="Aktuelles Gewicht" value={`${athlete.currentWeight} kg`} />
               <DataRow label="Zielgewicht" value={`${athlete.targetWeight} kg`} />
-              <DataRow label="Ziel" value={getGoalLabel(athlete.goalType)} />
-              {athlete.goalText && <DataRow label="Zielbeschreibung" value={athlete.goalText} />}
+              <DataRow label="Ziel" value={getGoalLabel(athlete.goalType, athlete.goalText)} />
+              {athlete.goalText && athlete.goalType !== "custom" && <DataRow label="Zielbeschreibung" value={athlete.goalText} />}
             </>
           )}
         </div>

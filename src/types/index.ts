@@ -1,4 +1,4 @@
-export type GoalType = "cut" | "bulk" | "recomp" | "maintenance";
+export type GoalType = "cut" | "bulk" | "recomp" | "maintenance" | "custom";
 
 /**
  * @deprecated Use NutritionStatusType instead.
@@ -413,7 +413,9 @@ export interface TrainingPlan {
   coachNote?: string;
   createdAt: string;
   mode?: TrainingPlanMode; // "weekday" = fixed days, "flexible" = Training A/B/C
-  generalCardio?: string; // General cardio instructions for this plan
+  schritteProTag?: number;
+  cardioMinuten?: number;
+  cardioFrequenz?: "woche" | "taeglich";
   trackedFields?: {
     weight: boolean;
     reps: boolean;

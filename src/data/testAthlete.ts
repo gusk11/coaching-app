@@ -45,7 +45,9 @@ const trainingPlan = {
   athleteId: ID,
   title: "Push / Pull / Legs – 5er Split",
   mode: "weekday" as const,
-  generalCardio: "2–3× wöchentlich 20–30 min moderates Cardio (Spaziergang, Bike, Stepper). Intensität: leicht bis moderat.",
+  schritteProTag: 10000,
+  cardioMinuten: 60,
+  cardioFrequenz: "woche" as const,
   coachNote: "Progressive Überladung: Sobald du alle Sätze im oberen Wiederholungsbereich mit RIR 2+ schaffst, erhöhe das Gewicht um 2,5 kg. Protokolliere jede Einheit.",
   createdAt: "2026-05-19T08:00:00.000Z",
   days: [

@@ -217,7 +217,8 @@ export function todayISO(): string {
   return toISODate(new Date());
 }
 
-export function getGoalLabel(goal: string): string {
+export function getGoalLabel(goal: string, customText?: string): string {
+  if (goal === "custom") return customText?.trim() || "Individuell";
   const map: Record<string, string> = {
     cut: "Cut",
     bulk: "Bulk",

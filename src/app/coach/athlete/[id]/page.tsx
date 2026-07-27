@@ -46,8 +46,8 @@ type CheckInSubTab = "daily" | "weekly";
 const GOAL_OPTIONS: { value: GoalType; label: string }[] = [
   { value: "cut", label: "Diät / Abnehmen" },
   { value: "bulk", label: "Muskelaufbau" },
-  { value: "recomp", label: "Recomposition" },
   { value: "maintenance", label: "Erhaltung" },
+  { value: "custom", label: "Individuell" },
 ];
 
 export default function CoachAthletePage() {
@@ -682,9 +682,9 @@ export default function CoachAthletePage() {
               {!editingGoal ? (
                 <div className="flex flex-col gap-1">
                   <span className={cn("text-sm font-semibold", getGoalColor(athlete.goalType))}>
-                    {getGoalLabel(athlete.goalType)}
+                    {getGoalLabel(athlete.goalType, athlete.goalText)}
                   </span>
-                  {athlete.goalText && (
+                  {athlete.goalText && athlete.goalType !== "custom" && (
                     <span className="text-sm text-[#8fa3c0]">{athlete.goalText}</span>
                   )}
                 </div>
@@ -706,12 +706,14 @@ export default function CoachAthletePage() {
                       </button>
                     ))}
                   </div>
-                  <input
-                    value={editGoalText}
-                    onChange={(e) => setEditGoalText(e.target.value)}
-                    placeholder="Individuelles Ziel (optional), z.B. Wettkampf Mai 2026"
-                    className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
-                  />
+                  {editGoalType === "custom" && (
+                    <input
+                      value={editGoalText}
+                      onChange={(e) => setEditGoalText(e.target.value)}
+                      placeholder="Ziel beschreiben, z.B. Wettkampfvorbereitung Mai 2026"
+                      className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -1383,12 +1385,23 @@ export default function CoachAthletePage() {
             ) : athlete.trainingPlan ? (
               <>
                 {/* General cardio display */}
-                {athlete.trainingPlan.generalCardio && (
+                {(athlete.trainingPlan.schritteProTag || athlete.trainingPlan.cardioMinuten) ? (
                   <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
                     <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Cardio-Vorgaben</p>
-                    <p className="text-sm text-[#8fa3c0]">{athlete.trainingPlan.generalCardio}</p>
+                    <p className="text-sm text-[#8fa3c0]">
+                      {[
+                        athlete.trainingPlan.schritteProTag
+                          ? `${athlete.trainingPlan.schritteProTag.toLocaleString("de-DE")} Schritte/Tag`
+                          : null,
+                        athlete.trainingPlan.cardioMinuten
+                          ? `${athlete.trainingPlan.cardioMinuten} Min Cardio ${athlete.trainingPlan.cardioFrequenz === "taeglich" ? "täglich" : "pro Woche"}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
                   </div>
-                )}
+                ) : null}
                 <TrainingAccordion plan={athlete.trainingPlan} />
               </>
             ) : (

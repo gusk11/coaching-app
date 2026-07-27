@@ -124,7 +124,7 @@ export default function AthleteDashboard() {
             <p className="text-sm text-[#8fa3c0]">
               {new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })}
               {" · "}
-              <span className="text-[#60a5fa]">{getGoalLabel(athlete.goalType)}</span>
+              <span className="text-[#60a5fa]">{getGoalLabel(athlete.goalType, athlete.goalText)}</span>
             </p>
           </div>
           <div className="w-14 h-14 rounded-full overflow-hidden bg-[#1d4ed8]/20 flex items-center justify-center shrink-0">

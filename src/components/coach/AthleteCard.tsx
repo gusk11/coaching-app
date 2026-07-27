@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Athlete } from "@/types";
+import { Athlete, PlanChangeRequest } from "@/types";
 import { getAthleteCardStatus } from "@/lib/store";
 import {
   analyzeWeek, calculateDistanceToGoal, calculateGoalProgressPercent,
@@ -10,7 +10,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
+import { Check, GitPullRequest } from "lucide-react";
 
 const DAY_NAMES = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
@@ -41,9 +41,10 @@ interface AthleteCardProps {
   /** ISO date when the coach marked this check-in as done; undefined = not done. */
   completedAt?: string;
   onToggleDone?: () => void;
+  onReviewPlanChange?: (request: PlanChangeRequest) => void;
 }
 
-export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCheckIn, completedAt, onToggleDone }: AthleteCardProps) {
+export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCheckIn, completedAt, onToggleDone, onReviewPlanChange }: AthleteCardProps) {
   const router = useRouter();
   const today = new Date().toISOString().slice(0, 10);
   const analysis = analyzeWeek(athlete);
@@ -133,7 +134,7 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
             <div>
               <p className="text-sm font-semibold text-[#f0f4ff] group-hover:text-white">{athlete.name}</p>
               <p className={cn("text-xs font-medium", getGoalColor(athlete.goalType))}>
-                {getGoalLabel(athlete.goalType)}
+                {getGoalLabel(athlete.goalType, athlete.goalText)}
               </p>
             </div>
           </div>
@@ -215,6 +216,29 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
           ))}
         </div>
       )}
+
+      {/* Pending plan change requests */}
+      {onReviewPlanChange && (() => {
+        const pending = (athlete.planChangeRequests ?? []).filter((r) => r.status === "pending");
+        if (!pending.length) return null;
+        return (
+          <div className={cn("mt-3 pt-3 border-t flex flex-col gap-1.5", accentBorderColor)}>
+            {pending.map((req) => (
+              <button
+                key={req.id}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onReviewPlanChange(req); }}
+                className="flex items-center gap-2 text-left w-full group/req"
+              >
+                <GitPullRequest size={12} className="shrink-0 text-[#f59e0b]" />
+                <span className="text-xs text-[#f59e0b] group-hover/req:text-[#fbbf24] transition-colors">
+                  Planänderung: {req.planType === "training" ? "Training" : "Ernährung"} →
+                </span>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Coach check-in done toggle */}
       {onToggleDone && (
