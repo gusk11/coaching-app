@@ -6,7 +6,7 @@ import { ReactNode, useEffect, useState } from "react";
 import {
   LayoutDashboard, Dumbbell,
   Pill, ClipboardCheck, Users, BookOpen, LogOut, ChevronRight,
-  Salad, Flame, ListChecks, User, Video,
+  Salad, ListChecks, User, Video,
 } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { pageTransition } from "@/lib/motion";
@@ -23,7 +23,6 @@ interface NavItem {
 const athleteNav: NavItem[] = [
   { label: "Dashboard", href: "/athlete/dashboard", icon: <LayoutDashboard size={20} /> },
   { label: "Check-ins", href: "/athlete/checkins", icon: <ClipboardCheck size={20} />, toolIntroKey: "checkins" },
-  { label: "Kalorientracker", href: "/athlete/calorie-tracker", icon: <Flame size={20} />, toolIntroKey: "calorie-tracker" },
   { label: "Trainingstracker", href: "/athlete/training", icon: <Dumbbell size={20} />, toolIntroKey: "training" },
   { label: "Pläne", href: "/athlete/plans", icon: <Salad size={20} />, toolIntroKey: "plans" },
   { label: "Stammdaten", href: "/athlete/stammdaten", icon: <User size={20} /> },

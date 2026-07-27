@@ -14,6 +14,7 @@ import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search, MoreVertical, F
 import { Tooltip } from "@/components/ui/Tooltip";
 import { CadenceInput } from "@/components/ui/CadenceInput";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
+import { SliderInput } from "@/components/ui/SliderInput";
 
 interface Props {
   trainingPlan: TrainingPlan;
@@ -272,6 +273,10 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
     setSession((prev) => { if (!prev) return prev; const updated = { ...prev, note }; triggerAutoSave(updated); return updated; });
   }
 
+  function updateTrainingBewertung(trainingBewertung: number) {
+    setSession((prev) => { if (!prev) return prev; const updated = { ...prev, trainingBewertung }; triggerAutoSave(updated); return updated; });
+  }
+
   function buildEmptyExercises(dayId: string): TrainingExerciseLog[] {
     const day = trainingPlan.days.find((d) => d.id === dayId);
     return (day?.exercises ?? []).map((ex) => {
@@ -296,7 +301,8 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
     const newSession: ActiveSession = {
       athleteId, date: selectedDate, trainingDayId: selectedDayId,
       exercises: existing?.exercises ?? buildEmptyExercises(selectedDayId),
-      note: existing?.note ?? "", startedAt: new Date().toISOString(), pausedAt: null, totalPausedMs: 0,
+      note: existing?.note ?? "", trainingBewertung: existing?.trainingBewertung ?? 3,
+      startedAt: new Date().toISOString(), pausedAt: null, totalPausedMs: 0,
     };
     saveActiveSession(newSession);
     setSession(newSession);
@@ -307,7 +313,7 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
     const day = trainingPlan.days.find((d) => d.id === session.trainingDayId);
     if (!day) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    onSave({ date: session.date, trainingDayId: session.trainingDayId, trainingDayName: day.dayName, exercises: session.exercises, note: session.note || undefined, durationSeconds: elapsedSeconds });
+    onSave({ date: session.date, trainingDayId: session.trainingDayId, trainingDayName: day.dayName, exercises: session.exercises, note: session.note || undefined, trainingBewertung: session.trainingBewertung, durationSeconds: elapsedSeconds });
     clearActiveSession();
     if (timerRef.current) clearInterval(timerRef.current);
     setSession(null); setElapsedSeconds(0); setSaveStatus("idle"); setNoteMenuOpenId(null); setEditingNote(null);
@@ -890,12 +896,21 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
             Übung hinzufügen
           </button>
 
-          {/* Trainingsnotiz */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-[#5a7090]">Trainingsnotiz (optional)</label>
-            <textarea value={session.note} onChange={(e) => updateNote(e.target.value)} rows={2}
-              placeholder="Wie lief das Training? PRs, Besonderheiten..."
-              className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none" />
+          {/* Trainingsnotiz + Bewertung */}
+          <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] p-4 flex flex-col gap-4">
+            <SliderInput
+              label="Wie war das Training heute?"
+              value={session.trainingBewertung ?? 3}
+              onChange={updateTrainingBewertung}
+              labelMin="Sehr schlecht"
+              labelMax="Ausgezeichnet"
+            />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-[#5a7090]">Notiz (optional)</label>
+              <textarea value={session.note} onChange={(e) => updateNote(e.target.value)} rows={2}
+                placeholder="PRs, Besonderheiten, Anmerkungen..."
+                className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none" />
+            </div>
           </div>
 
           {/* Action Buttons */}

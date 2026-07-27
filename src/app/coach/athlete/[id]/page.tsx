@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile } from "@/lib/store";
+import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile, approvePlanChangeRequest, rejectPlanChangeRequest } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
-import { Athlete, AthleteProfile, GoalType, MealPlan, TrainingPlan, SupplementPlan } from "@/types";
+import { Athlete, AthleteProfile, GoalType, MealPlan, TrainingPlan, SupplementPlan, PlanChangeRequest } from "@/types";
 import {
   copyMealPlan, copyTrainingPlan, copySupplementPlan,
   getMealPlanClipboard, getTrainingPlanClipboard, getSupplementPlanClipboard,
@@ -33,7 +33,7 @@ import {
   getGoalLabel, getGoalColor, getTrendIcon, getTrendColor, normalizeNutritionStatus, resolveAthleteWeight,
 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Pencil, Check, X, Copy, ClipboardPaste, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Check, X, Copy, ClipboardPaste, Trash2, ChevronDown } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition, listContainer, listItem } from "@/lib/motion";
@@ -93,6 +93,9 @@ export default function CoachAthletePage() {
   const [deleteNameInput, setDeleteNameInput] = useState("");
   const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
   const [deleteStep, setDeleteStep] = useState<1 | 2 | 3>(1);
+
+  // Plan change requests
+  const [reviewingRequest, setReviewingRequest] = useState<PlanChangeRequest | null>(null);
 
   // Credential editing
   const [editingCredentials, setEditingCredentials] = useState(false);
@@ -324,6 +327,28 @@ export default function CoachAthletePage() {
     } catch {
       setAthlete(previous);
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
+  }
+
+  async function handleApprovePlanChangeRequest(requestId: string) {
+    try {
+      const updated = await approvePlanChangeRequest(athlete!.id, requestId);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setReviewingRequest(null);
+      showToast("Planänderung übernommen.", "success");
+    } catch {
+      showToast("Fehler beim Bestätigen. Bitte erneut versuchen.", "error");
+    }
+  }
+
+  async function handleRejectPlanChangeRequest(requestId: string) {
+    try {
+      const updated = await rejectPlanChangeRequest(athlete!.id, requestId);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setReviewingRequest(null);
+      showToast("Planänderung abgelehnt.", "success");
+    } catch {
+      showToast("Fehler beim Ablehnen. Bitte erneut versuchen.", "error");
     }
   }
 
@@ -748,6 +773,49 @@ export default function CoachAthletePage() {
 
             {/* Check-in field configuration */}
             <CheckInConfigEditor athlete={athlete} onSave={saveAthleteProfile} />
+
+            {/* Ausstehende Planänderungen */}
+            {(() => {
+              const pending = (athlete.planChangeRequests ?? []).filter((r) => r.status === "pending");
+              if (!pending.length) return null;
+              return (
+                <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#f59e0b]/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-xs text-[#f59e0b] uppercase tracking-widest">Ausstehende Planänderungen</p>
+                      <p className="text-sm font-semibold text-[#f0f4ff] mt-0.5">
+                        {pending.length} offene Anfrage{pending.length > 1 ? "n" : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {pending.map((req) => (
+                      <button
+                        key={req.id}
+                        type="button"
+                        onClick={() => setReviewingRequest(req)}
+                        className="w-full text-left flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#0f1624] border border-[#f59e0b]/20 hover:border-[#f59e0b]/50 transition-colors"
+                      >
+                        <div>
+                          <span className={cn(
+                            "inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mr-2",
+                            req.planType === "training"
+                              ? "bg-[#a78bfa]/10 text-[#a78bfa]"
+                              : "bg-[#60a5fa]/10 text-[#60a5fa]"
+                          )}>
+                            {req.planType === "training" ? "Training" : "Ernährung"}
+                          </span>
+                          <span className="text-xs text-[#5a7090]">
+                            {new Date(req.createdAt).toLocaleDateString("de-DE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <ChevronDown size={13} className="text-[#5a7090] shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Athlete profile (formerly own tab) */}
             <AthleteProfileEditor athlete={athlete} onSave={saveAthleteProfile} onSaveProfile={handleSaveQuestionnaire} />
@@ -1504,6 +1572,70 @@ export default function CoachAthletePage() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Plan change request review modal */}
+      <AnimatePresence>
+        {reviewingRequest && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setReviewingRequest(null); }}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl bg-[#0d1526] border-t border-[#1e2d42] pb-8"
+            >
+              <div className="sticky top-0 z-10 bg-[#0d1526] flex items-center justify-between px-5 pt-4 pb-3 border-b border-[#1e2d42]">
+                <div>
+                  <p className="text-[10px] text-[#f59e0b] uppercase tracking-wider mb-0.5">Planänderungsvorschlag</p>
+                  <p className="text-sm font-semibold text-[#f0f4ff]">
+                    {reviewingRequest.planType === "training" ? "Trainingsplan" : "Ernährungsplan"} ·{" "}
+                    {new Date(reviewingRequest.createdAt).toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" })}
+                  </p>
+                </div>
+                <button onClick={() => setReviewingRequest(null)} className="p-2 rounded-xl text-[#5a7090] hover:text-[#f0f4ff] hover:bg-[#1e2d42] transition-all">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="px-4 pt-4 flex flex-col gap-4">
+                <p className="text-xs text-[#5a7090]">Vorgeschlagener Plan von {athlete.name}:</p>
+
+                {reviewingRequest.planType === "training" ? (
+                  <TrainingAccordion plan={reviewingRequest.proposedPlan as TrainingPlan} />
+                ) : (
+                  <MealPlanView
+                    plans={[reviewingRequest.proposedPlan as MealPlan]}
+                    athleteWeight={resolveAthleteWeight(athlete)}
+                  />
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleRejectPlanChangeRequest(reviewingRequest.id)}
+                    className="flex-1 py-2.5 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] font-medium text-sm hover:bg-[#ef4444]/20 transition-colors"
+                  >
+                    Ablehnen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApprovePlanChangeRequest(reviewingRequest.id)}
+                    className="flex-1 py-2.5 rounded-xl bg-[#10b981] text-white font-semibold text-sm hover:bg-[#059669] transition-colors"
+                  >
+                    Bestätigen &amp; übernehmen
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Delete check-in confirmation modal */}
       {deleteConfirmCI && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">

@@ -1,6 +1,5 @@
 "use client";
 import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { DailyCheckIn, MealPlan, NutritionStatusType, DailyCheckConfig, DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { SliderInput } from "@/components/ui/SliderInput";
 import { NumberSliderInput } from "@/components/ui/NumberSliderInput";
@@ -15,6 +14,8 @@ type CheckInDraft = {
   restingHeartRate?: number; hrv?: number; spO2?: number; bpSystolic?: number; bpDiastolic?: number;
   energyLevel?: number; stressLevel?: number; mood?: number; note?: string;
   nutritionStatus?: NutritionStatusType; selectedMealPlanId?: string; noExactNutritionReason?: string;
+  macroKcal?: number; macroProtein?: number; macroFat?: number; macroCarbs?: number;
+  macroFiber?: number; macroSalt?: number; macroTrackingAccuracy?: number;
   customValues?: Record<string, string | number | boolean>;
 };
 
@@ -34,7 +35,7 @@ interface DailyCheckInFormProps {
 }
 
 const nutritionOptions: { value: NutritionStatusType; label: string; desc: string }[] = [
-  { value: "calorie_tracker_used",  label: "Kalorientracker genutzt",        desc: "Alle Mahlzeiten im Tracker eingetragen" },
+  { value: "calorie_tracker_used",  label: "Kalorien getrackt",               desc: "Makros manuell erfasst und eingetragen" },
   { value: "meal_plan_followed",    label: "Ernährungsplan eingehalten",      desc: "Einen Plan vollständig umgesetzt" },
   { value: "no_exact_info",         label: "Keine genaue Angabe möglich",     desc: "Mengen unklar oder Plan nicht eingehalten" },
 ];
@@ -42,7 +43,6 @@ const nutritionOptions: { value: NutritionStatusType; label: string; desc: strin
 export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, mealPlans, onSubmit }: DailyCheckInFormProps) {
   const cfg: DailyCheckConfig = { ...DEFAULT_DAILY_CHECK_CONFIG, ...checkConfig };
   const init = existingToday;
-  const router = useRouter();
 
   const draftKey = `daily-checkin-draft-${athleteId}-${date ?? todayISO()}`;
   const [draft] = useState<CheckInDraft | null>(() => !init ? readDraft(draftKey) : null);
@@ -85,6 +85,16 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
     draft?.noExactNutritionReason ?? init?.noExactNutritionReason ?? init?.deviationReason ?? ""
   );
 
+  const [macroKcal, setMacroKcal] = useState(draft?.macroKcal ?? init?.calories ?? 0);
+  const [macroProtein, setMacroProtein] = useState(draft?.macroProtein ?? init?.protein ?? 0);
+  const [macroFat, setMacroFat] = useState(draft?.macroFat ?? init?.fat ?? 0);
+  const [macroCarbs, setMacroCarbs] = useState(draft?.macroCarbs ?? init?.carbs ?? 0);
+  const [macroFiber, setMacroFiber] = useState(draft?.macroFiber ?? init?.fiber ?? 0);
+  const [macroSalt, setMacroSalt] = useState(draft?.macroSalt ?? init?.salt ?? 0);
+  const [macroTrackingAccuracy, setMacroTrackingAccuracy] = useState<1|2|3|4|5>(
+    (draft?.macroTrackingAccuracy ?? init?.macroTrackingAccuracy ?? 3) as 1|2|3|4|5
+  );
+
   const [submitted, setSubmitted] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -94,19 +104,6 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
 
   function setCustomValue(id: string, value: string | number | boolean) {
     setCustomValues((prev) => ({ ...prev, [id]: value }));
-  }
-
-  function handleCalorieTrackerClick() {
-    try {
-      sessionStorage.setItem(draftKey, JSON.stringify({
-        weight, weightInput, measurementTime, appetite, digestion, caffeine, steps,
-        cardio, cardioDuration, training, trainingQuality, sleepHours, sleepQuality,
-        sleepScore, restingHeartRate, hrv, spO2, bpSystolic, bpDiastolic,
-        energyLevel, stressLevel, mood, note, nutritionStatus, selectedMealPlanId,
-        noExactNutritionReason, customValues,
-      } as CheckInDraft));
-    } catch {}
-    router.push("/athlete/calorie-tracker");
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -145,6 +142,13 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       selectedMealPlanId: cfg.nutritionCompliance && nutritionStatus === "meal_plan_followed" && selectedMealPlanId ? selectedMealPlanId : undefined,
       noExactNutritionReason: cfg.nutritionCompliance && nutritionStatus === "no_exact_info" ? noExactNutritionReason : undefined,
       deviationReason: cfg.nutritionCompliance && nutritionStatus === "no_exact_info" ? noExactNutritionReason : undefined,
+      calories: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroKcal : undefined,
+      protein: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroProtein : undefined,
+      fat: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroFat : undefined,
+      carbs: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroCarbs : undefined,
+      fiber: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroFiber : undefined,
+      salt: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroSalt : undefined,
+      macroTrackingAccuracy: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroTrackingAccuracy : undefined,
       customFieldValues: Object.keys(customValues).length > 0 ? customValues : undefined,
     });
     try { sessionStorage.removeItem(draftKey); } catch {}
@@ -360,15 +364,43 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
             </div>
           )}
 
-          {/* Link to calorie tracker when calorie_tracker_used */}
+          {/* Manual macro entry when calorie_tracker_used */}
           {nutritionStatus === "calorie_tracker_used" && (
-            <button
-              type="button"
-              onClick={handleCalorieTrackerClick}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#3b82f6]/30 text-[#60a5fa] text-sm hover:bg-[#3b82f6]/10 transition-colors self-start"
-            >
-              → Zum Kalorientracker
-            </button>
+            <div className="flex flex-col gap-4 pt-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-[#8fa3c0]">Kilokalorien (kcal)</label>
+                  <input type="number" min={0} value={macroKcal} onChange={(e) => setMacroKcal(Number(e.target.value))} className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-[#8fa3c0]">Protein (g)</label>
+                  <input type="number" min={0} value={macroProtein} onChange={(e) => setMacroProtein(Number(e.target.value))} className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-[#8fa3c0]">Fett (g)</label>
+                  <input type="number" min={0} value={macroFat} onChange={(e) => setMacroFat(Number(e.target.value))} className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-[#8fa3c0]">Kohlenhydrate (g)</label>
+                  <input type="number" min={0} value={macroCarbs} onChange={(e) => setMacroCarbs(Number(e.target.value))} className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-[#8fa3c0]">Ballaststoffe (g)</label>
+                  <input type="number" min={0} step={0.1} value={macroFiber} onChange={(e) => setMacroFiber(Number(e.target.value))} className={inputCls} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-[#8fa3c0]">Salz (g)</label>
+                  <input type="number" min={0} step={0.1} value={macroSalt} onChange={(e) => setMacroSalt(Number(e.target.value))} className={inputCls} />
+                </div>
+              </div>
+              <SliderInput
+                label="Tracking-Genauigkeit"
+                value={macroTrackingAccuracy}
+                onChange={(v) => setMacroTrackingAccuracy(v as 1|2|3|4|5)}
+                labelMin="Schätzung"
+                labelMax="Sehr genau"
+              />
+            </div>
           )}
 
           {/* Reason field when no_exact_info */}

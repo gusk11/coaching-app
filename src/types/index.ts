@@ -190,12 +190,14 @@ export interface DailyCheckIn {
   nutritionStatus?: NutritionStatusType;
   selectedMealPlanId?: string;
   noExactNutritionReason?: string;
-  // only for full_tracking (legacy)
+  // Manual macro entry (calorie_tracker_used); legacy: also written by old full_tracking flow
   calories?: number;
   protein?: number;
   carbs?: number;
   fat?: number;
   fiber?: number;
+  salt?: number;
+  macroTrackingAccuracy?: 1 | 2 | 3 | 4 | 5;
   customFieldValues?: Record<string, string | number | boolean>;
   /** ISO date (yyyy-mm-dd) when the coach marked this check-in as reviewed/done. */
   completedAt?: string;
@@ -286,6 +288,7 @@ export interface TrainingLog {
   trainingDayName: string;
   exercises: TrainingExerciseLog[];
   note?: string;
+  trainingBewertung?: number; // 1-5
   durationSeconds?: number;
 }
 
@@ -447,6 +450,15 @@ export interface Note {
   createdAt: string;
 }
 
+export interface PlanChangeRequest {
+  id: string;
+  athleteId: string;
+  planType: "training" | "nutrition";
+  proposedPlan: TrainingPlan | MealPlan;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+}
+
 export interface LegalConsent {
   privacyAccepted: boolean;
   privacyAcceptedAt: string;
@@ -506,6 +518,8 @@ export interface Athlete {
   notes: Note[];
   joinedAt: string;
   weeklyTrendTargetPercent?: number;
+  planBearbeitungErlaubt?: boolean;
+  planChangeRequests?: PlanChangeRequest[];
 }
 
 export interface VideoFeedback {

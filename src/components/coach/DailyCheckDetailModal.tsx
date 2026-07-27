@@ -14,6 +14,25 @@ interface Props {
 
 
 function NutritionCalorieTracker({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
+  const hasManualMacros = ci.calories != null;
+
+  if (hasManualMacros) {
+    return (
+      <>
+        <CheckInRow label="Quelle" value="Kalorien getrackt (manuell)" />
+        <div className="flex flex-wrap gap-1 justify-around py-3 border-b border-[#1e2d42]">
+          <MacroChip label="kcal" value={ci.calories ?? 0} unit="" color="text-[#f0f4ff] font-bold" />
+          <MacroChip label="Protein" value={ci.protein ?? 0} color="text-[#60a5fa]" />
+          <MacroChip label="Kohlenhydrate" value={ci.carbs ?? 0} />
+          <MacroChip label="Fett" value={ci.fat ?? 0} />
+          <MacroChip label="Ballaststoffe" value={ci.fiber ?? 0} />
+          <MacroChip label="Salz" value={ci.salt ?? 0} unit="g" />
+        </div>
+        <ReadOnlySlider label="Tracking-Genauigkeit" value={ci.macroTrackingAccuracy} />
+      </>
+    );
+  }
+
   const ctDay = (athlete.calorieTrackerDays ?? []).find(d => d.date === ci.date);
   const dateLabel = new Date(ci.date + "T12:00:00").toLocaleDateString("de-DE", {
     day: "2-digit", month: "long", year: "numeric",
@@ -37,7 +56,6 @@ function NutritionCalorieTracker({ ci, athlete }: { ci: DailyCheckIn; athlete: A
   return (
     <>
       <CheckInRow label="Quelle" value={`Kalorientracker · ${dateLabel}`} />
-      {/* Totals strip */}
       <div className="flex flex-wrap gap-1 justify-around py-3 border-b border-[#1e2d42]">
         <MacroChip label="kcal" value={totals.kcal} unit="" color="text-[#f0f4ff] font-bold" />
         <MacroChip label="Protein" value={totals.protein} color="text-[#60a5fa]" />

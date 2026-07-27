@@ -321,7 +321,9 @@ export default function CoachVideoFeedbacks() {
       setShowModal(false);
       showToast("Video Feedback gespeichert.", "success");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof Error
+        ? err.message
+        : (err as { message?: string })?.message ?? JSON.stringify(err);
       console.error("[VideoFeedback] Fehler beim Speichern:", err);
       showToast(`Fehler beim Speichern: ${msg}`, "error");
       throw err;

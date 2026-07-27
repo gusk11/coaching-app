@@ -1,19 +1,22 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Athlete } from "@/types";
-import { loadAuth, loadAthletes } from "@/lib/store";
+import { Athlete, MealPlan, TrainingPlan } from "@/types";
+import { loadAuth, loadAthletes, createPlanChangeRequest } from "@/lib/store";
 import { resolveAthleteWeight } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { MealPlanView } from "@/components/athlete/MealPlanView";
+import { MealPlanEditor } from "@/components/coach/MealPlanEditor";
+import { TrainingEditor } from "@/components/coach/TrainingEditor";
 import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { SupplementList } from "@/components/athlete/SupplementList";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { showToast } from "@/components/ui/Toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition } from "@/lib/motion";
-import { Utensils, Dumbbell, Pill } from "lucide-react";
+import { Utensils, Dumbbell, Pill, Pencil, X } from "lucide-react";
 
 type Tab = "Ernährungsplan" | "Trainingsplan" | "Supplementplan";
 const TABS: Tab[] = ["Ernährungsplan", "Trainingsplan", "Supplementplan"];
@@ -27,6 +30,9 @@ export default function AthletePlans() {
   const router = useRouter();
   const [athlete, setAthlete] = useState<Athlete | null>(null);
   const [tab, setTab] = useState<Tab>("Ernährungsplan");
+  const [editingNutrition, setEditingNutrition] = useState(false);
+  const [editingTraining, setEditingTraining] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const auth = loadAuth();
@@ -37,6 +43,34 @@ export default function AthletePlans() {
       setAthlete(found);
     });
   }, [router]);
+
+  async function handleSaveNutritionProposal(plan: MealPlan) {
+    if (!athlete || submitting) return;
+    setSubmitting(true);
+    try {
+      await createPlanChangeRequest(athlete.id, "nutrition", plan);
+      showToast("Änderung wurde zur Freigabe an deinen Coach gesendet.", "success");
+      setEditingNutrition(false);
+    } catch {
+      showToast("Fehler beim Senden. Bitte erneut versuchen.", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleSaveTrainingProposal(plan: TrainingPlan) {
+    if (!athlete || submitting) return;
+    setSubmitting(true);
+    try {
+      await createPlanChangeRequest(athlete.id, "training", plan);
+      showToast("Änderung wurde zur Freigabe an deinen Coach gesendet.", "success");
+      setEditingTraining(false);
+    } catch {
+      showToast("Fehler beim Senden. Bitte erneut versuchen.", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (!athlete) {
     return (
@@ -54,15 +88,27 @@ export default function AthletePlans() {
     );
   }
 
+  const canEdit = athlete.planBearbeitungErlaubt === true;
+
   return (
     <AppShell role="athlete" title="Pläne">
       <div className="max-w-lg mx-auto flex flex-col gap-4">
         <ToolIntroVideo athleteId={athlete.id} toolKey="plans" title="Einführung: Pläne" position="top" />
+
+        {canEdit && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#1d4ed8]/10 border border-[#3b82f6]/20">
+            <Pencil size={12} className="text-[#60a5fa] shrink-0" />
+            <p className="text-xs text-[#8fa3c0]">
+              Du kannst Pläne bearbeiten. Änderungen werden zur Freigabe an deinen Coach gesendet.
+            </p>
+          </div>
+        )}
+
         <div className="flex gap-1.5 flex-wrap">
           {TABS.map((t) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => { setTab(t); setEditingNutrition(false); setEditingTraining(false); }}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                 tab === t
@@ -81,8 +127,32 @@ export default function AthletePlans() {
           {tab === "Ernährungsplan" && (() => {
             const plans = athlete.mealPlans ?? [];
             return (
-              <motion.div key="Ernährungsplan" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit">
-                {plans.length === 0 ? (
+              <motion.div key="Ernährungsplan" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-3">
+                {canEdit && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setEditingNutrition((v) => !v)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                        editingNutrition
+                          ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
+                          : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
+                      )}
+                    >
+                      {editingNutrition ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
+                    </button>
+                  </div>
+                )}
+
+                {editingNutrition ? (
+                  <MealPlanEditor
+                    plans={plans}
+                    athleteId={athlete.id}
+                    onSavePlan={handleSaveNutritionProposal}
+                    onDeletePlan={() => showToast("Pläne können nur vom Coach gelöscht werden.", "error")}
+                    athleteWeight={resolveAthleteWeight(athlete)}
+                  />
+                ) : plans.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-center">
                     <p className="text-4xl mb-4">🍽</p>
                     <p className="text-[#8fa3c0] font-medium">Noch kein Ernährungsplan</p>
@@ -105,8 +175,30 @@ export default function AthletePlans() {
 
           {/* Trainingsplan */}
           {tab === "Trainingsplan" && (
-            <motion.div key="Trainingsplan" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit">
-              {athlete.trainingPlan ? (
+            <motion.div key="Trainingsplan" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-3">
+              {canEdit && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setEditingTraining((v) => !v)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                      editingTraining
+                        ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
+                        : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
+                    )}
+                  >
+                    {editingTraining ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
+                  </button>
+                </div>
+              )}
+
+              {editingTraining ? (
+                <TrainingEditor
+                  plan={athlete.trainingPlan}
+                  athleteId={athlete.id}
+                  onSave={handleSaveTrainingProposal}
+                />
+              ) : athlete.trainingPlan ? (
                 <div className="flex flex-col gap-3">
                   <div>
                     <h2 className="text-base font-semibold text-[#f0f4ff]">{athlete.trainingPlan.title}</h2>

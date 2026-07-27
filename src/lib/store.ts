@@ -10,6 +10,7 @@ import {
   WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay,
   FoodItem, SupplementDBItem, ExerciseDBItem, GoalType,
   DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest, VideoFeedback,
+  PlanChangeRequest, TrainingPlan, MealPlan,
 } from "@/types";
 import { getCheckInWeekStart } from "@/lib/utils";
 
@@ -71,6 +72,8 @@ function rowToAthlete(row: any): Athlete {
     notes: row.notes ?? [],
     joinedAt: row.joined_at ?? new Date().toISOString().split("T")[0],
     weeklyTrendTargetPercent: row.weekly_trend_target_percent ?? undefined,
+    planBearbeitungErlaubt: row.plan_bearbeitung_erlaubt ?? false,
+    planChangeRequests: row.plan_change_requests ?? [],
   };
 }
 
@@ -120,6 +123,8 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
     notes: a.notes ?? [],
     joined_at: a.joinedAt ?? null,
     weekly_trend_target_percent: a.weeklyTrendTargetPercent ?? null,
+    plan_bearbeitung_erlaubt: a.planBearbeitungErlaubt ?? false,
+    plan_change_requests: a.planChangeRequests ?? [],
   };
 }
 
@@ -296,6 +301,8 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   if ("notes" in updates) row.notes = updates.notes ?? [];
   if ("joinedAt" in updates) row.joined_at = updates.joinedAt ?? null;
   if ("weeklyTrendTargetPercent" in updates) row.weekly_trend_target_percent = updates.weeklyTrendTargetPercent ?? null;
+  if ("planBearbeitungErlaubt" in updates) row.plan_bearbeitung_erlaubt = updates.planBearbeitungErlaubt ?? false;
+  if ("planChangeRequests" in updates) row.plan_change_requests = updates.planChangeRequests ?? [];
   row.updated_at = new Date().toISOString();
   const { error } = await supabase.from("athletes").update(row).eq("id", id);
   if (error) throw error;
@@ -624,6 +631,69 @@ export async function updateTrainingLog(athleteId: string, log: TrainingLog): Pr
   return loadAthletes();
 }
 
+// ─── Plan Change Requests ─────────────────────────────────────────────────────
+
+export async function createPlanChangeRequest(
+  athleteId: string,
+  planType: "training" | "nutrition",
+  proposedPlan: TrainingPlan | MealPlan
+): Promise<void> {
+  const a = await getAthlete(athleteId);
+  const request: PlanChangeRequest = {
+    id: `pcr-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    athleteId,
+    planType,
+    proposedPlan,
+    status: "pending",
+    createdAt: new Date().toISOString(),
+  };
+  const plan_change_requests = [...(a.planChangeRequests ?? []), request];
+  const { error } = await supabase.from("athletes")
+    .update({ plan_change_requests, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+}
+
+export async function getPendingPlanChangeRequests(athleteId: string): Promise<PlanChangeRequest[]> {
+  const a = await getAthlete(athleteId);
+  return (a.planChangeRequests ?? []).filter((r) => r.status === "pending");
+}
+
+export async function approvePlanChangeRequest(athleteId: string, requestId: string): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const request = (a.planChangeRequests ?? []).find((r) => r.id === requestId);
+  if (!request) throw new Error("Request not found");
+  const plan_change_requests = (a.planChangeRequests ?? []).map((r) =>
+    r.id === requestId ? { ...r, status: "approved" as const } : r
+  );
+  const row: Record<string, unknown> = { plan_change_requests, updated_at: new Date().toISOString() };
+  if (request.planType === "training") {
+    row.training_plan = request.proposedPlan;
+  } else {
+    const currentPlans = a.mealPlans ?? [];
+    const proposed = request.proposedPlan as MealPlan;
+    const exists = currentPlans.some((p) => p.id === proposed.id);
+    row.meal_plans = exists
+      ? currentPlans.map((p) => p.id === proposed.id ? proposed : p)
+      : [...currentPlans, proposed];
+  }
+  const { error } = await supabase.from("athletes").update(row).eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
+export async function rejectPlanChangeRequest(athleteId: string, requestId: string): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const plan_change_requests = (a.planChangeRequests ?? []).map((r) =>
+    r.id === requestId ? { ...r, status: "rejected" as const } : r
+  );
+  const { error } = await supabase.from("athletes")
+    .update({ plan_change_requests, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
 // ─── Food Database ────────────────────────────────────────────────────────────
 
 export async function loadCustomFoods(): Promise<FoodItem[]> {
@@ -917,8 +987,13 @@ export async function addVideoFeedback(data: Omit<VideoFeedback, "id" | "created
     created_at: new Date().toISOString(),
   });
   if (error) {
-    console.error("[addVideoFeedback] Supabase error:", error);
-    throw error;
+    console.error("[addVideoFeedback] Supabase error:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+    throw new Error(error.message ?? JSON.stringify(error));
   }
   return loadVideoFeedbacks();
 }
@@ -948,8 +1023,10 @@ export async function linkVideoFeedbackToExercises(
       .update({ current_tech_feedback_video_id: videoFeedbackId, updated_at: now })
       .eq("id", exerciseId);
     if (error) {
-      console.error("[linkVideoFeedbackToExercises] exercise_db update error:", error);
-      throw error;
+      console.error("[linkVideoFeedbackToExercises] exercise_db update error:", {
+        message: error.message, details: error.details, hint: error.hint, code: error.code,
+      });
+      throw new Error(error.message ?? JSON.stringify(error));
     }
   }
   // video_feedbacks has no updated_at column — only update linked_exercise_ids
@@ -958,8 +1035,10 @@ export async function linkVideoFeedbackToExercises(
     .update({ linked_exercise_ids: exerciseIds })
     .eq("id", videoFeedbackId);
   if (error) {
-    console.error("[linkVideoFeedbackToExercises] video_feedbacks update error:", error);
-    throw error;
+    console.error("[linkVideoFeedbackToExercises] video_feedbacks update error:", {
+      message: error.message, details: error.details, hint: error.hint, code: error.code,
+    });
+    throw new Error(error.message ?? JSON.stringify(error));
   }
 }
 
@@ -1125,6 +1204,7 @@ export interface ActiveSession {
   trainingDayId: string;
   exercises: TrainingExerciseLog[];
   note: string;
+  trainingBewertung?: number; // 1-5
   startedAt: string;
   pausedAt: string | null;
   totalPausedMs: number;
