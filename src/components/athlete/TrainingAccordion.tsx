@@ -17,7 +17,7 @@ const dayColors: Record<string, string> = {
   "Rest/Cardio": "text-yellow-400",
 };
 
-function DayCard({ day, isOpen, onToggle }: { day: TrainingDay; isOpen: boolean; onToggle: () => void }) {
+function DayCard({ day, isOpen, onToggle, customLabel }: { day: TrainingDay; isOpen: boolean; onToggle: () => void; customLabel?: string }) {
   const isRest = !day.exercises.length;
   const color = dayColors[day.label] ?? "text-[#8fa3c0]";
 
@@ -79,10 +79,31 @@ function DayCard({ day, isOpen, onToggle }: { day: TrainingDay; isOpen: boolean;
                   </a>
                 )}
               </div>
-              <div className="flex items-center gap-2 shrink-0 text-xs">
-                <span className="bg-[#1e2d42] text-[#8fa3c0] px-2 py-1 rounded-lg">{ex.sets} × {ex.reps}</span>
-                {ex.rir !== undefined && (
-                  <span className="bg-[#1e2d42] text-[#5a7090] px-2 py-1 rounded-lg">RIR {ex.rir}</span>
+              <div className="flex flex-col items-end gap-1 shrink-0 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="bg-[#1e2d42] text-[#8fa3c0] px-2 py-1 rounded-lg">{ex.sets} × {ex.reps}</span>
+                  {ex.rir !== undefined && (
+                    <span className="bg-[#1e2d42] text-[#5a7090] px-2 py-1 rounded-lg">RIR {ex.rir}</span>
+                  )}
+                  {ex.rpe !== undefined && (
+                    <span className="bg-[#1e2d42] text-[#5a7090] px-2 py-1 rounded-lg">RPE {ex.rpe}</span>
+                  )}
+                </div>
+                {/* Secondary: cadence, rest, custom */}
+                {(ex.cadence || ex.restSeconds || (ex.customValue != null && customLabel)) && (
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    {ex.cadence && (ex.cadence.eccentric || ex.cadence.bottomHold || ex.cadence.concentric || ex.cadence.topHold) && (
+                      <span className="bg-[#1e2d42]/60 text-[#5a7090] px-2 py-0.5 rounded-md font-mono">
+                        {ex.cadence.eccentric}-{ex.cadence.bottomHold}-{ex.cadence.concentric}-{ex.cadence.topHold}
+                      </span>
+                    )}
+                    {ex.restSeconds != null && (
+                      <span className="bg-[#1e2d42]/60 text-[#5a7090] px-2 py-0.5 rounded-md">{ex.restSeconds}s</span>
+                    )}
+                    {ex.customValue != null && customLabel && (
+                      <span className="bg-[#1e2d42]/60 text-[#5a7090] px-2 py-0.5 rounded-md">{customLabel}: {ex.customValue}</span>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -101,6 +122,7 @@ export function TrainingAccordion({ plan }: { plan: TrainingPlan }) {
   const today = new Date().getDay(); // 0=Sun
   const dayMap: Record<number, string> = { 0: "Sonntag", 1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag", 6: "Samstag" };
   const todayName = dayMap[today];
+  const customLabel = plan.trackedFields?.custom?.enabled ? plan.trackedFields.custom.label : undefined;
 
   return (
     <div className="flex flex-col gap-2">
@@ -115,6 +137,7 @@ export function TrainingAccordion({ plan }: { plan: TrainingPlan }) {
               day={day}
               isOpen={openId === day.id}
               onToggle={() => setOpenId(openId === day.id ? null : day.id)}
+              customLabel={customLabel}
             />
           </div>
         );
