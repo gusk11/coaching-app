@@ -107,11 +107,33 @@ export function MaintenanceEditor() {
       </div>
 
       {data.isActive && (
-        <div className="rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/30 px-4 py-3">
-          <p className="text-xs font-semibold text-[#fca5a5]">Wartungsmodus ist aktiv</p>
-          <p className="text-xs text-[#f87171] mt-0.5">
-            Athleten können sich nicht anmelden, bis du ihn deaktivierst.
-          </p>
+        <div className="rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/30 px-4 py-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold text-[#fca5a5]">Wartungsmodus ist aktiv</p>
+            <p className="text-xs text-[#f87171] mt-0.5">
+              Athleten können sich nicht anmelden, bis du ihn deaktivierst.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={async () => {
+              const updated = { ...data, isActive: false };
+              setData(updated);
+              setSaving(true);
+              try {
+                await setMaintenanceMode(updated);
+                showToast("Wartungsmodus deaktiviert", "success");
+              } catch {
+                showToast("Fehler beim Speichern", "error");
+              } finally {
+                setSaving(false);
+              }
+            }}
+            className="shrink-0 px-3 py-1.5 rounded-lg bg-[#ef4444]/20 border border-[#ef4444]/40 text-[#fca5a5] text-xs font-semibold hover:bg-[#ef4444]/30 transition-colors disabled:opacity-50"
+          >
+            Deaktivieren
+          </button>
         </div>
       )}
 
