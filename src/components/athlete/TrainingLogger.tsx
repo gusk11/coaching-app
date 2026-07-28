@@ -468,11 +468,12 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
               <Info size={13} className="text-[#5a7090] shrink-0 mt-0.5" />
               <div className="text-xs text-[#5a7090]">
                 <span className="text-[#8fa3c0] font-medium">Kadenz</span>
+                <span> (alle Angaben in Sekunden)</span>
                 <ul className="mt-1 flex flex-col gap-0.5">
-                  <li><span className="text-[#f0f4ff] font-medium">E</span> — exzentrisch arbeiten sollst</li>
-                  <li><span className="text-[#f0f4ff] font-medium">U</span> — im unteren Umkehrpunkt halten sollst</li>
-                  <li><span className="text-[#f0f4ff] font-medium">K</span> — konzentrisch arbeiten sollst</li>
-                  <li><span className="text-[#f0f4ff] font-medium">O</span> — im oberen Umkehrpunkt halten sollst</li>
+                  <li><span className="text-[#f0f4ff] font-medium">E</span> — Länge der exzentrischen Phase</li>
+                  <li><span className="text-[#f0f4ff] font-medium">U</span> — Haltezeit im unteren Umkehrpunkt</li>
+                  <li><span className="text-[#f0f4ff] font-medium">K</span> — Zeit der konzentrischen Phase</li>
+                  <li><span className="text-[#f0f4ff] font-medium">O</span> — Halten im oberen Umkehrpunkt</li>
                 </ul>
               </div>
             </div>
