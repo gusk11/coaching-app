@@ -3,7 +3,8 @@ import { useRef, useState } from "react";
 import { Athlete, AthleteProfile } from "@/types";
 import { AthleteStammdatenForm } from "@/components/athlete/AthleteStammdatenForm";
 import { showToast } from "@/components/ui/Toast";
-import { cn } from "@/lib/utils";
+import { cn, copyTextToClipboard } from "@/lib/utils";
+import { CopyContextModal } from "@/components/coach/CopyContextModal";
 import { Copy, Upload, Loader2 } from "lucide-react";
 
 interface Props {
@@ -88,23 +89,34 @@ function PlanUploadButton({
 
 export function AthleteProfileEditor({ athlete, onSave, onSaveProfile, onPlansImported }: Props) {
   const [copyingContext, setCopyingContext] = useState(false);
+  const [fallbackText, setFallbackText] = useState<string | null>(null);
 
   async function handleCopyContext() {
     setCopyingContext(true);
+    let text: string;
     try {
       const res = await fetch(`/api/export-plan-context?athleteId=${encodeURIComponent(athlete.id)}`);
       if (!res.ok) throw new Error("Export fehlgeschlagen");
-      const { text } = await res.json();
-      await navigator.clipboard.writeText(text);
-      showToast("Kontext in Zwischenablage kopiert", "success");
+      ({ text } = await res.json());
     } catch {
-      showToast("Kopieren fehlgeschlagen", "error");
-    } finally {
+      showToast("Export fehlgeschlagen", "error");
       setCopyingContext(false);
+      return;
+    }
+    setCopyingContext(false);
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
+      showToast("Kontext in Zwischenablage kopiert", "success");
+    } else {
+      setFallbackText(text);
     }
   }
 
   return (
+    <>
+    {fallbackText !== null && (
+      <CopyContextModal text={fallbackText} onClose={() => setFallbackText(null)} />
+    )}
     <div className="flex flex-col gap-4">
       {athlete.athleteNumber && (
         <div className="px-4 py-2.5 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex items-center justify-between text-sm">
@@ -178,5 +190,6 @@ export function AthleteProfileEditor({ athlete, onSave, onSaveProfile, onPlansIm
 
       <AthleteStammdatenForm athlete={athlete} mode="coach" onSave={onSave} onSaveProfile={onSaveProfile} />
     </div>
+    </>
   );
 }

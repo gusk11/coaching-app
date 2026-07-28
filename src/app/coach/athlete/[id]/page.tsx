@@ -870,9 +870,13 @@ export default function CoachAthletePage() {
                     <span className="text-[#5a7090]">E-Mail</span>
                     <span className="text-[#f0f4ff] font-mono text-xs">{athlete.email || "–"}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2">
+                  <div className="flex justify-between items-center py-2 border-b border-[#1e2d42]">
                     <span className="text-[#5a7090]">PIN</span>
                     <span className="text-[#f0f4ff] font-mono tracking-widest">{athlete.pin}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-[#5a7090]">Athleten-ID</span>
+                    <span className="text-[#f0f4ff] font-mono tracking-widest">{athlete.athleteNumber || "–"}</span>
                   </div>
                 </div>
               ) : (
