@@ -39,7 +39,7 @@ export default function AthleteTraining() {
   if (!athlete) {
     return (
       <AppShell role="athlete" title="Trainingstracker">
-        <div className="max-w-lg mx-auto flex flex-col gap-4">
+        <div className="max-w-2xl mx-auto flex flex-col gap-4">
           <Skeleton className="h-11 rounded-xl" />
           <Skeleton className="h-40 rounded-2xl" />
           <div className="flex flex-col gap-3">
@@ -84,7 +84,7 @@ export default function AthleteTraining() {
 
   return (
     <AppShell role="athlete" title="Trainingstracker">
-      <div className="max-w-lg mx-auto flex flex-col gap-4">
+      <div className="max-w-2xl mx-auto flex flex-col gap-4">
         <ToolIntroVideo athleteId={athlete.id} toolKey="training" title="Einführung: Trainingstracker" position="top" />
         {/* Tab selector */}
         <div className="flex rounded-xl bg-[#0f1624] border border-[#1e2d42] p-1 gap-1">
@@ -142,7 +142,9 @@ export default function AthleteTraining() {
 
           {tab === "feedback" && (
             <motion.div key="feedback" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit">
-              {videoFeedbacks.length === 0 ? (
+              {(() => {
+                const techFeedbacks = videoFeedbacks.filter((fb) => fb.category === "technik-feedback");
+                return techFeedbacks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <div className="w-14 h-14 rounded-2xl bg-[#141d2e] flex items-center justify-center mb-4">
                     <Video size={24} className="text-[#5a7090]" />
@@ -152,7 +154,7 @@ export default function AthleteTraining() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {videoFeedbacks.map((fb) => (
+                  {techFeedbacks.map((fb) => (
                     <a
                       key={fb.id}
                       href={fb.loomUrl}
@@ -175,7 +177,8 @@ export default function AthleteTraining() {
                     </a>
                   ))}
                 </div>
-              )}
+              );
+              })()}
             </motion.div>
           )}
         </AnimatePresence>

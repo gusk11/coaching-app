@@ -18,6 +18,7 @@ import {
 import { ClipboardCheck, CalendarPlus, Video } from "lucide-react";
 import { VideoFeedback } from "@/types";
 import { cn } from "@/lib/utils";
+import { VideoFeedbackCategoryBadge } from "@/components/ui/VideoFeedbackCategoryBadge";
 import { motion } from "framer-motion";
 import { listContainer, listItem } from "@/lib/motion";
 import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
@@ -156,7 +157,10 @@ export default function AthleteDashboard() {
               <Video size={20} className="text-[#60a5fa]" />
             </div>
             <div className="flex flex-col gap-0.5 min-w-0">
-              <p className="text-sm font-semibold text-[#f0f4ff]">Neues Video-Feedback</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-[#f0f4ff]">Neues Video-Feedback</p>
+                <VideoFeedbackCategoryBadge category={fb.category} />
+              </div>
               <p className="text-xs text-[#60a5fa]/80 truncate">{fb.title} · {new Date(fb.date + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}</p>
             </div>
             <span className="ml-auto text-[#3b82f6] text-lg flex-shrink-0">→</span>

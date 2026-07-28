@@ -12,7 +12,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search, MoreVertical, FileText, Pin, Hourglass, ChevronLeft, ChevronRight, ExternalLink, Info } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { CadenceInput } from "@/components/ui/CadenceInput";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 import { SliderInput } from "@/components/ui/SliderInput";
 
@@ -53,7 +52,6 @@ function isSetComplete(set: TrainingSetLog, isUnilateral: boolean, fields: Track
     if (fields.reps && set.reps == null) return false;
   }
   if (fields.rir && set.rir == null) return false;
-  if (fields.cadence && !set.cadence) return false;
   if (fields.custom?.enabled && set.customValue == null) return false;
   return true;
 }
@@ -352,17 +350,6 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
     );
   }
 
-  function updateSetCadence(exIdx: number, setIdx: number, cadence: TrainingSetLog["cadence"]) {
-    updateExercises((prev) =>
-      prev.map((ex, i) =>
-        i !== exIdx ? ex : {
-          ...ex,
-          sets: ex.sets.map((s, j) => j !== setIdx ? s : { ...s, cadence }),
-        }
-      )
-    );
-  }
-
   function addSet(exIdx: number) {
     updateExercises((prev) =>
       prev.map((ex, i) => {
@@ -479,14 +466,15 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
           {fields.cadence && (
             <div className="flex items-start gap-2 rounded-xl bg-[#0f1624] border border-[#1e2d42] px-3 py-2.5">
               <Info size={13} className="text-[#5a7090] shrink-0 mt-0.5" />
-              <p className="text-xs text-[#5a7090] leading-relaxed">
+              <div className="text-xs text-[#5a7090]">
                 <span className="text-[#8fa3c0] font-medium">Kadenz</span>
-                {" "}— 4 Zahlen in Sekunden:{" "}
-                <span className="text-[#f0f4ff]">E</span>xzentrisch ·{" "}
-                <span className="text-[#f0f4ff]">B</span>oden halten ·{" "}
-                <span className="text-[#f0f4ff]">K</span>onzentrisch ·{" "}
-                <span className="text-[#f0f4ff]">O</span>ben halten
-              </p>
+                <ul className="mt-1 flex flex-col gap-0.5">
+                  <li><span className="text-[#f0f4ff] font-medium">E</span> — exzentrisch arbeiten sollst</li>
+                  <li><span className="text-[#f0f4ff] font-medium">U</span> — im unteren Umkehrpunkt halten sollst</li>
+                  <li><span className="text-[#f0f4ff] font-medium">K</span> — konzentrisch arbeiten sollst</li>
+                  <li><span className="text-[#f0f4ff] font-medium">O</span> — im oberen Umkehrpunkt halten sollst</li>
+                </ul>
+              </div>
             </div>
           )}
 
@@ -550,7 +538,7 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                       <p className="text-xs text-[#5a7090] mt-0.5">
                         {planEx.sets} × {planEx.reps}
                         {planEx.rir !== undefined && ` · RIR ${planEx.rir}`}
-                        {planEx.cadence && ` · ${planEx.cadence.eccentric}-${planEx.cadence.bottomHold}-${planEx.cadence.concentric}-${planEx.cadence.topHold}`}
+                        {planEx.cadence && ` · Kadenz ${planEx.cadence.eccentric}${planEx.cadence.bottomHold}${planEx.cadence.concentric}${planEx.cadence.topHold}`}
                       </p>
                     )}
                     {techVideo && (
@@ -746,7 +734,7 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                               </Tooltip>
                             </div>
                             {/* prev values + extra tracked fields for unilateral */}
-                            {(prev || fields.rir || fields.cadence || fields.custom?.enabled) && (
+                            {(prev || fields.rir || fields.custom?.enabled) && (
                               <div className="pl-5 mt-1 flex flex-wrap items-center gap-2">
                                 {prev && (prev.weightLeft != null || prev.weightRight != null) && (
                                   <span className="text-[9px] text-[#3a5070]">
@@ -770,10 +758,6 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                                       placeholder="–"
                                       className="w-10 bg-[#0f1624] border border-[#1e2d42] rounded-md px-1 py-1 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] text-center" />
                                   </div>
-                                )}
-                                {fields.cadence && (
-                                  <CadenceInput size="xs" value={set.cadence}
-                                    onChange={(v) => updateSetCadence(exIdx, setIdx, v)} />
                                 )}
                               </div>
                             )}
@@ -863,17 +847,6 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                               </Tooltip>
                             </div>
 
-                            {fields.cadence && (
-                              <div className="pl-6 mt-1 flex items-center gap-2">
-                                <CadenceInput size="xs" value={set.cadence}
-                                  onChange={(v) => updateSetCadence(exIdx, setIdx, v)} />
-                                {prev?.cadence && (
-                                  <span className="text-[9px] text-[#3a5070]">
-                                    zuletzt: {prev.cadence.eccentric}-{prev.cadence.bottomHold}-{prev.cadence.concentric}-{prev.cadence.topHold}
-                                  </span>
-                                )}
-                              </div>
-                            )}
                           </div>
                         );
                       })}

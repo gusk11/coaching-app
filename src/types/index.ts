@@ -534,6 +534,7 @@ export interface VideoFeedback {
   createdAt: string;
   category: "technik-feedback" | "checkin" | "sonstiges";
   linkedExerciseIds?: string[]; // only relevant for category === 'technik-feedback'
+  linkedWeeklyCheckInId?: string; // only relevant for category === 'checkin'
 }
 
 export interface LoginHelpRequest {

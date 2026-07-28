@@ -25,6 +25,7 @@ const athleteNav: NavItem[] = [
   { label: "Check-ins", href: "/athlete/checkins", icon: <ClipboardCheck size={20} />, toolIntroKey: "checkins" },
   { label: "Trainingstracker", href: "/athlete/training", icon: <Dumbbell size={20} />, toolIntroKey: "training" },
   { label: "Pläne", href: "/athlete/plans", icon: <Salad size={20} />, toolIntroKey: "plans" },
+  { label: "Video-Feedbacks", href: "/athlete/video-feedbacks", icon: <Video size={20} /> },
   { label: "Stammdaten", href: "/athlete/stammdaten", icon: <User size={20} /> },
 ];
 

@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Athlete, WeeklyCheckIn } from "@/types";
-import { loadAuth, loadAthletes, addDailyCheckIn, addWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn } from "@/lib/store";
+import { Athlete, WeeklyCheckIn, VideoFeedback } from "@/types";
+import { loadAuth, loadAthletes, addDailyCheckIn, addWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, loadVideoFeedbacks } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
@@ -11,9 +11,10 @@ import { WeeklyCheckInForm } from "@/components/athlete/WeeklyCheckInForm";
 import { WeekBulkBackfill } from "@/components/athlete/WeekBulkBackfill";
 import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
 import { isCheckInDay, getCheckInWeekStart, todayISO } from "@/lib/utils";
-import { ChevronRight, Pencil, Trash2, X } from "lucide-react";
+import { ChevronRight, Pencil, Trash2, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { VideoFeedbackCategoryBadge } from "@/components/ui/VideoFeedbackCategoryBadge";
 
 function fmtWeekLabel(weekStart: string): string {
   const start = new Date(weekStart + "T12:00:00");
@@ -30,6 +31,7 @@ export default function CheckInsPage() {
   const router = useRouter();
   const [athlete, setAthlete] = useState<Athlete | null>(null);
   const [activeTab, setActiveTab] = useState<"daily" | "weekly">("daily");
+  const [videoFeedbacks, setVideoFeedbacks] = useState<VideoFeedback[]>([]);
 
   // Daily state
   const [dayModalDate, setDayModalDate] = useState<string | null>(null);
@@ -52,12 +54,18 @@ export default function CheckInsPage() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "athlete" || !auth.athleteId) { router.replace("/login"); return; }
-    loadAthletes().then((athletes) => {
-      const found = athletes.find((a) => a.id === auth.athleteId);
+    const athleteId = auth.athleteId;
+    Promise.all([loadAthletes(), loadVideoFeedbacks(athleteId)]).then(([athletes, fbs]) => {
+      const found = athletes.find((a) => a.id === athleteId);
       if (!found) { router.replace("/login"); return; }
       setAthlete(found);
+      setVideoFeedbacks(fbs.filter((f) => f.linkedWeeklyCheckInId));
     });
   }, [router]);
+
+  function linkedFeedbackFor(weeklyCheckInId: string): VideoFeedback | undefined {
+    return videoFeedbacks.find((f) => f.linkedWeeklyCheckInId === weeklyCheckInId);
+  }
 
   const today = todayISO();
   const weekStart = getCheckInWeekStart(today, athlete?.checkInDay ?? 1);
@@ -383,6 +391,20 @@ export default function CheckInsPage() {
                 <div className="w-16 h-16 rounded-full bg-[#064e3b] flex items-center justify-center text-3xl">✓</div>
                 <p className="text-lg font-semibold text-[#f0f4ff]">Diese Woche bereits abgeschlossen</p>
                 <p className="text-sm text-[#8fa3c0]">Nächster Check-in: {DAY_NAMES[athlete.checkInDay]}</p>
+                {(() => {
+                  const fb = linkedFeedbackFor(existingWeekly!.id);
+                  return fb ? (
+                    <a
+                      href={fb.loomUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/5 text-[#22c55e] text-sm font-medium hover:bg-[#22c55e]/10 transition-colors"
+                    >
+                      <ExternalLink size={14} />
+                      Coach-Feedback zu dieser Woche ansehen
+                    </a>
+                  ) : null;
+                })()}
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => setEditing(true)}
@@ -505,6 +527,20 @@ export default function CheckInsPage() {
                         {ci.freeNote}
                       </p>
                     )}
+                    {(() => {
+                      const fb = linkedFeedbackFor(ci.id);
+                      return fb ? (
+                        <a
+                          href={fb.loomUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 flex items-center gap-2 px-3 py-2 rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/5 text-[#22c55e] text-xs font-medium hover:bg-[#22c55e]/10 transition-colors"
+                        >
+                          <ExternalLink size={12} />
+                          Coach-Feedback zu dieser Woche ansehen
+                        </a>
+                      ) : null;
+                    })()}
                   </div>
                 ))}
               </div>

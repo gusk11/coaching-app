@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Athlete, VideoFeedback, ExerciseDBItem } from "@/types";
 import {
   loadAthletes, loadVideoFeedbacks, addVideoFeedback, deleteVideoFeedback,
@@ -9,22 +9,17 @@ import {
 import { AppShell } from "@/components/layout/AppShell";
 import { useRouter } from "next/navigation";
 import { showToast } from "@/components/ui/Toast";
-import { Plus, Trash2, X, ExternalLink, Video } from "lucide-react";
+import { Plus, Trash2, X, ExternalLink, Video, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { modalOverlay, modalContent } from "@/lib/motion";
 import { todayISO } from "@/lib/utils";
+import { VideoFeedbackCategoryBadge, VIDEO_FEEDBACK_CATEGORY_CONFIGS } from "@/components/ui/VideoFeedbackCategoryBadge";
 
 const CATEGORIES: { value: VideoFeedback["category"]; label: string }[] = [
   { value: "technik-feedback", label: "Technik-Feedback" },
   { value: "checkin", label: "Check-in" },
   { value: "sonstiges", label: "Sonstiges" },
 ];
-
-const CATEGORY_COLORS: Record<VideoFeedback["category"], string> = {
-  "technik-feedback": "text-[#f59e0b] bg-[#f59e0b]/10",
-  checkin: "text-[#22c55e] bg-[#22c55e]/10",
-  sonstiges: "text-[#8fa3c0] bg-[#8fa3c0]/10",
-};
 
 function emptyForm() {
   return {
@@ -34,7 +29,16 @@ function emptyForm() {
     loomUrl: "",
     category: "sonstiges" as VideoFeedback["category"],
     linkedExerciseIds: [] as string[],
+    linkedWeeklyCheckInId: "",
   };
+}
+
+function fmtWeekLabel(weekStart: string): string {
+  const start = new Date(weekStart + "T12:00:00");
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const fmt = (d: Date) => d.toLocaleDateString("de-DE", { day: "2-digit", month: "short" });
+  return `KW ${start.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} — ${fmt(start)} – ${fmt(end)}`;
 }
 
 function AddFeedbackModal({
@@ -59,13 +63,13 @@ function AddFeedbackModal({
   }
 
   function handleAthleteChange(athleteId: string) {
-    setForm((prev) => ({ ...prev, athleteId, linkedExerciseIds: [] }));
+    setForm((prev) => ({ ...prev, athleteId, linkedExerciseIds: [], linkedWeeklyCheckInId: "" }));
     setErrors((prev) => ({ ...prev, athleteId: "" }));
     setExerciseSearch("");
   }
 
   function setCategory(value: VideoFeedback["category"]) {
-    setForm((prev) => ({ ...prev, category: value, linkedExerciseIds: [] }));
+    setForm((prev) => ({ ...prev, category: value, linkedExerciseIds: [], linkedWeeklyCheckInId: "" }));
     setExerciseSearch("");
   }
 
@@ -83,6 +87,13 @@ function AddFeedbackModal({
   const filteredExercises = exerciseSearch.trim()
     ? planExercises.filter((ex) => ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()))
     : planExercises;
+
+  const sortedWeeklyCheckIns = useMemo(() => {
+    if (!selectedAthlete) return [];
+    return [...(selectedAthlete.weeklyCheckIns ?? [])].sort((a, b) =>
+      b.weekStart.localeCompare(a.weekStart)
+    );
+  }, [selectedAthlete]);
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
@@ -111,6 +122,9 @@ function AddFeedbackModal({
         category: form.category,
         linkedExerciseIds: form.category === "technik-feedback" && form.linkedExerciseIds.length > 0
           ? form.linkedExerciseIds
+          : undefined,
+        linkedWeeklyCheckInId: form.category === "checkin" && form.linkedWeeklyCheckInId
+          ? form.linkedWeeklyCheckInId
           : undefined,
       });
     } catch {
@@ -257,6 +271,29 @@ function AddFeedbackModal({
               </div>
             )}
 
+            {/* Weekly Check-In (nur bei Check-in-Kategorie) */}
+            {form.category === "checkin" && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-[#8fa3c0]">Verknüpfter Weekly Check-in</label>
+                {!form.athleteId ? (
+                  <p className="text-xs text-[#5a7090] px-1">Bitte zuerst einen Athleten auswählen.</p>
+                ) : sortedWeeklyCheckIns.length === 0 ? (
+                  <p className="text-xs text-[#5a7090] px-1">Keine Weekly Check-ins für diesen Athleten vorhanden.</p>
+                ) : (
+                  <select
+                    value={form.linkedWeeklyCheckInId}
+                    onChange={(e) => setField("linkedWeeklyCheckInId", e.target.value)}
+                    className="w-full rounded-xl bg-[#141d2e] border border-[#1e2d42] text-[#f0f4ff] px-3 py-2 text-sm focus:outline-none focus:border-[#3b82f6]"
+                  >
+                    <option value="">Kein Check-in verknüpfen</option>
+                    {sortedWeeklyCheckIns.map((ci) => (
+                      <option key={ci.id} value={ci.id}>{fmtWeekLabel(ci.weekStart)}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
             {/* Loom URL */}
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-[#8fa3c0]">Loom / Video-URL</label>
@@ -300,6 +337,12 @@ export default function CoachVideoFeedbacks() {
   const [exercises, setExercises] = useState<ExerciseDBItem[]>([]);
   const [showModal, setShowModal] = useState(false);
 
+  // Filter state
+  const [filterAthleteId, setFilterAthleteId] = useState("");
+  const [filterCategory, setFilterCategory] = useState<VideoFeedback["category"] | "">("");
+  const [filterDate, setFilterDate] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "coach") { router.replace("/login"); return; }
@@ -310,11 +353,25 @@ export default function CoachVideoFeedbacks() {
     });
   }, [router]);
 
+  const filteredFeedbacks = useMemo(() => {
+    return feedbacks.filter((fb) => {
+      if (filterAthleteId && fb.athleteId !== filterAthleteId) return false;
+      if (filterCategory && fb.category !== filterCategory) return false;
+      if (filterDate && fb.date !== filterDate) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        if (!fb.title.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [feedbacks, filterAthleteId, filterCategory, filterDate, searchQuery]);
+
+  const hasActiveFilters = !!(filterAthleteId || filterCategory || filterDate || searchQuery.trim());
+
   async function handleAdd(data: Omit<VideoFeedback, "id" | "createdAt">): Promise<void> {
     try {
       const updated = await addVideoFeedback(data);
       if (data.category === "technik-feedback" && data.linkedExerciseIds?.length) {
-        // updated is sorted by created_at desc — new video is first
         await linkVideoFeedbackToExercises(updated[0].id, data.linkedExerciseIds);
       }
       setFeedbacks(updated);
@@ -344,10 +401,6 @@ export default function CoachVideoFeedbacks() {
     return athletes.find((a) => a.id === athleteId)?.name ?? "Unbekannt";
   }
 
-  function getCategoryLabel(cat: VideoFeedback["category"]) {
-    return CATEGORIES.find((c) => c.value === cat)?.label ?? cat;
-  }
-
   function formatDate(iso: string) {
     return new Date(iso + "T12:00:00").toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
   }
@@ -359,7 +412,9 @@ export default function CoachVideoFeedbacks() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold text-[#f0f4ff]">Video Feedbacks</h1>
-            <p className="text-xs text-[#5a7090] mt-0.5">{feedbacks.length} {feedbacks.length === 1 ? "Eintrag" : "Einträge"}</p>
+            <p className="text-xs text-[#5a7090] mt-0.5">
+              {filteredFeedbacks.length} von {feedbacks.length} {feedbacks.length === 1 ? "Eintrag" : "Einträgen"}
+            </p>
           </div>
           <button
             onClick={() => setShowModal(true)}
@@ -370,18 +425,76 @@ export default function CoachVideoFeedbacks() {
           </button>
         </div>
 
+        {/* Filter bar */}
+        <div className="flex flex-col gap-2 p-3 rounded-xl bg-[#0f1624] border border-[#1e2d42]">
+          {/* Search */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5a7090]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Titel suchen…"
+              className="w-full pl-8 pr-3 py-2 rounded-xl bg-[#141d2e] border border-[#1e2d42] text-[#f0f4ff] text-sm placeholder:text-[#3a4f6a] focus:outline-none focus:border-[#3b82f6]"
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {/* Athlet */}
+            <select
+              value={filterAthleteId}
+              onChange={(e) => setFilterAthleteId(e.target.value)}
+              className="flex-1 min-w-[140px] rounded-xl bg-[#141d2e] border border-[#1e2d42] text-[#f0f4ff] px-3 py-2 text-sm focus:outline-none focus:border-[#3b82f6]"
+            >
+              <option value="">Alle Athleten</option>
+              {athletes.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+            {/* Kategorie */}
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value as VideoFeedback["category"] | "")}
+              className="flex-1 min-w-[140px] rounded-xl bg-[#141d2e] border border-[#1e2d42] text-[#f0f4ff] px-3 py-2 text-sm focus:outline-none focus:border-[#3b82f6]"
+            >
+              <option value="">Alle Kategorien</option>
+              {CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+            {/* Datum */}
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="flex-1 min-w-[140px] rounded-xl bg-[#141d2e] border border-[#1e2d42] text-[#f0f4ff] px-3 py-2 text-sm focus:outline-none focus:border-[#3b82f6]"
+            />
+            {hasActiveFilters && (
+              <button
+                onClick={() => { setFilterAthleteId(""); setFilterCategory(""); setFilterDate(""); setSearchQuery(""); }}
+                className="px-3 py-2 rounded-xl border border-[#1e2d42] text-[#5a7090] text-sm hover:text-[#f0f4ff] hover:bg-[#141d2e] transition-colors whitespace-nowrap"
+              >
+                Zurücksetzen
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* List */}
-        {feedbacks.length === 0 ? (
+        {filteredFeedbacks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-14 h-14 rounded-2xl bg-[#141d2e] flex items-center justify-center mb-4">
               <Video size={24} className="text-[#5a7090]" />
             </div>
-            <p className="text-[#8fa3c0] font-medium">Noch keine Video Feedbacks</p>
-            <p className="text-sm text-[#5a7090] mt-1">Füge das erste Feedback über den Button oben hinzu.</p>
+            <p className="text-[#8fa3c0] font-medium">
+              {hasActiveFilters ? "Keine Ergebnisse für diesen Filter" : "Noch keine Video Feedbacks"}
+            </p>
+            <p className="text-sm text-[#5a7090] mt-1">
+              {hasActiveFilters ? "Filter anpassen oder zurücksetzen." : "Füge das erste Feedback über den Button oben hinzu."}
+            </p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {feedbacks.map((fb) => (
+            {filteredFeedbacks.map((fb) => (
               <div
                 key={fb.id}
                 className="flex items-center gap-3 p-4 rounded-2xl bg-[#0f1624] border border-[#1e2d42] hover:border-[#2a3d5a] transition-colors"
@@ -395,13 +508,14 @@ export default function CoachVideoFeedbacks() {
                     <span className="text-xs text-[#5a7090]">
                       {getAthleteName(fb.athleteId)} · {formatDate(fb.date)}
                     </span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded-md font-medium ${CATEGORY_COLORS[fb.category ?? "sonstiges"]}`}>
-                      {getCategoryLabel(fb.category ?? "sonstiges")}
-                    </span>
+                    <VideoFeedbackCategoryBadge category={fb.category ?? "sonstiges"} />
                     {fb.linkedExerciseIds && fb.linkedExerciseIds.length > 0 && (
                       <span className="text-xs text-[#5a7090]">
                         · {fb.linkedExerciseIds.length} {fb.linkedExerciseIds.length === 1 ? "Übung" : "Übungen"}
                       </span>
+                    )}
+                    {fb.linkedWeeklyCheckInId && (
+                      <span className="text-xs text-[#22c55e]">· Check-in verknüpft</span>
                     )}
                     {fb.seenAt && <span className="text-xs text-[#22c55e]">· gesehen</span>}
                   </div>

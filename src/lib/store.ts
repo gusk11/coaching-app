@@ -961,6 +961,7 @@ function rowToVideoFeedback(row: any): VideoFeedback {
     createdAt: row.created_at,
     category: row.category ?? "sonstiges",
     linkedExerciseIds: row.linked_exercise_ids ?? undefined,
+    linkedWeeklyCheckInId: row.linked_weekly_check_in_id ?? undefined,
   };
 }
 
@@ -968,6 +969,20 @@ export async function loadVideoFeedbacks(athleteId?: string): Promise<VideoFeedb
   let query = supabase.from("video_feedbacks").select("*").order("created_at", { ascending: false });
   if (athleteId) query = query.eq("athlete_id", athleteId);
   const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map(rowToVideoFeedback);
+}
+
+export async function loadVideoFeedbacksByCategory(
+  athleteId: string,
+  category: VideoFeedback["category"]
+): Promise<VideoFeedback[]> {
+  const { data, error } = await supabase
+    .from("video_feedbacks")
+    .select("*")
+    .eq("athlete_id", athleteId)
+    .eq("category", category)
+    .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(rowToVideoFeedback);
 }
@@ -982,6 +997,7 @@ export async function addVideoFeedback(data: Omit<VideoFeedback, "id" | "created
     loom_url: data.loomUrl,
     category: data.category,
     linked_exercise_ids: data.linkedExerciseIds ?? null,
+    linked_weekly_check_in_id: data.linkedWeeklyCheckInId ?? null,
     created_at: new Date().toISOString(),
   });
   if (error) {
