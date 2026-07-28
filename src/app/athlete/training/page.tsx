@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
-import { loadAuth, loadAthletes, saveTrainingLog, loadVideoFeedbacks, markVideoFeedbackSeen } from "@/lib/store";
+import { loadAuth, loadAthletes, saveTrainingLog, loadVideoFeedbacks, markVideoFeedbackSeen, setActiveTrainingPlan } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { AppShell } from "@/components/layout/AppShell";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
@@ -67,6 +67,14 @@ export default function AthleteTraining() {
     if (updated) setAthlete(updated);
   }
 
+  async function handleSetActiveTrainingPlan(planId: string) {
+    if (!athlete) return;
+    try {
+      const updated = await setActiveTrainingPlan(athlete.id, planId);
+      setAthlete(updated.find((a) => a.id === athlete!.id) ?? null);
+    } catch { /* ignore */ }
+  }
+
   const tabs: { key: Tab; label: string }[] = [
     { key: "log", label: "Training tracken" },
     { key: "plan", label: "Trainingsplan" },
@@ -123,7 +131,7 @@ export default function AthleteTraining() {
           {tab === "plan" && (
             <motion.div key="plan" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit">
               {(() => {
-                const trainingPlans = athlete.trainingPlans ?? (athlete.trainingPlan ? [athlete.trainingPlan] : []);
+                const trainingPlans = athlete.trainingPlans?.length ? athlete.trainingPlans : (athlete.trainingPlan ? [athlete.trainingPlan] : []);
                 return trainingPlans.length > 0 ? (
                   <div className="flex flex-col gap-3">
                     <div>
@@ -132,7 +140,7 @@ export default function AthleteTraining() {
                       </h2>
                       <p className="text-xs text-[#5a7090]">Wochenübersicht — tippe auf einen Tag zum Aufklappen</p>
                     </div>
-                    <TrainingAccordion plans={trainingPlans} />
+                    <TrainingAccordion plans={trainingPlans} onSetActive={handleSetActiveTrainingPlan} />
                   </div>
                 ) : noplan;
               })()}

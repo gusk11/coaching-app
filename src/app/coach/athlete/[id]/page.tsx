@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile, approvePlanChangeRequest, rejectPlanChangeRequest } from "@/lib/store";
+import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile, approvePlanChangeRequest, rejectPlanChangeRequest, saveTrainingPlanEntry, setActiveTrainingPlan, setActiveMealPlan, saveSupplementPlanEntry, setActiveSupplementPlan } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { Athlete, AthleteProfile, GoalType, MealPlan, TrainingPlan, SupplementPlan, PlanChangeRequest } from "@/types";
 import {
@@ -295,7 +295,7 @@ export default function CoachAthletePage() {
   async function saveTrainingPlan(plan: TrainingPlan) {
     const previous = athlete;
     try {
-      const updated = await updateAthlete(athlete!.id, { trainingPlan: plan });
+      const updated = await saveTrainingPlanEntry(athlete!.id, plan);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setEditingTraining(false);
       showToast("Trainingsplan gespeichert.", "success");
@@ -308,13 +308,46 @@ export default function CoachAthletePage() {
   async function saveSupplementPlan(plan: SupplementPlan) {
     const previous = athlete;
     try {
-      const updated = await updateAthlete(athlete!.id, { supplementPlan: plan });
+      const updated = await saveSupplementPlanEntry(athlete!.id, plan);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setEditingSupplements(false);
       showToast("Supplement-Plan gespeichert.", "success");
     } catch {
       setAthlete(previous);
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
+  }
+
+  async function handleSetActiveMealPlan(planId: string) {
+    const previous = athlete;
+    try {
+      const updated = await setActiveMealPlan(athlete!.id, planId);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Aktivieren des Plans.", "error");
+    }
+  }
+
+  async function handleSetActiveTrainingPlan(planId: string) {
+    const previous = athlete;
+    try {
+      const updated = await setActiveTrainingPlan(athlete!.id, planId);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Aktivieren des Plans.", "error");
+    }
+  }
+
+  async function handleSetActiveSupplementPlan(planId: string) {
+    const previous = athlete;
+    try {
+      const updated = await setActiveSupplementPlan(athlete!.id, planId);
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Aktivieren des Plans.", "error");
     }
   }
 
@@ -1341,7 +1374,7 @@ export default function CoachAthletePage() {
                       athleteWeight={resolveAthleteWeight(athlete)}
                     />
                   ) : (
-                    <MealPlanView plans={plans} athleteWeight={resolveAthleteWeight(athlete)} />
+                    <MealPlanView plans={plans} athleteWeight={resolveAthleteWeight(athlete)} onSetActive={handleSetActiveMealPlan} />
                   )}
                 </>
               );
@@ -1396,8 +1429,8 @@ export default function CoachAthletePage() {
                 onSave={saveTrainingPlan}
               />
             ) : (() => {
-              const trainingPlans = athlete.trainingPlans ?? (athlete.trainingPlan ? [athlete.trainingPlan] : []);
-              const activePlan = athlete.trainingPlan ?? trainingPlans[0];
+              const trainingPlans = athlete.trainingPlans?.length ? athlete.trainingPlans : (athlete.trainingPlan ? [athlete.trainingPlan] : []);
+              const activePlan = trainingPlans.find((p) => p.isActive) ?? trainingPlans[0];
               return trainingPlans.length > 0 ? (
                 <>
                   {activePlan && (activePlan.schritteProTag || activePlan.cardioMinuten) ? (
@@ -1411,7 +1444,7 @@ export default function CoachAthletePage() {
                       </p>
                     </div>
                   ) : null}
-                  <TrainingAccordion plans={trainingPlans} />
+                  <TrainingAccordion plans={trainingPlans} onSetActive={handleSetActiveTrainingPlan} />
                 </>
               ) : (
                 <div className="text-center py-8">
@@ -1473,9 +1506,9 @@ export default function CoachAthletePage() {
                 onSave={saveSupplementPlan}
               />
             ) : (() => {
-              const suppPlans = athlete.supplementPlans ?? (athlete.supplementPlan ? [athlete.supplementPlan] : []);
+              const suppPlans = athlete.supplementPlans?.length ? athlete.supplementPlans : (athlete.supplementPlan ? [athlete.supplementPlan] : []);
               return suppPlans.length > 0 ? (
-                <SupplementList plans={suppPlans} />
+                <SupplementList plans={suppPlans} onSetActive={handleSetActiveSupplementPlan} />
               ) : (
                 <div className="text-center py-8">
                   <p className="text-[#5a7090] mb-4">Noch kein Supplementplan zugewiesen.</p>

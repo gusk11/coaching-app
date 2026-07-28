@@ -3,28 +3,7 @@ import { useState } from "react";
 import { TrainingPlan, TrainingDay } from "@/types";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ExternalLink } from "lucide-react";
-
-function PlanSelector({ plans, activeIdx, onSelect }: { plans: TrainingPlan[]; activeIdx: number; onSelect: (i: number) => void }) {
-  if (plans.length <= 1) return null;
-  return (
-    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-      {plans.map((plan, idx) => (
-        <button
-          key={plan.id}
-          type="button"
-          onClick={() => onSelect(idx)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-            activeIdx === idx
-              ? "bg-[#3b82f6] text-white"
-              : "bg-[#141d2e] text-[#8fa3c0] hover:text-[#f0f4ff] border border-[#1e2d42]"
-          }`}
-        >
-          {plan.title}
-        </button>
-      ))}
-    </div>
-  );
-}
+import { PlanSwitcher } from "@/components/ui/PlanSwitcher";
 
 const dayColors: Record<string, string> = {
   Push: "text-blue-400",
@@ -139,23 +118,33 @@ function DayCard({ day, isOpen, onToggle, customLabel }: { day: TrainingDay; isO
   );
 }
 
-export function TrainingAccordion({ plan, plans }: { plan?: TrainingPlan; plans?: TrainingPlan[] }) {
+export function TrainingAccordion({ plan, plans, onSetActive }: { plan?: TrainingPlan; plans?: TrainingPlan[]; onSetActive?: (planId: string) => void }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const [activeIdx, setActiveIdx] = useState(0);
+  const allPlans = plans ?? (plan ? [plan] : []);
+  const defaultIdx = Math.max(0, allPlans.findIndex((p) => p.isActive));
+  const [activeIdx, setActiveIdx] = useState(defaultIdx);
   const today = new Date().getDay(); // 0=Sun
   const dayMap: Record<number, string> = { 0: "Sonntag", 1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag", 6: "Samstag" };
   const todayName = dayMap[today];
 
-  const allPlans = plans ?? (plan ? [plan] : []);
   const activePlan = allPlans[Math.min(activeIdx, allPlans.length - 1)];
 
   if (!activePlan) return null;
 
   const customLabel = activePlan.trackedFields?.custom?.enabled ? activePlan.trackedFields.custom.label : undefined;
 
+  function handlePlanSelect(planId: string) {
+    const idx = allPlans.findIndex((p) => p.id === planId);
+    if (idx !== -1) { setActiveIdx(idx); setOpenId(null); }
+    onSetActive?.(planId);
+  }
+
   return (
     <div className="flex flex-col gap-2">
-      <PlanSelector plans={allPlans} activeIdx={activeIdx} onSelect={(i) => { setActiveIdx(i); setOpenId(null); }} />
+      <PlanSwitcher
+        plans={allPlans.map((p, i) => ({ id: p.id, title: p.title, isActive: i === activeIdx }))}
+        onSelect={handlePlanSelect}
+      />
       {activePlan.days.map((day) => {
         const isToday = day.dayName === todayName;
         return (

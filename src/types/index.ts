@@ -376,6 +376,7 @@ export interface MealPlan {
   meals: Meal[];
   coachNote?: string;
   createdAt: string;
+  isActive?: boolean;
 }
 
 export interface Exercise {
@@ -423,6 +424,7 @@ export interface TrainingPlan {
     cadence: boolean;
     custom?: { label: string; enabled: boolean };
   };
+  isActive?: boolean;
 }
 
 export interface Supplement {
@@ -444,6 +446,7 @@ export interface SupplementPlan {
   supplements: Supplement[];
   coachNote?: string;
   createdAt?: string;
+  isActive?: boolean;
 }
 
 export interface Note {

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete, MealPlan, TrainingPlan } from "@/types";
-import { loadAuth, loadAthletes, createPlanChangeRequest } from "@/lib/store";
+import { loadAuth, loadAthletes, createPlanChangeRequest, setActiveMealPlan, setActiveTrainingPlan, setActiveSupplementPlan } from "@/lib/store";
 import { resolveAthleteWeight } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { MealPlanView } from "@/components/athlete/MealPlanView";
@@ -56,6 +56,30 @@ export default function AthletePlans() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleSetActiveMealPlan(planId: string) {
+    if (!athlete) return;
+    try {
+      const updated = await setActiveMealPlan(athlete.id, planId);
+      setAthlete(updated.find((a) => a.id === athlete!.id) ?? null);
+    } catch { /* ignore */ }
+  }
+
+  async function handleSetActiveTrainingPlan(planId: string) {
+    if (!athlete) return;
+    try {
+      const updated = await setActiveTrainingPlan(athlete.id, planId);
+      setAthlete(updated.find((a) => a.id === athlete!.id) ?? null);
+    } catch { /* ignore */ }
+  }
+
+  async function handleSetActiveSupplementPlan(planId: string) {
+    if (!athlete) return;
+    try {
+      const updated = await setActiveSupplementPlan(athlete.id, planId);
+      setAthlete(updated.find((a) => a.id === athlete!.id) ?? null);
+    } catch { /* ignore */ }
   }
 
   async function handleSaveTrainingProposal(plan: TrainingPlan) {
@@ -166,7 +190,7 @@ export default function AthletePlans() {
                       </h2>
                       <p className="text-xs text-[#5a7090]">Erstellt von Gustav</p>
                     </div>
-                    <MealPlanView plans={plans} athleteWeight={resolveAthleteWeight(athlete)} />
+                    <MealPlanView plans={plans} athleteWeight={resolveAthleteWeight(athlete)} onSetActive={handleSetActiveMealPlan} />
                   </div>
                 )}
               </motion.div>
@@ -198,9 +222,9 @@ export default function AthletePlans() {
                   athleteId={athlete.id}
                   onSave={handleSaveTrainingProposal}
                 />
-              ) : (athlete.trainingPlans ?? (athlete.trainingPlan ? [athlete.trainingPlan] : [])).length > 0 ? (() => {
-                const trainingPlans = athlete.trainingPlans ?? (athlete.trainingPlan ? [athlete.trainingPlan] : []);
-                const activePlan = athlete.trainingPlan ?? trainingPlans[0];
+              ) : (athlete.trainingPlans?.length || athlete.trainingPlan) ? (() => {
+                const trainingPlans = athlete.trainingPlans?.length ? athlete.trainingPlans : (athlete.trainingPlan ? [athlete.trainingPlan] : []);
+                const activePlan = trainingPlans.find((p) => p.isActive) ?? trainingPlans[0];
                 return (
                   <div className="flex flex-col gap-3">
                     <div>
@@ -220,7 +244,7 @@ export default function AthletePlans() {
                         </p>
                       </div>
                     ) : null}
-                    <TrainingAccordion plans={trainingPlans} />
+                    <TrainingAccordion plans={trainingPlans} onSetActive={handleSetActiveTrainingPlan} />
                   </div>
                 );
               })() : (
@@ -237,9 +261,9 @@ export default function AthletePlans() {
           {tab === "Supplementplan" && (
             <motion.div key="Supplementplan" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit">
               {(() => {
-                const suppPlans = athlete.supplementPlans ?? (athlete.supplementPlan ? [athlete.supplementPlan] : []);
+                const suppPlans = athlete.supplementPlans?.length ? athlete.supplementPlans : (athlete.supplementPlan ? [athlete.supplementPlan] : []);
                 return suppPlans.length > 0 ? (
-                  <SupplementList plans={suppPlans} />
+                  <SupplementList plans={suppPlans} onSetActive={handleSetActiveSupplementPlan} />
                 ) : (
                   <div className="flex flex-col items-center justify-center py-16 text-center">
                     <p className="text-4xl mb-4">💊</p>

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { MealPlan } from "@/types";
 import { calculateMealMacros, calculateDayMacros, roundMacro, roundSalt } from "@/lib/utils";
+import { PlanSwitcher } from "@/components/ui/PlanSwitcher";
 
 function MacroRow({ label, value, unit = "g", color, fmt = Math.round, perKg }: { label: string; value: number; unit?: string; color?: string; fmt?: (v: number) => number; perKg?: number }) {
   return (
@@ -135,8 +136,9 @@ function SinglePlanView({ plan, athleteWeight }: { plan: MealPlan; athleteWeight
   );
 }
 
-export function MealPlanView({ plans, athleteWeight }: { plans: MealPlan[]; athleteWeight?: number }) {
-  const [activeIdx, setActiveIdx] = useState(0);
+export function MealPlanView({ plans, athleteWeight, onSetActive }: { plans: MealPlan[]; athleteWeight?: number; onSetActive?: (planId: string) => void }) {
+  const defaultIdx = Math.max(0, plans.findIndex((p) => p.isActive));
+  const [activeIdx, setActiveIdx] = useState(defaultIdx);
 
   if (plans.length === 0) {
     return (
@@ -150,28 +152,18 @@ export function MealPlanView({ plans, athleteWeight }: { plans: MealPlan[]; athl
 
   const activePlan = plans[Math.min(activeIdx, plans.length - 1)];
 
+  function handleSelect(planId: string) {
+    const idx = plans.findIndex((p) => p.id === planId);
+    if (idx !== -1) setActiveIdx(idx);
+    onSetActive?.(planId);
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Plan selector (only shown if multiple plans) */}
-      {plans.length > 1 && (
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          {plans.map((plan, idx) => (
-            <button
-              key={plan.id}
-              type="button"
-              onClick={() => setActiveIdx(idx)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-                activeIdx === idx
-                  ? "bg-[#3b82f6] text-white"
-                  : "bg-[#141d2e] text-[#8fa3c0] hover:text-[#f0f4ff] border border-[#1e2d42]"
-              }`}
-            >
-              {plan.title}
-            </button>
-          ))}
-        </div>
-      )}
-
+      <PlanSwitcher
+        plans={plans.map((p, i) => ({ id: p.id, title: p.title, isActive: i === activeIdx }))}
+        onSelect={handleSelect}
+      />
       <SinglePlanView plan={activePlan} athleteWeight={athleteWeight} />
     </div>
   );

@@ -70,9 +70,9 @@ function rowToAthlete(row: any): Athlete {
     calorieTrackerDays: row.calorie_tracker_days ?? [],
     mealPlans: row.meal_plans ?? [],
     trainingPlan: row.training_plan ?? undefined,
-    trainingPlans: row.training_plans ?? (row.training_plan ? [row.training_plan] : []),
+    trainingPlans: (row.training_plans?.length ? row.training_plans : null) ?? (row.training_plan ? [row.training_plan] : []),
     supplementPlan: row.supplement_plan ?? undefined,
-    supplementPlans: row.supplement_plans ?? (row.supplement_plan ? [row.supplement_plan] : []),
+    supplementPlans: (row.supplement_plans?.length ? row.supplement_plans : null) ?? (row.supplement_plan ? [row.supplement_plan] : []),
     notes: row.notes ?? [],
     joinedAt: row.joined_at ?? new Date().toISOString().split("T")[0],
     weeklyTrendTargetPercent: row.weekly_trend_target_percent ?? undefined,
@@ -1193,6 +1193,94 @@ export async function addImportedSupplementPlan(athleteId: string, plan: Supplem
       throw error;
     }
   }
+  return loadAthletes();
+}
+
+// ─── Plan entry helpers (write + setActive) ───────────────────────────────────
+
+async function writeTrainingPlans(athleteId: string, plans: TrainingPlan[], activePlan: TrainingPlan): Promise<void> {
+  const { error } = await supabase.from("athletes")
+    .update({ training_plan: activePlan, training_plans: plans, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) {
+    if (error.message?.includes("training_plans")) {
+      const { error: fallbackErr } = await supabase.from("athletes")
+        .update({ training_plan: activePlan, updated_at: new Date().toISOString() })
+        .eq("id", athleteId);
+      if (fallbackErr) throw fallbackErr;
+    } else throw error;
+  }
+}
+
+async function writeSupplementPlans(athleteId: string, plans: SupplementPlan[], activePlan: SupplementPlan): Promise<void> {
+  const { error } = await supabase.from("athletes")
+    .update({ supplement_plan: activePlan, supplement_plans: plans, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) {
+    if (error.message?.includes("supplement_plans")) {
+      const { error: fallbackErr } = await supabase.from("athletes")
+        .update({ supplement_plan: activePlan, updated_at: new Date().toISOString() })
+        .eq("id", athleteId);
+      if (fallbackErr) throw fallbackErr;
+    } else throw error;
+  }
+}
+
+export async function saveTrainingPlanEntry(athleteId: string, plan: TrainingPlan): Promise<Athlete[]> {
+  TrainingPlanSchema.parse(plan);
+  const a = await getAthlete(athleteId);
+  const existing = a.trainingPlans ?? (a.trainingPlan ? [a.trainingPlan] : []);
+  const newPlan = { ...plan, isActive: true };
+  const exists = existing.some((p) => p.id === plan.id);
+  const plans = exists
+    ? existing.map((p) => (p.id === plan.id ? newPlan : { ...p, isActive: false }))
+    : [...existing.map((p) => ({ ...p, isActive: false })), newPlan];
+  await writeTrainingPlans(athleteId, plans, newPlan);
+  return loadAthletes();
+}
+
+export async function setActiveTrainingPlan(athleteId: string, planId: string): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const existing = a.trainingPlans ?? (a.trainingPlan ? [a.trainingPlan] : []);
+  const activePlan = existing.find((p) => p.id === planId);
+  if (!activePlan) throw new Error("Plan not found");
+  const plans = existing.map((p) => ({ ...p, isActive: p.id === planId }));
+  await writeTrainingPlans(athleteId, plans, activePlan);
+  return loadAthletes();
+}
+
+export async function setActiveMealPlan(athleteId: string, planId: string): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const existing = a.mealPlans ?? [];
+  if (!existing.some((p) => p.id === planId)) throw new Error("Plan not found");
+  const plans = existing.map((p) => ({ ...p, isActive: p.id === planId }));
+  const { error } = await supabase.from("athletes")
+    .update({ meal_plans: plans, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
+export async function saveSupplementPlanEntry(athleteId: string, plan: SupplementPlan): Promise<Athlete[]> {
+  SupplementPlanSchema.parse(plan);
+  const a = await getAthlete(athleteId);
+  const existing = a.supplementPlans ?? (a.supplementPlan ? [a.supplementPlan] : []);
+  const newPlan = { ...plan, isActive: true };
+  const exists = existing.some((p) => p.id === plan.id);
+  const plans = exists
+    ? existing.map((p) => (p.id === plan.id ? newPlan : { ...p, isActive: false }))
+    : [...existing.map((p) => ({ ...p, isActive: false })), newPlan];
+  await writeSupplementPlans(athleteId, plans, newPlan);
+  return loadAthletes();
+}
+
+export async function setActiveSupplementPlan(athleteId: string, planId: string): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const existing = a.supplementPlans ?? (a.supplementPlan ? [a.supplementPlan] : []);
+  const activePlan = existing.find((p) => p.id === planId);
+  if (!activePlan) throw new Error("Plan not found");
+  const plans = existing.map((p) => ({ ...p, isActive: p.id === planId }));
+  await writeSupplementPlans(athleteId, plans, activePlan);
   return loadAthletes();
 }
 

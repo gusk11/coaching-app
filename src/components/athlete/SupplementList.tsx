@@ -2,28 +2,7 @@
 import { useState } from "react";
 import { SupplementPlan } from "@/types";
 import { Pill, ExternalLink } from "lucide-react";
-
-function PlanSelector({ plans, activeIdx, onSelect }: { plans: SupplementPlan[]; activeIdx: number; onSelect: (i: number) => void }) {
-  if (plans.length <= 1) return null;
-  return (
-    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-      {plans.map((p, idx) => (
-        <button
-          key={p.id}
-          type="button"
-          onClick={() => onSelect(idx)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-            activeIdx === idx
-              ? "bg-[#3b82f6] text-white"
-              : "bg-[#141d2e] text-[#8fa3c0] hover:text-[#f0f4ff] border border-[#1e2d42]"
-          }`}
-        >
-          {p.title ?? `Plan ${idx + 1}`}
-        </button>
-      ))}
-    </div>
-  );
-}
+import { PlanSwitcher } from "@/components/ui/PlanSwitcher";
 
 function SingleSupplementList({ plan }: { plan: SupplementPlan }) {
   return (
@@ -89,10 +68,10 @@ function SingleSupplementList({ plan }: { plan: SupplementPlan }) {
   );
 }
 
-export function SupplementList({ plan, plans }: { plan?: SupplementPlan; plans?: SupplementPlan[] }) {
-  const [activeIdx, setActiveIdx] = useState(0);
-
+export function SupplementList({ plan, plans, onSetActive }: { plan?: SupplementPlan; plans?: SupplementPlan[]; onSetActive?: (planId: string) => void }) {
   const allPlans = plans ?? (plan ? [plan] : []);
+  const defaultIdx = Math.max(0, allPlans.findIndex((p) => p.isActive));
+  const [activeIdx, setActiveIdx] = useState(defaultIdx);
 
   if (allPlans.length === 0) {
     return (
@@ -105,9 +84,18 @@ export function SupplementList({ plan, plans }: { plan?: SupplementPlan; plans?:
 
   const activePlan = allPlans[Math.min(activeIdx, allPlans.length - 1)];
 
+  function handlePlanSelect(planId: string) {
+    const idx = allPlans.findIndex((p) => p.id === planId);
+    if (idx !== -1) setActiveIdx(idx);
+    onSetActive?.(planId);
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      <PlanSelector plans={allPlans} activeIdx={activeIdx} onSelect={setActiveIdx} />
+      <PlanSwitcher
+        plans={allPlans.map((p, i) => ({ id: p.id, title: p.title ?? `Plan ${i + 1}`, isActive: i === activeIdx }))}
+        onSelect={handlePlanSelect}
+      />
       <SingleSupplementList plan={activePlan} />
     </div>
   );
