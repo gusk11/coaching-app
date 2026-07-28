@@ -6,7 +6,7 @@ import { ReactNode, useEffect, useState } from "react";
 import {
   LayoutDashboard, Dumbbell,
   ClipboardCheck, Users, Database, LogOut, ChevronRight,
-  Salad, User, Video,
+  Salad, User, Video, Wrench,
 } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { pageTransition } from "@/lib/motion";
@@ -33,6 +33,7 @@ const coachNav: NavItem[] = [
   { label: "Athletenübersicht", href: "/coach/dashboard", icon: <Users size={20} /> },
   { label: "Datenbanken", href: "/coach/databases", icon: <Database size={20} /> },
   { label: "Video Feedbacks", href: "/coach/video-feedbacks", icon: <Video size={20} /> },
+  { label: "Wartungsarbeiten", href: "/coach/maintenance", icon: <Wrench size={20} /> },
 ];
 
 function NavItemButton({

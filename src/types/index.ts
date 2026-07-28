@@ -656,3 +656,10 @@ export interface WeekAnalysis {
   changePercent: number;
   trend: "rising" | "falling" | "stable";
 }
+
+export interface MaintenanceMode {
+  isActive: boolean;
+  startTime: string;
+  endTime: string;
+  message?: string;
+}

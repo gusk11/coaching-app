@@ -1,16 +1,30 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { findAthleteByLogin, saveAuth, addLoginHelpRequest } from "@/lib/store";
+import { findAthleteByLogin, saveAuth, addLoginHelpRequest, getMaintenanceMode } from "@/lib/store";
+import { MaintenanceMode } from "@/types";
 import { OnboardingWizard } from "@/components/athlete/OnboardingWizard";
+import { showToast } from "@/components/ui/Toast";
 
 type View = "login" | "register";
 
 const COACH_PASSWORD = process.env.NEXT_PUBLIC_COACH_PASSWORD ?? "";
+const DEFAULT_MAINTENANCE_MSG =
+  "Die App befindet sich momentan in der Wartung. Bitte versuche es später erneut.";
+
+function formatDatetime(dt: string) {
+  if (!dt) return "";
+  try {
+    return new Date(dt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
+  } catch {
+    return dt;
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const [view, setView] = useState<View>("login");
+  const [maintenance, setMaintenance] = useState<MaintenanceMode | null>(null);
 
   const [nameOrEmail, setNameOrEmail] = useState("");
   const [pin, setPin] = useState("");
@@ -22,6 +36,10 @@ export default function LoginPage() {
   const [forgotNote, setForgotNote] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotError, setForgotError] = useState("");
+
+  useEffect(() => {
+    getMaintenanceMode().then(setMaintenance);
+  }, []);
 
   async function handleForgotSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +76,10 @@ export default function LoginPage() {
       }
       return;
     }
+    if (maintenance?.isActive) {
+      showToast(maintenance.message || DEFAULT_MAINTENANCE_MSG, "error");
+      return;
+    }
     const athlete = await findAthleteByLogin(nameOrEmail, pin);
     if (!athlete) {
       setLoginError("Name/E-Mail oder PIN ungültig.");
@@ -65,6 +87,14 @@ export default function LoginPage() {
     }
     saveAuth("athlete", athlete.id);
     router.push("/athlete/dashboard");
+  }
+
+  function handleOnboardingClick() {
+    if (maintenance?.isActive) {
+      showToast(maintenance.message || DEFAULT_MAINTENANCE_MSG, "error");
+      return;
+    }
+    setView("register");
   }
 
   function handleRegistrationComplete(athleteId: string) {
@@ -85,6 +115,21 @@ export default function LoginPage() {
     <>
     <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center p-4">
       <div className="w-full max-w-sm flex flex-col gap-6">
+        {/* Maintenance banner */}
+        {maintenance?.isActive && (
+          <div className="rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/40 px-4 py-3 flex flex-col gap-1">
+            <p className="text-xs font-semibold text-[#fca5a5]">Wartungsarbeiten</p>
+            {(maintenance.startTime || maintenance.endTime) && (
+              <p className="text-xs text-[#f87171]">
+                {[
+                  maintenance.startTime ? formatDatetime(maintenance.startTime) : null,
+                  maintenance.endTime ? formatDatetime(maintenance.endTime) : null,
+                ].filter(Boolean).join(" – ")}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Logo */}
         <div className="text-center">
           <div className="flex justify-center mb-3">
@@ -146,7 +191,7 @@ export default function LoginPage() {
           </div>
           <button
             type="button"
-            onClick={() => setView("register")}
+            onClick={handleOnboardingClick}
             className="w-full py-3.5 rounded-xl bg-gradient-to-br from-[#1a2f50] to-[#0f1e38] border border-[#3b82f6]/25 text-[#93c5fd] font-semibold text-sm hover:border-[#3b82f6]/50 hover:text-[#bfdbfe] transition-all tracking-wide"
           >
             Onboarding starten

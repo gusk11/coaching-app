@@ -10,7 +10,7 @@ import {
   WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay,
   FoodItem, SupplementDBItem, ExerciseDBItem, GoalType,
   DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest, VideoFeedback,
-  PlanChangeRequest, TrainingPlan, MealPlan, SupplementPlan,
+  PlanChangeRequest, TrainingPlan, MealPlan, SupplementPlan, MaintenanceMode,
 } from "@/types";
 import { TrainingPlanSchema, MealPlanSchema, SupplementPlanSchema } from "@/lib/planSchemas";
 import { getCheckInWeekStart } from "@/lib/utils";
@@ -1536,4 +1536,28 @@ export function saveActiveSession(session: ActiveSession): void {
 export function clearActiveSession(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(ACTIVE_SESSION_KEY);
+}
+
+// ─── Maintenance Mode ─────────────────────────────────────────────────────────
+
+export async function getMaintenanceMode(): Promise<MaintenanceMode | null> {
+  const { data, error } = await supabase.from("maintenance_mode").select("*").eq("id", 1).maybeSingle();
+  if (error || !data) return null;
+  return {
+    isActive: data.is_active ?? false,
+    startTime: data.start_time ?? "",
+    endTime: data.end_time ?? "",
+    message: data.message ?? undefined,
+  };
+}
+
+export async function setMaintenanceMode(m: MaintenanceMode): Promise<void> {
+  const { error } = await supabase.from("maintenance_mode").upsert({
+    id: 1,
+    is_active: m.isActive,
+    start_time: m.startTime,
+    end_time: m.endTime,
+    message: m.message ?? null,
+  });
+  if (error) throw error;
 }

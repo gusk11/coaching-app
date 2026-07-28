@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { registerAthlete } from "@/lib/store";
+import { registerAthlete, getMaintenanceMode } from "@/lib/store";
+import { showToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp, Play, X } from "lucide-react";
 import { AthleteProfile } from "@/types";
@@ -1306,6 +1307,18 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const introIframeRef = useRef<HTMLIFrameElement>(null);
   const outroIframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    getMaintenanceMode().then((m) => {
+      if (!m?.isActive) return;
+      showToast(
+        m.message || "Die App befindet sich momentan in der Wartung. Bitte versuche es später erneut.",
+        "error",
+      );
+      onCancel();
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // YouTube IFrame API sendet onStateChange via postMessage: info=1 (playing), info=2 (paused/ended)
   useEffect(() => {
