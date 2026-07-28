@@ -34,15 +34,18 @@ export default function AthleteSupplements() {
   return (
     <AppShell role="athlete" title="Supplementplan">
       <div className="max-w-lg mx-auto">
-        {athlete.supplementPlan ? (
-          <SupplementList plan={athlete.supplementPlan} />
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-4xl mb-4">💊</p>
-            <p className="text-[#8fa3c0] font-medium">Noch kein Supplementplan</p>
-            <p className="text-sm text-[#5a7090] mt-1">Gustav arbeitet gerade daran.</p>
-          </div>
-        )}
+        {(() => {
+          const suppPlans = athlete.supplementPlans ?? (athlete.supplementPlan ? [athlete.supplementPlan] : []);
+          return suppPlans.length > 0 ? (
+            <SupplementList plans={suppPlans} />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-4xl mb-4">💊</p>
+              <p className="text-[#8fa3c0] font-medium">Noch kein Supplementplan</p>
+              <p className="text-sm text-[#5a7090] mt-1">Gustav arbeitet gerade daran.</p>
+            </div>
+          );
+        })()}
       </div>
     </AppShell>
   );

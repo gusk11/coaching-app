@@ -146,7 +146,7 @@ function CustomFieldForm({
 }
 
 export function CheckInConfigEditor({ athlete, onSave }: Props) {
-  const [dailyOpen, setDailyOpen] = useState(true);
+  const [dailyOpen, setDailyOpen] = useState(false);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
 
   const [dailyCfg, setDailyCfg] = useState<DailyCheckConfig>({

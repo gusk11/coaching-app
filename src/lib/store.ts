@@ -10,8 +10,9 @@ import {
   WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay,
   FoodItem, SupplementDBItem, ExerciseDBItem, GoalType,
   DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest, VideoFeedback,
-  PlanChangeRequest, TrainingPlan, MealPlan,
+  PlanChangeRequest, TrainingPlan, MealPlan, SupplementPlan,
 } from "@/types";
+import { TrainingPlanSchema, MealPlanSchema, SupplementPlanSchema } from "@/lib/planSchemas";
 import { getCheckInWeekStart } from "@/lib/utils";
 
 const AUTH_KEY = "coachOS_auth";
@@ -37,6 +38,7 @@ function rowToAthlete(row: any): Athlete {
     name: row.name,
     email: row.email ?? undefined,
     pin: row.pin,
+    athleteNumber: row.athlete_number ?? undefined,
     avatarInitials: row.avatar_initials ?? "",
     onboardingCompleted: row.onboarding_completed ?? false,
     introVideoSeen,
@@ -68,7 +70,9 @@ function rowToAthlete(row: any): Athlete {
     calorieTrackerDays: row.calorie_tracker_days ?? [],
     mealPlans: row.meal_plans ?? [],
     trainingPlan: row.training_plan ?? undefined,
+    trainingPlans: row.training_plans ?? (row.training_plan ? [row.training_plan] : []),
     supplementPlan: row.supplement_plan ?? undefined,
+    supplementPlans: row.supplement_plans ?? (row.supplement_plan ? [row.supplement_plan] : []),
     notes: row.notes ?? [],
     joinedAt: row.joined_at ?? new Date().toISOString().split("T")[0],
     weeklyTrendTargetPercent: row.weekly_trend_target_percent ?? undefined,
@@ -90,6 +94,7 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
     name: a.name,
     email: a.email ?? null,
     pin: a.pin,
+    athlete_number: a.athleteNumber ?? null,
     avatar_initials: a.avatarInitials ?? null,
     onboarding_completed: a.onboardingCompleted ?? false,
     profile: profileOrNull,
@@ -252,8 +257,18 @@ export async function loadAthletes(): Promise<Athlete[]> {
   return data.map(rowToAthlete);
 }
 
+async function nextAthleteNumber(): Promise<string> {
+  const { data } = await supabase.from("athletes").select("athlete_number");
+  const max = (data ?? []).reduce((acc, row) => {
+    const n = parseInt(row.athlete_number ?? "0", 10);
+    return isNaN(n) ? acc : Math.max(acc, n);
+  }, 0);
+  return String(max + 1).padStart(4, "0");
+}
+
 export async function addAthlete(athlete: Athlete): Promise<Athlete[]> {
-  const { error } = await supabase.from("athletes").insert(athleteToRow(athlete));
+  const athleteNumber = athlete.athleteNumber ?? await nextAthleteNumber();
+  const { error } = await supabase.from("athletes").insert(athleteToRow({ ...athlete, athleteNumber }));
   if (error) throw error;
   return loadAthletes();
 }
@@ -360,11 +375,13 @@ export async function registerAthlete(data: RegistrationData): Promise<Athlete> 
 
   const today = new Date().toISOString().split("T")[0];
   const weight = data.currentWeight ?? 0;
+  const athleteNumber = await nextAthleteNumber();
   const newAthlete: Athlete = {
     id: `athlete-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     name: data.name.trim(),
     email: data.email.toLowerCase().trim(),
     pin: data.pin,
+    athleteNumber,
     avatarInitials: getInitials(data.name),
     onboardingCompleted: true,
     legalConsent: data.legalConsent,
@@ -912,6 +929,19 @@ export async function deleteExerciseDBItem(id: string): Promise<ExerciseDBItem[]
   return loadExerciseDB();
 }
 
+export async function exportAllDatabases(): Promise<{
+  foods: FoodItem[];
+  exercises: ExerciseDBItem[];
+  supplements: SupplementDBItem[];
+}> {
+  const [foods, exercises, supplements] = await Promise.all([
+    getAllFoodItems(),
+    loadExerciseDB(),
+    loadSupplementDB(),
+  ]);
+  return { foods, exercises, supplements };
+}
+
 // ─── Login Help Requests ──────────────────────────────────────────────────────
 
 export async function loadLoginHelpRequests(): Promise<LoginHelpRequest[]> {
@@ -1103,6 +1133,151 @@ export async function updateAthleteProfile(
     .eq("id", athleteId);
   if (error) throw error;
   return loadAthletes();
+}
+
+// ─── Multi-plan helpers ───────────────────────────────────────────────────────
+
+export async function addImportedTrainingPlan(athleteId: string, plan: TrainingPlan): Promise<Athlete[]> {
+  TrainingPlanSchema.parse(plan);
+  const a = await getAthlete(athleteId);
+  const existing = a.trainingPlans ?? (a.trainingPlan ? [a.trainingPlan] : []);
+  const withoutSameId = existing.filter((p) => p.id !== plan.id);
+  const training_plans = [...withoutSameId, plan];
+  // Try writing to training_plans array column; fall back to single column if column doesn't exist
+  const { error } = await supabase.from("athletes")
+    .update({ training_plan: plan, training_plans, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) {
+    if (error.message?.includes("training_plans")) {
+      // Column doesn't exist yet — write only the single plan
+      const { error: fallbackErr } = await supabase.from("athletes")
+        .update({ training_plan: plan, updated_at: new Date().toISOString() })
+        .eq("id", athleteId);
+      if (fallbackErr) throw fallbackErr;
+    } else {
+      throw error;
+    }
+  }
+  return loadAthletes();
+}
+
+export async function addImportedMealPlan(athleteId: string, plan: MealPlan): Promise<Athlete[]> {
+  MealPlanSchema.parse(plan);
+  const a = await getAthlete(athleteId);
+  const existing = a.mealPlans ?? [];
+  const withoutSameId = existing.filter((p) => p.id !== plan.id);
+  const meal_plans = [...withoutSameId, plan];
+  const { error } = await supabase.from("athletes")
+    .update({ meal_plans, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
+export async function addImportedSupplementPlan(athleteId: string, plan: SupplementPlan): Promise<Athlete[]> {
+  SupplementPlanSchema.parse(plan);
+  const a = await getAthlete(athleteId);
+  const existing = a.supplementPlans ?? (a.supplementPlan ? [a.supplementPlan] : []);
+  const withoutSameId = existing.filter((p) => p.id !== plan.id);
+  const supplement_plans = [...withoutSameId, plan];
+  const { error } = await supabase.from("athletes")
+    .update({ supplement_plan: plan, supplement_plans, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) {
+    if (error.message?.includes("supplement_plans")) {
+      const { error: fallbackErr } = await supabase.from("athletes")
+        .update({ supplement_plan: plan, updated_at: new Date().toISOString() })
+        .eq("id", athleteId);
+      if (fallbackErr) throw fallbackErr;
+    } else {
+      throw error;
+    }
+  }
+  return loadAthletes();
+}
+
+export async function getExportContextData(athleteId: string): Promise<{
+  exercises: ExerciseDBItem[];
+  foods: FoodItem[];
+  supplements: SupplementDBItem[];
+}> {
+  const [exercises, supplements, foods] = await Promise.all([
+    loadExerciseDB(),
+    loadSupplementDB(),
+    getAllFoodItems(),
+  ]);
+  return { exercises, foods, supplements };
+}
+
+export function getExportContextText(
+  athleteId: string,
+  data: { exercises: ExerciseDBItem[]; foods: FoodItem[]; supplements: SupplementDBItem[] }
+): string {
+  const exerciseSummary = data.exercises.map((e) =>
+    `${e.id} | ${e.name} | ${e.muscleGroup}${e.equipmentType ? ` | ${e.equipmentType}` : ""}${e.laterality ? ` | ${e.laterality}` : ""}`
+  ).join("\n");
+
+  const foodSummary = data.foods.map((f) =>
+    `${f.id} | ${f.name} | ${f.kcalPer100g} kcal | P ${f.proteinPer100g} | K ${f.carbsPer100g} | F ${f.fatPer100g}`
+  ).join("\n");
+
+  const suppSummary = data.supplements.map((s) =>
+    `${s.id} | ${s.name}${s.category ? ` | ${s.category}` : ""} | ${s.standardDosage}`
+  ).join("\n");
+
+  return [
+    "=== TRAINING PLAN SCHEMA (JSON) ===",
+    JSON.stringify({
+      id: "string", athleteId: "string", title: "string", createdAt: "ISO-string",
+      mode: "'weekday'|'flexible'", coachNote: "string?",
+      schritteProTag: "number?", cardioMinuten: "number?", cardioFrequenz: "'woche'|'taeglich'?",
+      days: [{
+        id: "string", dayName: "string", label: "string", note: "string?", cardioNote: "string?",
+        exercises: [{
+          id: "string", name: "string", sets: "number", reps: "string (e.g. '8-12')",
+          rir: "number?", rpe: "number?", restSeconds: "number?",
+          note: "string?", videoUrl: "string?", muscleGroup: "string?",
+          exerciseDbId: "string? (from exercises list)", exerciseDbNote: "string?",
+          laterality: "'bilateral'|'unilateral'?",
+        }],
+      }],
+    }, null, 2),
+    "",
+    "=== MEAL PLAN SCHEMA (JSON) ===",
+    JSON.stringify({
+      id: "string", athleteId: "string", title: "string", createdAt: "ISO-string",
+      planType: "'fixed'|'macro_targets'",
+      macroTargets: { kcal: "number", protein: "number", carbs: "number", fat: "number", fiber: "number?" },
+      coachNote: "string?",
+      meals: [{
+        id: "string", name: "string", time: "HH:MM|null",
+        entries: [{ foodItemId: "string (from foods list)", foodItem: { id: "string", name: "string", category: "string", kcalPer100g: "number", proteinPer100g: "number", carbsPer100g: "number", fatPer100g: "number", fiberPer100g: "number", saltPer100g: "number" }, amountG: "number" }],
+      }],
+    }, null, 2),
+    "",
+    "=== SUPPLEMENT PLAN SCHEMA (JSON) ===",
+    JSON.stringify({
+      id: "string", athleteId: "string", title: "string?", createdAt: "ISO-string?", coachNote: "string?",
+      supplements: [{
+        id: "string", name: "string", dosage: "string", timing: "string", instructions: "string",
+        note: "string?", link: "string?", supplementDBId: "string? (from supplements list)",
+      }],
+    }, null, 2),
+    "",
+    `=== EXERCISE DATABASE (${data.exercises.length} entries) ===`,
+    "Format: id | name | muscleGroup | equipmentType | laterality",
+    exerciseSummary,
+    "",
+    `=== FOOD DATABASE (${data.foods.length} entries) ===`,
+    "Format: id | name | kcal/100g | protein | carbs | fat",
+    foodSummary,
+    "",
+    `=== SUPPLEMENT DATABASE (${data.supplements.length} entries) ===`,
+    "Format: id | name | category | standardDosage",
+    suppSummary,
+    "",
+    `athleteId to use: ${athleteId}`,
+  ].join("\n");
 }
 
 export function getExercisesFromAthleteTrainingPlan(

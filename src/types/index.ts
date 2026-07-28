@@ -440,8 +440,10 @@ export interface Supplement {
 export interface SupplementPlan {
   id: string;
   athleteId: string;
+  title?: string;
   supplements: Supplement[];
   coachNote?: string;
+  createdAt?: string;
 }
 
 export interface Note {
@@ -476,6 +478,7 @@ export interface Athlete {
   name: string;
   email?: string;
   pin: string;
+  athleteNumber?: string;  // vierstellig mit führenden Nullen, z.B. "0001"
   avatarInitials: string;
   onboardingCompleted?: boolean;
   introVideoSeen?: boolean;
@@ -516,7 +519,9 @@ export interface Athlete {
   mealPlan?: MealPlan;
   mealPlans?: MealPlan[];
   trainingPlan?: TrainingPlan;
+  trainingPlans?: TrainingPlan[];
   supplementPlan?: SupplementPlan;
+  supplementPlans?: SupplementPlan[];
   notes: Note[];
   joinedAt: string;
   weeklyTrendTargetPercent?: number;

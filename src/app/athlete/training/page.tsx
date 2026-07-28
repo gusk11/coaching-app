@@ -122,15 +122,20 @@ export default function AthleteTraining() {
 
           {tab === "plan" && (
             <motion.div key="plan" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit">
-              {athlete.trainingPlan ? (
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <h2 className="text-base font-semibold text-[#f0f4ff]">{athlete.trainingPlan.title}</h2>
-                    <p className="text-xs text-[#5a7090]">Wochenübersicht — tippe auf einen Tag zum Aufklappen</p>
+              {(() => {
+                const trainingPlans = athlete.trainingPlans ?? (athlete.trainingPlan ? [athlete.trainingPlan] : []);
+                return trainingPlans.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <h2 className="text-base font-semibold text-[#f0f4ff]">
+                        {trainingPlans.length === 1 ? trainingPlans[0].title : `${trainingPlans.length} Trainingspläne`}
+                      </h2>
+                      <p className="text-xs text-[#5a7090]">Wochenübersicht — tippe auf einen Tag zum Aufklappen</p>
+                    </div>
+                    <TrainingAccordion plans={trainingPlans} />
                   </div>
-                  <TrainingAccordion plan={athlete.trainingPlan} />
-                </div>
-              ) : noplan}
+                ) : noplan;
+              })()}
             </motion.div>
           )}
 

@@ -5,8 +5,8 @@ import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import {
   LayoutDashboard, Dumbbell,
-  Pill, ClipboardCheck, Users, BookOpen, LogOut, ChevronRight,
-  Salad, ListChecks, User, Video,
+  ClipboardCheck, Users, Database, LogOut, ChevronRight,
+  Salad, User, Video,
 } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { pageTransition } from "@/lib/motion";
@@ -31,9 +31,7 @@ const athleteNav: NavItem[] = [
 
 const coachNav: NavItem[] = [
   { label: "Athletenübersicht", href: "/coach/dashboard", icon: <Users size={20} /> },
-  { label: "Food-Datenbank", href: "/coach/food-database", icon: <BookOpen size={20} /> },
-  { label: "SupplementDB", href: "/coach/supplement-database", icon: <Pill size={20} /> },
-  { label: "ÜbungenDB", href: "/coach/exercise-database", icon: <ListChecks size={20} /> },
+  { label: "Datenbanken", href: "/coach/databases", icon: <Database size={20} /> },
   { label: "Video Feedbacks", href: "/coach/video-feedbacks", icon: <Video size={20} /> },
 ];
 

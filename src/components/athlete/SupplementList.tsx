@@ -1,7 +1,31 @@
+"use client";
+import { useState } from "react";
 import { SupplementPlan } from "@/types";
 import { Pill, ExternalLink } from "lucide-react";
 
-export function SupplementList({ plan }: { plan: SupplementPlan }) {
+function PlanSelector({ plans, activeIdx, onSelect }: { plans: SupplementPlan[]; activeIdx: number; onSelect: (i: number) => void }) {
+  if (plans.length <= 1) return null;
+  return (
+    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+      {plans.map((p, idx) => (
+        <button
+          key={p.id}
+          type="button"
+          onClick={() => onSelect(idx)}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+            activeIdx === idx
+              ? "bg-[#3b82f6] text-white"
+              : "bg-[#141d2e] text-[#8fa3c0] hover:text-[#f0f4ff] border border-[#1e2d42]"
+          }`}
+        >
+          {p.title ?? `Plan ${idx + 1}`}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SingleSupplementList({ plan }: { plan: SupplementPlan }) {
   return (
     <div className="flex flex-col gap-3">
       {plan.coachNote && (
@@ -61,6 +85,30 @@ export function SupplementList({ plan }: { plan: SupplementPlan }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+export function SupplementList({ plan, plans }: { plan?: SupplementPlan; plans?: SupplementPlan[] }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  const allPlans = plans ?? (plan ? [plan] : []);
+
+  if (allPlans.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <p className="text-4xl mb-4">💊</p>
+        <p className="text-[#8fa3c0] font-medium">Noch kein Supplementplan</p>
+      </div>
+    );
+  }
+
+  const activePlan = allPlans[Math.min(activeIdx, allPlans.length - 1)];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <PlanSelector plans={allPlans} activeIdx={activeIdx} onSelect={setActiveIdx} />
+      <SingleSupplementList plan={activePlan} />
     </div>
   );
 }

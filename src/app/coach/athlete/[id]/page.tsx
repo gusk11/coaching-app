@@ -820,7 +820,16 @@ export default function CoachAthletePage() {
             })()}
 
             {/* Athlete profile (formerly own tab) */}
-            <AthleteProfileEditor athlete={athlete} onSave={saveAthleteProfile} onSaveProfile={handleSaveQuestionnaire} />
+            <AthleteProfileEditor
+              athlete={athlete}
+              onSave={saveAthleteProfile}
+              onSaveProfile={handleSaveQuestionnaire}
+              onPlansImported={async () => {
+                const updated = await import("@/lib/store").then((s) => s.loadAthletes());
+                const found = updated.find((a) => a.id === athlete!.id);
+                if (found) setAthlete(found);
+              }}
+            />
 
             {/* Anmeldedaten */}
             <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
@@ -1382,39 +1391,36 @@ export default function CoachAthletePage() {
                 athleteId={athlete.id}
                 onSave={saveTrainingPlan}
               />
-            ) : athlete.trainingPlan ? (
-              <>
-                {/* General cardio display */}
-                {(athlete.trainingPlan.schritteProTag || athlete.trainingPlan.cardioMinuten) ? (
-                  <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
-                    <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Cardio-Vorgaben</p>
-                    <p className="text-sm text-[#8fa3c0]">
-                      {[
-                        athlete.trainingPlan.schritteProTag
-                          ? `${athlete.trainingPlan.schritteProTag.toLocaleString("de-DE")} Schritte/Tag`
-                          : null,
-                        athlete.trainingPlan.cardioMinuten
-                          ? `${athlete.trainingPlan.cardioMinuten} Min Cardio ${athlete.trainingPlan.cardioFrequenz === "taeglich" ? "täglich" : "pro Woche"}`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  </div>
-                ) : null}
-                <TrainingAccordion plan={athlete.trainingPlan} />
-              </>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-[#5a7090] mb-4">Noch kein Trainingsplan zugewiesen.</p>
-                <button
-                  onClick={() => setEditingTraining(true)}
-                  className="px-4 py-2 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#60a5fa] text-sm hover:bg-[#3b82f6]/20 transition-colors"
-                >
-                  Plan erstellen
-                </button>
-              </div>
-            )}
+            ) : (() => {
+              const trainingPlans = athlete.trainingPlans ?? (athlete.trainingPlan ? [athlete.trainingPlan] : []);
+              const activePlan = athlete.trainingPlan ?? trainingPlans[0];
+              return trainingPlans.length > 0 ? (
+                <>
+                  {activePlan && (activePlan.schritteProTag || activePlan.cardioMinuten) ? (
+                    <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
+                      <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Cardio-Vorgaben</p>
+                      <p className="text-sm text-[#8fa3c0]">
+                        {[
+                          activePlan.schritteProTag ? `${activePlan.schritteProTag.toLocaleString("de-DE")} Schritte/Tag` : null,
+                          activePlan.cardioMinuten ? `${activePlan.cardioMinuten} Min Cardio ${activePlan.cardioFrequenz === "taeglich" ? "täglich" : "pro Woche"}` : null,
+                        ].filter(Boolean).join(" · ")}
+                      </p>
+                    </div>
+                  ) : null}
+                  <TrainingAccordion plans={trainingPlans} />
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-[#5a7090] mb-4">Noch kein Trainingsplan zugewiesen.</p>
+                  <button
+                    onClick={() => setEditingTraining(true)}
+                    className="px-4 py-2 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#60a5fa] text-sm hover:bg-[#3b82f6]/20 transition-colors"
+                  >
+                    Plan erstellen
+                  </button>
+                </div>
+              );
+            })()}
           </motion.div>
         )}
 
@@ -1462,19 +1468,22 @@ export default function CoachAthletePage() {
                 athleteId={athlete.id}
                 onSave={saveSupplementPlan}
               />
-            ) : athlete.supplementPlan ? (
-              <SupplementList plan={athlete.supplementPlan} />
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-[#5a7090] mb-4">Noch kein Supplementplan zugewiesen.</p>
-                <button
-                  onClick={() => setEditingSupplements(true)}
-                  className="px-4 py-2 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#60a5fa] text-sm hover:bg-[#3b82f6]/20 transition-colors"
-                >
-                  Plan erstellen
-                </button>
-              </div>
-            )}
+            ) : (() => {
+              const suppPlans = athlete.supplementPlans ?? (athlete.supplementPlan ? [athlete.supplementPlan] : []);
+              return suppPlans.length > 0 ? (
+                <SupplementList plans={suppPlans} />
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-[#5a7090] mb-4">Noch kein Supplementplan zugewiesen.</p>
+                  <button
+                    onClick={() => setEditingSupplements(true)}
+                    className="px-4 py-2 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#60a5fa] text-sm hover:bg-[#3b82f6]/20 transition-colors"
+                  >
+                    Plan erstellen
+                  </button>
+                </div>
+              );
+            })()}
           </motion.div>
         )}
 
@@ -1619,7 +1628,7 @@ export default function CoachAthletePage() {
                 <p className="text-xs text-[#5a7090]">Vorgeschlagener Plan von {athlete.name}:</p>
 
                 {reviewingRequest.planType === "training" ? (
-                  <TrainingAccordion plan={reviewingRequest.proposedPlan as TrainingPlan} />
+                  <TrainingAccordion plans={[reviewingRequest.proposedPlan as TrainingPlan]} />
                 ) : (
                   <MealPlanView
                     plans={[reviewingRequest.proposedPlan as MealPlan]}

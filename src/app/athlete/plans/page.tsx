@@ -198,32 +198,32 @@ export default function AthletePlans() {
                   athleteId={athlete.id}
                   onSave={handleSaveTrainingProposal}
                 />
-              ) : athlete.trainingPlan ? (
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <h2 className="text-base font-semibold text-[#f0f4ff]">{athlete.trainingPlan.title}</h2>
-                    <p className="text-xs text-[#5a7090]">Wochenübersicht — tippe auf einen Tag zum Aufklappen</p>
-                  </div>
-                  {(athlete.trainingPlan.schritteProTag || athlete.trainingPlan.cardioMinuten) ? (
-                    <div className="p-3 rounded-xl bg-[#141d2e] border border-[#1e2d42]">
-                      <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-1">Cardio-Vorgaben</p>
-                      <p className="text-sm text-[#8fa3c0]">
-                        {[
-                          athlete.trainingPlan.schritteProTag
-                            ? `${athlete.trainingPlan.schritteProTag.toLocaleString("de-DE")} Schritte/Tag`
-                            : null,
-                          athlete.trainingPlan.cardioMinuten
-                            ? `${athlete.trainingPlan.cardioMinuten} Min Cardio ${athlete.trainingPlan.cardioFrequenz === "taeglich" ? "täglich" : "pro Woche"}`
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
+              ) : (athlete.trainingPlans ?? (athlete.trainingPlan ? [athlete.trainingPlan] : [])).length > 0 ? (() => {
+                const trainingPlans = athlete.trainingPlans ?? (athlete.trainingPlan ? [athlete.trainingPlan] : []);
+                const activePlan = athlete.trainingPlan ?? trainingPlans[0];
+                return (
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <h2 className="text-base font-semibold text-[#f0f4ff]">
+                        {trainingPlans.length === 1 ? activePlan.title : `${trainingPlans.length} Trainingspläne`}
+                      </h2>
+                      <p className="text-xs text-[#5a7090]">Wochenübersicht — tippe auf einen Tag zum Aufklappen</p>
                     </div>
-                  ) : null}
-                  <TrainingAccordion plan={athlete.trainingPlan} />
-                </div>
-              ) : (
+                    {activePlan.schritteProTag || activePlan.cardioMinuten ? (
+                      <div className="p-3 rounded-xl bg-[#141d2e] border border-[#1e2d42]">
+                        <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-1">Cardio-Vorgaben</p>
+                        <p className="text-sm text-[#8fa3c0]">
+                          {[
+                            activePlan.schritteProTag ? `${activePlan.schritteProTag.toLocaleString("de-DE")} Schritte/Tag` : null,
+                            activePlan.cardioMinuten ? `${activePlan.cardioMinuten} Min Cardio ${activePlan.cardioFrequenz === "taeglich" ? "täglich" : "pro Woche"}` : null,
+                          ].filter(Boolean).join(" · ")}
+                        </p>
+                      </div>
+                    ) : null}
+                    <TrainingAccordion plans={trainingPlans} />
+                  </div>
+                );
+              })() : (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <p className="text-4xl mb-4">🏋️</p>
                   <p className="text-[#8fa3c0] font-medium">Noch kein Trainingsplan</p>
@@ -236,15 +236,18 @@ export default function AthletePlans() {
           {/* Supplementplan */}
           {tab === "Supplementplan" && (
             <motion.div key="Supplementplan" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit">
-              {athlete.supplementPlan ? (
-                <SupplementList plan={athlete.supplementPlan} />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <p className="text-4xl mb-4">💊</p>
-                  <p className="text-[#8fa3c0] font-medium">Noch kein Supplementplan</p>
-                  <p className="text-sm text-[#5a7090] mt-1">Gustav arbeitet gerade daran.</p>
-                </div>
-              )}
+              {(() => {
+                const suppPlans = athlete.supplementPlans ?? (athlete.supplementPlan ? [athlete.supplementPlan] : []);
+                return suppPlans.length > 0 ? (
+                  <SupplementList plans={suppPlans} />
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <p className="text-4xl mb-4">💊</p>
+                    <p className="text-[#8fa3c0] font-medium">Noch kein Supplementplan</p>
+                    <p className="text-sm text-[#5a7090] mt-1">Gustav arbeitet gerade daran.</p>
+                  </div>
+                );
+              })()}
             </motion.div>
           )}
         </AnimatePresence>

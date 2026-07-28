@@ -4,6 +4,28 @@ import { TrainingPlan, TrainingDay } from "@/types";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ExternalLink } from "lucide-react";
 
+function PlanSelector({ plans, activeIdx, onSelect }: { plans: TrainingPlan[]; activeIdx: number; onSelect: (i: number) => void }) {
+  if (plans.length <= 1) return null;
+  return (
+    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+      {plans.map((plan, idx) => (
+        <button
+          key={plan.id}
+          type="button"
+          onClick={() => onSelect(idx)}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+            activeIdx === idx
+              ? "bg-[#3b82f6] text-white"
+              : "bg-[#141d2e] text-[#8fa3c0] hover:text-[#f0f4ff] border border-[#1e2d42]"
+          }`}
+        >
+          {plan.title}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const dayColors: Record<string, string> = {
   Push: "text-blue-400",
   Pull: "text-purple-400",
@@ -117,16 +139,24 @@ function DayCard({ day, isOpen, onToggle, customLabel }: { day: TrainingDay; isO
   );
 }
 
-export function TrainingAccordion({ plan }: { plan: TrainingPlan }) {
+export function TrainingAccordion({ plan, plans }: { plan?: TrainingPlan; plans?: TrainingPlan[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
   const today = new Date().getDay(); // 0=Sun
   const dayMap: Record<number, string> = { 0: "Sonntag", 1: "Montag", 2: "Dienstag", 3: "Mittwoch", 4: "Donnerstag", 5: "Freitag", 6: "Samstag" };
   const todayName = dayMap[today];
-  const customLabel = plan.trackedFields?.custom?.enabled ? plan.trackedFields.custom.label : undefined;
+
+  const allPlans = plans ?? (plan ? [plan] : []);
+  const activePlan = allPlans[Math.min(activeIdx, allPlans.length - 1)];
+
+  if (!activePlan) return null;
+
+  const customLabel = activePlan.trackedFields?.custom?.enabled ? activePlan.trackedFields.custom.label : undefined;
 
   return (
     <div className="flex flex-col gap-2">
-      {plan.days.map((day) => {
+      <PlanSelector plans={allPlans} activeIdx={activeIdx} onSelect={(i) => { setActiveIdx(i); setOpenId(null); }} />
+      {activePlan.days.map((day) => {
         const isToday = day.dayName === todayName;
         return (
           <div key={day.id} className={cn(isToday && "ring-1 ring-[#3b82f6]/30 rounded-2xl")}>
@@ -142,10 +172,10 @@ export function TrainingAccordion({ plan }: { plan: TrainingPlan }) {
           </div>
         );
       })}
-      {plan.coachNote && (
+      {activePlan.coachNote && (
         <div className="mt-2 p-3 rounded-xl bg-[#0f1624] border border-[#1e2d42]">
           <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-1">Coach-Hinweis</p>
-          <p className="text-sm text-[#8fa3c0]">{plan.coachNote}</p>
+          <p className="text-sm text-[#8fa3c0]">{activePlan.coachNote}</p>
         </div>
       )}
     </div>
