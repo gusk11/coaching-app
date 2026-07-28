@@ -676,7 +676,7 @@ function ExerciseDBContent() {
         </div>
         <button onClick={() => setEditing(emptyExerciseForm())}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3b82f6] text-white text-xs font-semibold hover:bg-[#2563eb] transition-colors">
-          <Plus size={13} /> Übung hinzufügen
+          <Plus size={13} /> Neu
         </button>
       </div>
 
@@ -709,7 +709,7 @@ function ExerciseDBContent() {
             <div className="divide-y divide-[#1e2d42]">
               {filtered.length === 0 ? (
                 <p className="text-center text-sm text-[#5a7090] py-8">
-                  {items.length === 0 ? 'Noch keine Übungen. Klicke auf "Übung hinzufügen" um die erste hinzuzufügen.' : "Keine Übungen gefunden."}
+                  {items.length === 0 ? 'Noch keine Übungen. Klicke auf "+ Neu" um die erste hinzuzufügen.' : "Keine Übungen gefunden."}
                 </p>
               ) : (
                 filtered.map((e) => (

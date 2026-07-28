@@ -240,6 +240,7 @@ export default function AthletePlans() {
                           {[
                             activePlan.schritteProTag ? `${activePlan.schritteProTag.toLocaleString("de-DE")} Schritte/Tag` : null,
                             activePlan.cardioMinuten ? `${activePlan.cardioMinuten} Min Cardio ${activePlan.cardioFrequenz === "taeglich" ? "täglich" : "pro Woche"}` : null,
+                            activePlan.cardioIntensity ? `Intensität: ${activePlan.cardioIntensity}` : null,
                           ].filter(Boolean).join(" · ")}
                         </p>
                       </div>

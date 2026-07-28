@@ -539,7 +539,9 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                       <p className="text-xs text-[#5a7090] mt-0.5">
                         {planEx.sets} × {planEx.reps}
                         {planEx.rir !== undefined && ` · RIR ${planEx.rir}`}
-                        {planEx.cadence && ` · Kadenz ${planEx.cadence.eccentric}${planEx.cadence.bottomHold}${planEx.cadence.concentric}${planEx.cadence.topHold}`}
+                        {planEx.cadence && (
+                          <span className="font-mono"> · {planEx.cadence.eccentric}-{planEx.cadence.bottomHold}-{planEx.cadence.concentric}-{planEx.cadence.topHold}</span>
+                        )}
                       </p>
                     )}
                     {techVideo && (

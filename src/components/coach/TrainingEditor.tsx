@@ -282,6 +282,7 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
   const [schritteProTag, setSchritteProTag] = useState(initPlan.schritteProTag ?? 0);
   const [cardioMinuten, setCardioMinuten] = useState(initPlan.cardioMinuten ?? 0);
   const [cardioFrequenz, setCardioFrequenz] = useState<"woche" | "taeglich">(initPlan.cardioFrequenz ?? "woche");
+  const [cardioIntensity, setCardioIntensity] = useState(initPlan.cardioIntensity ?? "");
   const [trackedFields, setTrackedFields] = useState(
     initPlan.trackedFields ?? { weight: true, reps: true, rir: true, cadence: false, custom: { label: "", enabled: false } }
   );
@@ -377,7 +378,7 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
   }
 
   function handleSave() {
-    onSave({ ...initPlan, title, coachNote, days, mode, schritteProTag, cardioMinuten, cardioFrequenz, trackedFields });
+    onSave({ ...initPlan, title, coachNote, days, mode, schritteProTag, cardioMinuten, cardioFrequenz, cardioIntensity, trackedFields });
   }
 
   return (
@@ -490,6 +491,17 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
                 </button>
               </div>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-[#5a7090]">Intensität</label>
+            <input
+              type="text"
+              value={cardioIntensity}
+              onChange={(e) => setCardioIntensity(e.target.value)}
+              placeholder="z.B. Zone 2, moderat, HIIT …"
+              className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+            />
           </div>
         </div>
 

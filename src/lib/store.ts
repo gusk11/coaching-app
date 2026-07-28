@@ -1284,6 +1284,35 @@ export async function setActiveSupplementPlan(athleteId: string, planId: string)
   return loadAthletes();
 }
 
+export async function toggleMealPlanActive(athleteId: string, planId: string): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const existing = a.mealPlans ?? [];
+  const plans = existing.map((p) => p.id === planId ? { ...p, isActive: !p.isActive } : p);
+  const { error } = await supabase.from("athletes")
+    .update({ meal_plans: plans, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
+}
+
+export async function toggleTrainingPlanActive(athleteId: string, planId: string): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const existing = a.trainingPlans ?? (a.trainingPlan ? [a.trainingPlan] : []);
+  const plans = existing.map((p) => p.id === planId ? { ...p, isActive: !p.isActive } : p);
+  const legacyPlan = plans.find((p) => p.isActive) ?? plans[0];
+  if (legacyPlan) await writeTrainingPlans(athleteId, plans, legacyPlan);
+  return loadAthletes();
+}
+
+export async function toggleSupplementPlanActive(athleteId: string, planId: string): Promise<Athlete[]> {
+  const a = await getAthlete(athleteId);
+  const existing = a.supplementPlans ?? (a.supplementPlan ? [a.supplementPlan] : []);
+  const plans = existing.map((p) => p.id === planId ? { ...p, isActive: !p.isActive } : p);
+  const legacyPlan = plans.find((p) => p.isActive) ?? plans[0];
+  if (legacyPlan) await writeSupplementPlans(athleteId, plans, legacyPlan);
+  return loadAthletes();
+}
+
 export async function getExportContextData(athleteId: string): Promise<{
   exercises: ExerciseDBItem[];
   foods: FoodItem[];

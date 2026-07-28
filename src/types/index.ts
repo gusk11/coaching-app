@@ -271,6 +271,7 @@ export interface TrainingExerciseLog {
   exerciseId: string;
   exerciseName: string;
   laterality?: "bilateral" | "unilateral";
+  cadence?: { eccentric: number; bottomHold: number; concentric: number; topHold: number };
   sets: TrainingSetLog[];
   /** Persistent note — carried over and pre-filled every time this exercise appears in a session. */
   note?: string;
@@ -417,6 +418,7 @@ export interface TrainingPlan {
   schritteProTag?: number;
   cardioMinuten?: number;
   cardioFrequenz?: "woche" | "taeglich";
+  cardioIntensity?: string;
   trackedFields?: {
     weight: boolean;
     reps: boolean;

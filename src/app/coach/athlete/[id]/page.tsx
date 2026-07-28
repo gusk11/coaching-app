@@ -1,24 +1,17 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile, approvePlanChangeRequest, rejectPlanChangeRequest, saveTrainingPlanEntry, setActiveTrainingPlan, setActiveMealPlan, saveSupplementPlanEntry, setActiveSupplementPlan } from "@/lib/store";
+import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile, approvePlanChangeRequest, rejectPlanChangeRequest, saveTrainingPlanEntry, saveSupplementPlanEntry, toggleMealPlanActive, toggleTrainingPlanActive, toggleSupplementPlanActive } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { Athlete, AthleteProfile, GoalType, MealPlan, TrainingPlan, SupplementPlan, PlanChangeRequest } from "@/types";
-import {
-  copyMealPlan, copyTrainingPlan, copySupplementPlan,
-  getMealPlanClipboard, getTrainingPlanClipboard, getSupplementPlanClipboard,
-} from "@/lib/planClipboard";
 import { AppShell } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/ui/StatCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { MealPlanView } from "@/components/athlete/MealPlanView";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
-import { SupplementList } from "@/components/athlete/SupplementList";
-import { MealPlanEditor } from "@/components/coach/MealPlanEditor";
-import { TrainingEditor } from "@/components/coach/TrainingEditor";
-import { SupplementEditor } from "@/components/coach/SupplementEditor";
 import { AthleteProfileEditor } from "@/components/coach/AthleteProfileEditor";
+import { GeneralPlansView } from "@/components/coach/GeneralPlansView";
 import { CheckInConfigEditor } from "@/components/coach/CheckInConfigEditor";
 import { ProgressAnalytics } from "@/components/coach/ProgressAnalytics";
 import { TrainingProgressView } from "@/components/athlete/TrainingProgressView";
@@ -33,13 +26,13 @@ import {
   getGoalLabel, getGoalColor, getTrendIcon, getTrendColor, normalizeNutritionStatus, resolveAthleteWeight,
 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Pencil, Check, X, Copy, ClipboardPaste, Trash2, ChevronDown } from "lucide-react";
+import { ArrowLeft, Pencil, Check, X, Trash2, ChevronDown } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition, listContainer, listItem } from "@/lib/motion";
 
 
-const TABS = ["Übersicht", "Check-ins", "Fortschritt", "Ernährung", "Training", "Supplements"] as const;
+const TABS = ["Übersicht", "Check-ins", "Fortschritt", "Pläne"] as const;
 type Tab = (typeof TABS)[number];
 type CheckInSubTab = "daily" | "weekly";
 
@@ -78,15 +71,6 @@ export default function CoachAthletePage() {
   const [editingTrendTarget, setEditingTrendTarget] = useState(false);
   const [editTrendTargetInput, setEditTrendTargetInput] = useState("");
 
-  // Plan editing
-  const [editingNutrition, setEditingNutrition] = useState(false);
-  const [editingTraining, setEditingTraining] = useState(false);
-  const [editingSupplements, setEditingSupplements] = useState(false);
-
-  // Plan clipboard
-  const [clipboardMeal, setClipboardMeal] = useState<MealPlan | null>(null);
-  const [clipboardTraining, setClipboardTraining] = useState<TrainingPlan | null>(null);
-  const [clipboardSupplement, setClipboardSupplement] = useState<SupplementPlan | null>(null);
 
   // Delete athlete
   const [showDeleteZone, setShowDeleteZone] = useState(false);
@@ -116,9 +100,6 @@ export default function CoachAthletePage() {
       setEditCoachNote(found.coachNote);
       setEditVisibleNote(found.visibleNote);
     });
-    setClipboardMeal(getMealPlanClipboard());
-    setClipboardTraining(getTrainingPlanClipboard());
-    setClipboardSupplement(getSupplementPlanClipboard());
   }, [router, id]);
 
   const analysis = useMemo(() => athlete ? analyzeWeek(athlete) : null, [athlete]);
@@ -297,7 +278,6 @@ export default function CoachAthletePage() {
     try {
       const updated = await saveTrainingPlanEntry(athlete!.id, plan);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
-      setEditingTraining(false);
       showToast("Trainingsplan gespeichert.", "success");
     } catch {
       setAthlete(previous);
@@ -310,7 +290,6 @@ export default function CoachAthletePage() {
     try {
       const updated = await saveSupplementPlanEntry(athlete!.id, plan);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
-      setEditingSupplements(false);
       showToast("Supplement-Plan gespeichert.", "success");
     } catch {
       setAthlete(previous);
@@ -318,36 +297,36 @@ export default function CoachAthletePage() {
     }
   }
 
-  async function handleSetActiveMealPlan(planId: string) {
+  async function handleToggleMealPlanActive(planId: string) {
     const previous = athlete;
     try {
-      const updated = await setActiveMealPlan(athlete!.id, planId);
+      const updated = await toggleMealPlanActive(athlete!.id, planId);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
     } catch {
       setAthlete(previous);
-      showToast("Fehler beim Aktivieren des Plans.", "error");
+      showToast("Fehler beim Umschalten des Plans.", "error");
     }
   }
 
-  async function handleSetActiveTrainingPlan(planId: string) {
+  async function handleToggleTrainingPlanActive(planId: string) {
     const previous = athlete;
     try {
-      const updated = await setActiveTrainingPlan(athlete!.id, planId);
+      const updated = await toggleTrainingPlanActive(athlete!.id, planId);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
     } catch {
       setAthlete(previous);
-      showToast("Fehler beim Aktivieren des Plans.", "error");
+      showToast("Fehler beim Umschalten des Plans.", "error");
     }
   }
 
-  async function handleSetActiveSupplementPlan(planId: string) {
+  async function handleToggleSupplementPlanActive(planId: string) {
     const previous = athlete;
     try {
-      const updated = await setActiveSupplementPlan(athlete!.id, planId);
+      const updated = await toggleSupplementPlanActive(athlete!.id, planId);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
     } catch {
       setAthlete(previous);
-      showToast("Fehler beim Aktivieren des Plans.", "error");
+      showToast("Fehler beim Umschalten des Plans.", "error");
     }
   }
 
@@ -400,56 +379,6 @@ export default function CoachAthletePage() {
   function handleUpdateTrainingLogs(athletes: Athlete[]) {
     const updated = athletes.find((a) => a.id === athlete!.id);
     if (updated) setAthlete(updated);
-  }
-
-  function handleCopyMealPlan(plan: MealPlan) {
-    copyMealPlan(plan);
-    setClipboardMeal(plan);
-    showToast(`"${plan.title}" kopiert.`, "success");
-  }
-
-  function handleCopyTrainingPlan() {
-    if (!athlete?.trainingPlan) return;
-    copyTrainingPlan(athlete.trainingPlan);
-    setClipboardTraining(athlete.trainingPlan);
-    showToast("Trainingsplan kopiert.", "success");
-  }
-
-  function handleCopySupplementPlan() {
-    if (!athlete?.supplementPlan) return;
-    copySupplementPlan(athlete.supplementPlan);
-    setClipboardSupplement(athlete.supplementPlan);
-    showToast("Supplementplan kopiert.", "success");
-  }
-
-  async function handlePasteMealPlan() {
-    if (!clipboardMeal) return;
-    const newPlan: MealPlan = {
-      ...clipboardMeal,
-      id: crypto.randomUUID(),
-      athleteId: athlete!.id,
-    };
-    await saveMealPlan(newPlan);
-  }
-
-  async function handlePasteTrainingPlan() {
-    if (!clipboardTraining) return;
-    const newPlan: TrainingPlan = {
-      ...clipboardTraining,
-      id: crypto.randomUUID(),
-      athleteId: athlete!.id,
-    };
-    await saveTrainingPlan(newPlan);
-  }
-
-  async function handlePasteSupplementPlan() {
-    if (!clipboardSupplement) return;
-    const newPlan: SupplementPlan = {
-      ...clipboardSupplement,
-      id: crypto.randomUUID(),
-      athleteId: athlete!.id,
-    };
-    await saveSupplementPlan(newPlan);
   }
 
   async function handleDeleteAthlete() {
@@ -857,11 +786,6 @@ export default function CoachAthletePage() {
               athlete={athlete}
               onSave={saveAthleteProfile}
               onSaveProfile={handleSaveQuestionnaire}
-              onPlansImported={async () => {
-                const updated = await import("@/lib/store").then((s) => s.loadAthletes());
-                const found = updated.find((a) => a.id === athlete!.id);
-                if (found) setAthlete(found);
-              }}
             />
 
             {/* Anmeldedaten */}
@@ -1316,211 +1240,24 @@ export default function CoachAthletePage() {
           </motion.div>
         )}
 
-        {/* ── ERNÄHRUNG ── */}
-        {tab === "Ernährung" && (
-          <motion.div key="Ernährung" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
-            {(() => {
-              const plans = athlete.mealPlans ?? [];
-              return (
-                <>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-[#f0f4ff]">Ernährungspläne</p>
-                    <div className="flex items-center gap-1.5">
-                      {clipboardMeal && !editingNutrition && (
-                        <button
-                          onClick={handlePasteMealPlan}
-                          title={`"${clipboardMeal.title}" einfügen`}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all bg-[#141d2e] border-[#22c55e]/30 text-[#4ade80] hover:bg-[#22c55e]/10"
-                        >
-                          <ClipboardPaste size={12} /> Einfügen
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setEditingNutrition(!editingNutrition)}
-                        className={cn(
-                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
-                          editingNutrition
-                            ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
-                            : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
-                        )}
-                      >
-                        {editingNutrition ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
-                      </button>
-                    </div>
-                  </div>
-
-                  {!editingNutrition && plans.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {plans.map((plan) => (
-                        <button
-                          key={plan.id}
-                          onClick={() => handleCopyMealPlan(plan)}
-                          title={`"${plan.title}" kopieren`}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs text-[#8fa3c0] bg-[#141d2e] border-[#1e2d42] hover:border-[#3b82f6]/40 hover:text-[#60a5fa] transition-all"
-                        >
-                          <Copy size={11} />
-                          {plan.title}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {editingNutrition ? (
-                    <MealPlanEditor
-                      plans={plans}
-                      athleteId={athlete.id}
-                      onSavePlan={saveMealPlan}
-                      onDeletePlan={deleteMealPlan}
-                      athleteWeight={resolveAthleteWeight(athlete)}
-                    />
-                  ) : (
-                    <MealPlanView plans={plans} athleteWeight={resolveAthleteWeight(athlete)} onSetActive={handleSetActiveMealPlan} />
-                  )}
-                </>
-              );
-            })()}
-          </motion.div>
-        )}
-
-        {/* ── TRAINING ── */}
-        {tab === "Training" && (
-          <motion.div key="Training" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[#f0f4ff]">
-                {athlete.trainingPlan ? athlete.trainingPlan.title : "Trainingsplan"}
-              </p>
-              <div className="flex items-center gap-1.5">
-                {athlete.trainingPlan && !editingTraining && (
-                  <button
-                    onClick={handleCopyTrainingPlan}
-                    title="Trainingsplan kopieren"
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
-                  >
-                    <Copy size={12} />
-                  </button>
-                )}
-                {clipboardTraining && !editingTraining && (
-                  <button
-                    onClick={handlePasteTrainingPlan}
-                    title={`"${clipboardTraining.title}" einfügen`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all bg-[#141d2e] border-[#22c55e]/30 text-[#4ade80] hover:bg-[#22c55e]/10"
-                  >
-                    <ClipboardPaste size={12} /> Einfügen
-                  </button>
-                )}
-                <button
-                  onClick={() => setEditingTraining(!editingTraining)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
-                    editingTraining
-                      ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
-                      : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
-                  )}
-                >
-                  {editingTraining ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
-                </button>
-              </div>
-            </div>
-
-            {editingTraining ? (
-              <TrainingEditor
-                plan={athlete.trainingPlan}
-                athleteId={athlete.id}
-                onSave={saveTrainingPlan}
-              />
-            ) : (() => {
-              const trainingPlans = athlete.trainingPlans?.length ? athlete.trainingPlans : (athlete.trainingPlan ? [athlete.trainingPlan] : []);
-              const activePlan = trainingPlans.find((p) => p.isActive) ?? trainingPlans[0];
-              return trainingPlans.length > 0 ? (
-                <>
-                  {activePlan && (activePlan.schritteProTag || activePlan.cardioMinuten) ? (
-                    <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
-                      <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Cardio-Vorgaben</p>
-                      <p className="text-sm text-[#8fa3c0]">
-                        {[
-                          activePlan.schritteProTag ? `${activePlan.schritteProTag.toLocaleString("de-DE")} Schritte/Tag` : null,
-                          activePlan.cardioMinuten ? `${activePlan.cardioMinuten} Min Cardio ${activePlan.cardioFrequenz === "taeglich" ? "täglich" : "pro Woche"}` : null,
-                        ].filter(Boolean).join(" · ")}
-                      </p>
-                    </div>
-                  ) : null}
-                  <TrainingAccordion plans={trainingPlans} onSetActive={handleSetActiveTrainingPlan} />
-                </>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-[#5a7090] mb-4">Noch kein Trainingsplan zugewiesen.</p>
-                  <button
-                    onClick={() => setEditingTraining(true)}
-                    className="px-4 py-2 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#60a5fa] text-sm hover:bg-[#3b82f6]/20 transition-colors"
-                  >
-                    Plan erstellen
-                  </button>
-                </div>
-              );
-            })()}
-          </motion.div>
-        )}
-
-        {/* ── SUPPLEMENTS ── */}
-        {tab === "Supplements" && (
-          <motion.div key="Supplements" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[#f0f4ff]">Supplementplan</p>
-              <div className="flex items-center gap-1.5">
-                {athlete.supplementPlan && !editingSupplements && (
-                  <button
-                    onClick={handleCopySupplementPlan}
-                    title="Supplementplan kopieren"
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
-                  >
-                    <Copy size={12} />
-                  </button>
-                )}
-                {clipboardSupplement && !editingSupplements && (
-                  <button
-                    onClick={handlePasteSupplementPlan}
-                    title="Supplementplan einfügen"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all bg-[#141d2e] border-[#22c55e]/30 text-[#4ade80] hover:bg-[#22c55e]/10"
-                  >
-                    <ClipboardPaste size={12} /> Einfügen
-                  </button>
-                )}
-                <button
-                  onClick={() => setEditingSupplements(!editingSupplements)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
-                    editingSupplements
-                      ? "bg-[#ef4444]/10 border-[#ef4444]/30 text-[#ef4444]"
-                      : "bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa]"
-                  )}
-                >
-                  {editingSupplements ? <><X size={12} /> Bearbeitung beenden</> : <><Pencil size={12} /> Bearbeiten</>}
-                </button>
-              </div>
-            </div>
-
-            {editingSupplements ? (
-              <SupplementEditor
-                plan={athlete.supplementPlan}
-                athleteId={athlete.id}
-                onSave={saveSupplementPlan}
-              />
-            ) : (() => {
-              const suppPlans = athlete.supplementPlans?.length ? athlete.supplementPlans : (athlete.supplementPlan ? [athlete.supplementPlan] : []);
-              return suppPlans.length > 0 ? (
-                <SupplementList plans={suppPlans} onSetActive={handleSetActiveSupplementPlan} />
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-[#5a7090] mb-4">Noch kein Supplementplan zugewiesen.</p>
-                  <button
-                    onClick={() => setEditingSupplements(true)}
-                    className="px-4 py-2 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/30 text-[#60a5fa] text-sm hover:bg-[#3b82f6]/20 transition-colors"
-                  >
-                    Plan erstellen
-                  </button>
-                </div>
-              );
-            })()}
+        {/* ── PLÄNE ── */}
+        {tab === "Pläne" && (
+          <motion.div key="Pläne" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
+            <GeneralPlansView
+              athlete={athlete}
+              onSaveMealPlan={saveMealPlan}
+              onDeleteMealPlan={deleteMealPlan}
+              onSaveTrainingPlan={saveTrainingPlan}
+              onSaveSupplementPlan={saveSupplementPlan}
+              onToggleMealPlanActive={handleToggleMealPlanActive}
+              onToggleTrainingPlanActive={handleToggleTrainingPlanActive}
+              onToggleSupplementPlanActive={handleToggleSupplementPlanActive}
+              onPlansImported={async () => {
+                const updated = await import("@/lib/store").then((s) => s.loadAthletes());
+                const found = updated.find((a) => a.id === athlete!.id);
+                if (found) setAthlete(found);
+              }}
+            />
           </motion.div>
         )}
 
