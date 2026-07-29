@@ -29,10 +29,11 @@ function rowToAthlete(row: any): Athlete {
   const legalConsent: LegalConsent | undefined = rawProfile?.__lc ?? undefined;
   const introVideoSeen: boolean = rawProfile?.__ivs === true;
   const isNewSignup: boolean | undefined = rawProfile?.__ns === true ? true : undefined;
+  const seenToolIntros: string[] = rawProfile?.__sti ?? [];
   let profile: AthleteProfile | undefined;
   if (rawProfile) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { __lc, __ivs, __ns, ...rest } = rawProfile;
+    const { __lc, __ivs, __ns, __sti, ...rest } = rawProfile;
     profile = Object.keys(rest).length ? (rest as AthleteProfile) : undefined;
   }
   return {
@@ -45,6 +46,7 @@ function rowToAthlete(row: any): Athlete {
     onboardingCompleted: row.onboarding_completed ?? false,
     introVideoSeen,
     isNewSignup,
+    seenToolIntros,
     legalConsent,
     profile,
     profileImage: row.profile_image ?? undefined,
@@ -339,6 +341,18 @@ export async function saveLegalConsent(
 ): Promise<void> {
   const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
   const merged = { ...(row?.profile ?? {}), __lc: consent };
+  const { error } = await supabase
+    .from("athletes")
+    .update({ profile: merged, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+}
+
+export async function markAthleteToolIntroSeen(athleteId: string, toolKey: string): Promise<void> {
+  const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
+  const sti: string[] = row?.profile?.__sti ?? [];
+  if (sti.includes(toolKey)) return;
+  const merged = { ...(row?.profile ?? {}), __sti: [...sti, toolKey] };
   const { error } = await supabase
     .from("athletes")
     .update({ profile: merged, updated_at: new Date().toISOString() })

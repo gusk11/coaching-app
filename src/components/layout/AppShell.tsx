@@ -26,12 +26,12 @@ interface NavItem {
 }
 
 const athleteNav: NavItem[] = [
-  { label: "Dashboard", href: "/athlete/dashboard", icon: <LayoutDashboard size={20} /> },
+  { label: "Dashboard", href: "/athlete/dashboard", icon: <LayoutDashboard size={20} />, toolIntroKey: "dashboard" },
   { label: "Check-ins", href: "/athlete/checkins", icon: <ClipboardCheck size={20} />, toolIntroKey: "checkins" },
-  { label: "Trainingstracker", href: "/athlete/training", icon: <Dumbbell size={20} />, toolIntroKey: "training" },
-  { label: "Pläne", href: "/athlete/plans", icon: <Salad size={20} />, toolIntroKey: "plans" },
-  { label: "Video-Feedbacks", href: "/athlete/video-feedbacks", icon: <Video size={20} /> },
-  { label: "Stammdaten", href: "/athlete/stammdaten", icon: <User size={20} /> },
+  { label: "Trainingstracker", href: "/athlete/training", icon: <Dumbbell size={20} />, toolIntroKey: "trainingstracker" },
+  { label: "Pläne", href: "/athlete/plans", icon: <Salad size={20} />, toolIntroKey: "plaene" },
+  { label: "Video-Feedbacks", href: "/athlete/video-feedbacks", icon: <Video size={20} />, toolIntroKey: "videoFeedbacks" },
+  { label: "Stammdaten", href: "/athlete/stammdaten", icon: <User size={20} />, toolIntroKey: "stammdaten" },
 ];
 
 const coachNav: NavItem[] = [
@@ -214,6 +214,16 @@ export function AppShell({ children, role, title }: AppShellProps) {
     if (role !== "athlete") return;
     const auth = loadAuth();
     if (!auth.athleteId) return;
+
+    // Sync check from localStorage for immediate nav indicator feedback
+    const unseenSync = new Set<string>();
+    for (const item of athleteNav) {
+      if (item.toolIntroKey && !isToolIntroSeen(auth.athleteId, item.toolIntroKey)) {
+        unseenSync.add(item.toolIntroKey);
+      }
+    }
+    setUnseenToolIntros(unseenSync);
+
     loadAthletes().then((athletes) => {
       const athlete = athletes.find((a) => a.id === auth.athleteId);
       if (!athlete) return;
@@ -224,6 +234,14 @@ export function AppShell({ children, role, title }: AppShellProps) {
       setHasPendingCheckins(!dailyDone || (isWeeklyDay && !weeklyDone));
       const introSeen = athlete.introVideoSeen === true || !!localStorage.getItem(`coachOS_introVideoSeen_${auth.athleteId}`);
       setHasPendingIntroVideo(athlete.onboardingCompleted === true && !introSeen);
+
+      // Refine nav indicators using Supabase seenToolIntros
+      const seenInSupabase = new Set(athlete.seenToolIntros ?? []);
+      setUnseenToolIntros((prev) => {
+        const next = new Set(prev);
+        for (const key of seenInSupabase) next.delete(key);
+        return next;
+      });
     });
   }, [role, pathname]);
 
@@ -232,19 +250,6 @@ export function AppShell({ children, role, title }: AppShellProps) {
     window.addEventListener("introVideoSeen", handler);
     return () => window.removeEventListener("introVideoSeen", handler);
   }, []);
-
-  useEffect(() => {
-    if (role !== "athlete") return;
-    const auth = loadAuth();
-    if (!auth.athleteId) return;
-    const unseen = new Set<string>();
-    for (const item of athleteNav) {
-      if (item.toolIntroKey && !isToolIntroSeen(auth.athleteId, item.toolIntroKey)) {
-        unseen.add(item.toolIntroKey);
-      }
-    }
-    setUnseenToolIntros(unseen);
-  }, [role, pathname]);
 
   useEffect(() => {
     const handler = (e: Event) => {

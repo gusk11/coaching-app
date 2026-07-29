@@ -195,7 +195,7 @@ export default function CheckInsPage() {
   return (
     <AppShell role="athlete" title="Check-ins">
       <div className="max-w-lg mx-auto flex flex-col gap-5">
-        <ToolIntroVideo athleteId={athlete.id} toolKey="checkins" title="Einführung: Check-ins" position="top" />
+        <ToolIntroVideo athleteId={athlete.id} toolKey="checkins" title="Einführung: Check-ins" position="top" seenToolIntros={athlete.seenToolIntros} />
 
         {/* Tab switcher */}
         <div className="flex gap-1 p-1 bg-[#0f1624] rounded-xl border border-[#1e2d42]">
@@ -548,7 +548,7 @@ export default function CheckInsPage() {
           </div>
         )}
 
-        <ToolIntroVideo athleteId={athlete.id} toolKey="checkins" title="Einführung: Check-ins" position="bottom" />
+        <ToolIntroVideo athleteId={athlete.id} toolKey="checkins" title="Einführung: Check-ins" position="bottom" seenToolIntros={athlete.seenToolIntros} />
       </div>
 
       {/* Delete confirmation modal (for current-week weekly) */}

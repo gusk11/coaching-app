@@ -117,7 +117,7 @@ export default function AthletePlans() {
   return (
     <AppShell role="athlete" title="Pläne">
       <div className="max-w-lg mx-auto flex flex-col gap-4">
-        <ToolIntroVideo athleteId={athlete.id} toolKey="plans" title="Einführung: Pläne" position="top" />
+        <ToolIntroVideo athleteId={athlete.id} toolKey="plaene" title="Einführung: Pläne" position="top" seenToolIntros={athlete.seenToolIntros} />
 
         {canEdit && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#1d4ed8]/10 border border-[#3b82f6]/20">
@@ -276,7 +276,7 @@ export default function AthletePlans() {
             </motion.div>
           )}
         </AnimatePresence>
-        <ToolIntroVideo athleteId={athlete.id} toolKey="plans" title="Einführung: Pläne" position="bottom" />
+        <ToolIntroVideo athleteId={athlete.id} toolKey="plaene" title="Einführung: Pläne" position="bottom" seenToolIntros={athlete.seenToolIntros} />
       </div>
     </AppShell>
   );

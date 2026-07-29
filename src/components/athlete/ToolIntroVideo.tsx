@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PlayCircle, X, RefreshCw } from "lucide-react";
 import { isToolIntroSeen, markToolIntroSeen, TOOL_INTRO_VIDEOS } from "@/lib/toolIntros";
+import { markAthleteToolIntroSeen } from "@/lib/store";
 
 function getEmbedUrl(url: string): string {
   const shortM = url.match(/youtu\.be\/([^?&]+)/);
@@ -16,21 +17,40 @@ interface Props {
   title: string;
   /** "top" renders the orange banner (only when unseen). "bottom" renders the compact replay link (only when seen). */
   position: "top" | "bottom";
+  /** seenToolIntros from the Supabase-loaded athlete; used for auto-open decision. */
+  seenToolIntros?: string[];
 }
 
-export function ToolIntroVideo({ athleteId, toolKey, title, position }: Props) {
+export function ToolIntroVideo({ athleteId, toolKey, title, position, seenToolIntros }: Props) {
   const [seen, setSeen] = useState(true); // start true to avoid flash on load
   const [open, setOpen] = useState(false);
+  const hasAutoOpened = useRef(false);
 
   useEffect(() => {
-    setSeen(isToolIntroSeen(athleteId, toolKey));
-  }, [athleteId, toolKey]);
+    const supabaseSeen = seenToolIntros !== undefined
+      ? seenToolIntros.includes(toolKey)
+      : null;
+    const isSeen = supabaseSeen !== null ? supabaseSeen : isToolIntroSeen(athleteId, toolKey);
+    setSeen(isSeen);
+    if (!isSeen && !hasAutoOpened.current) {
+      hasAutoOpened.current = true;
+      setOpen(true);
+    }
+  }, [athleteId, toolKey, seenToolIntros]);
+
+  function doMarkSeen() {
+    markAthleteToolIntroSeen(athleteId, toolKey).catch(() => {});
+    markToolIntroSeen(athleteId, toolKey);
+    setSeen(true);
+  }
+
+  function handleClose() {
+    setOpen(false);
+    if (!seen) doMarkSeen();
+  }
 
   function handleWatch() {
-    if (!seen) {
-      markToolIntroSeen(athleteId, toolKey);
-      setSeen(true);
-    }
+    if (!seen) doMarkSeen();
     setOpen(true);
   }
 
@@ -73,7 +93,7 @@ export function ToolIntroVideo({ athleteId, toolKey, title, position }: Props) {
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
-          onClick={() => setOpen(false)}
+          onClick={handleClose}
         >
           <div
             className="relative w-full max-w-3xl rounded-2xl overflow-hidden bg-black"
@@ -81,7 +101,7 @@ export function ToolIntroVideo({ athleteId, toolKey, title, position }: Props) {
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => setOpen(false)}
+              onClick={handleClose}
               className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition-colors"
             >
               <X size={16} />

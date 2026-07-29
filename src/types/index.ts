@@ -493,6 +493,7 @@ export interface Athlete {
   onboardingCompleted?: boolean;
   introVideoSeen?: boolean;
   isNewSignup?: boolean;
+  seenToolIntros?: string[];
   legalConsent?: LegalConsent;
   profile?: AthleteProfile;
   /** Optional profile image — base64 dataUrl locally; swap url for remote URL when connecting cloud storage */

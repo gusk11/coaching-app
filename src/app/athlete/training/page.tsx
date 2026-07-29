@@ -93,7 +93,7 @@ export default function AthleteTraining() {
   return (
     <AppShell role="athlete" title="Trainingstracker">
       <div className="max-w-2xl mx-auto flex flex-col gap-4">
-        <ToolIntroVideo athleteId={athlete.id} toolKey="training" title="Einführung: Trainingstracker" position="top" />
+        <ToolIntroVideo athleteId={athlete.id} toolKey="trainingstracker" title="Einführung: Trainingstracker" position="top" seenToolIntros={athlete.seenToolIntros} />
         {/* Tab selector */}
         <div className="flex rounded-xl bg-[#0f1624] border border-[#1e2d42] p-1 gap-1">
           {tabs.map(({ key, label }) => (
@@ -195,7 +195,7 @@ export default function AthleteTraining() {
             </motion.div>
           )}
         </AnimatePresence>
-        <ToolIntroVideo athleteId={athlete.id} toolKey="training" title="Einführung: Trainingstracker" position="bottom" />
+        <ToolIntroVideo athleteId={athlete.id} toolKey="trainingstracker" title="Einführung: Trainingstracker" position="bottom" seenToolIntros={athlete.seenToolIntros} />
       </div>
     </AppShell>
   );

@@ -138,7 +138,7 @@ export default function AthleteDashboard() {
         </div>
 
         {/* Einführungsvideo – oben */}
-        <ToolIntroVideo athleteId={athlete.id} toolKey="dashboard" title="Einführung: Dashboard" position="top" />
+        <ToolIntroVideo athleteId={athlete.id} toolKey="dashboard" title="Einführung: Dashboard" position="top" seenToolIntros={athlete.seenToolIntros} />
 
         {/* Neue Video Feedbacks Banner */}
         {unseenFeedbacks.map((fb) => (
@@ -338,7 +338,7 @@ export default function AthleteDashboard() {
         <ProgressAnalytics checkIns={athlete.dailyCheckIns} />
 
         {/* Einführungsvideo – unten */}
-        <ToolIntroVideo athleteId={athlete.id} toolKey="dashboard" title="Einführung: Dashboard" position="bottom" />
+        <ToolIntroVideo athleteId={athlete.id} toolKey="dashboard" title="Einführung: Dashboard" position="bottom" seenToolIntros={athlete.seenToolIntros} />
 
       </div>
     </AppShell>

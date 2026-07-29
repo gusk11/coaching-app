@@ -3,9 +3,9 @@ const KEY_PREFIX = "coachOS_toolIntro_";
 export const TOOL_INTRO_VIDEOS: Record<string, string> = {
   dashboard: "https://youtu.be/BUmnyhOKN3w",
   checkins: "https://youtu.be/sO6nBuNA9HA",
-  training: "https://youtu.be/khtTAuHIjhs",
-  plans: "https://youtu.be/Ben6kEYwbbI",
-  "video-feedbacks": "https://youtu.be/HC8FyaaXV-I",
+  trainingstracker: "https://youtu.be/khtTAuHIjhs",
+  plaene: "https://youtu.be/Ben6kEYwbbI",
+  videoFeedbacks: "https://youtu.be/HC8FyaaXV-I",
   stammdaten: "https://youtu.be/HC8FyaaXV-I",
 };
 

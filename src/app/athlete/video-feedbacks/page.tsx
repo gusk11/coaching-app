@@ -5,6 +5,7 @@ import { Athlete } from "@/types";
 import { loadAuth, loadAthletes } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { VideoFeedbackOverview } from "@/components/athlete/VideoFeedbackOverview";
+import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 export default function AthleteVideoFeedbacksPage() {
@@ -36,8 +37,10 @@ export default function AthleteVideoFeedbacksPage() {
 
   return (
     <AppShell role="athlete" title="Video-Feedbacks">
-      <div className="max-w-lg mx-auto">
+      <div className="max-w-lg mx-auto flex flex-col gap-4">
+        <ToolIntroVideo athleteId={athlete.id} toolKey="videoFeedbacks" title="Einführung: Video-Feedbacks" position="top" seenToolIntros={athlete.seenToolIntros} />
         <VideoFeedbackOverview athleteId={athlete.id} />
+        <ToolIntroVideo athleteId={athlete.id} toolKey="videoFeedbacks" title="Einführung: Video-Feedbacks" position="bottom" seenToolIntros={athlete.seenToolIntros} />
       </div>
     </AppShell>
   );
