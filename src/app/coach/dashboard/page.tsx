@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { loadAuth, loadAthletes, loadCheckInDone, setCheckInDone, loadLoginHelpRequests, resolveLoginHelpRequest, deleteLoginHelpRequest, approvePlanChangeRequest, rejectPlanChangeRequest } from "@/lib/store";
+import { loadAuth, loadAthletes, loadCheckInDone, setCheckInDone, loadLoginHelpRequests, resolveLoginHelpRequest, deleteLoginHelpRequest, approvePlanChangeRequest, rejectPlanChangeRequest, markAthleteSignupSeen } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { Athlete, LoginHelpRequest, PlanChangeRequest } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
@@ -131,12 +131,14 @@ export default function CoachDashboard() {
   }, [athletes, isLoaded]);
 
   const sortedAthletes = useMemo(() => {
-    const pending = athletesWithStatus
+    const newSignups = athletesWithStatus.filter((s) => s.athlete.isNewSignup);
+    const rest = athletesWithStatus.filter((s) => !s.athlete.isNewSignup);
+    const pending = rest
       .filter((s) => s.hasPendingCheckIn)
       .sort((a, b) => a.mostRecentCheckInDate.localeCompare(b.mostRecentCheckInDate));
-    const todayDone = athletesWithStatus.filter((s) => s.isCheckInToday && s.isDone);
-    const others = athletesWithStatus.filter((s) => !s.hasPendingCheckIn && !s.isCheckInToday);
-    return [...pending, ...todayDone, ...others];
+    const todayDone = rest.filter((s) => s.isCheckInToday && s.isDone);
+    const others = rest.filter((s) => !s.hasPendingCheckIn && !s.isCheckInToday);
+    return [...newSignups, ...pending, ...todayDone, ...others];
   }, [athletesWithStatus]);
 
   const handleToggleDone = useCallback((athleteId: string, date: string) => {
@@ -158,6 +160,15 @@ export default function CoachDashboard() {
       showToast("Check-in konnte nicht aktualisiert werden.", "error");
     }
   }, [checkInDone]);
+
+  const handleSignupSeen = useCallback(async (athleteId: string) => {
+    setAthletes((prev) => prev.map((a) => a.id === athleteId ? { ...a, isNewSignup: undefined } : a));
+    try {
+      await markAthleteSignupSeen(athleteId);
+    } catch {
+      setAthletes((prev) => prev.map((a) => a.id === athleteId ? { ...a, isNewSignup: true } : a));
+    }
+  }, []);
 
   async function handleApprovePlanChange() {
     if (!reviewState) return;
@@ -337,6 +348,8 @@ export default function CoachDashboard() {
                   ? () => handleToggleDone(s.athlete.id, s.mostRecentCheckInDate)
                   : undefined}
                 onReviewPlanChange={(req) => setReviewState({ athlete: s.athlete, request: req })}
+                isNewSignup={!!s.athlete.isNewSignup}
+                onSignupSeen={s.athlete.isNewSignup ? () => handleSignupSeen(s.athlete.id) : undefined}
               />
             </motion.div>
           ))}

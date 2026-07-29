@@ -42,9 +42,11 @@ interface AthleteCardProps {
   completedAt?: string;
   onToggleDone?: () => void;
   onReviewPlanChange?: (request: PlanChangeRequest) => void;
+  isNewSignup?: boolean;
+  onSignupSeen?: () => void;
 }
 
-export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCheckIn, completedAt, onToggleDone, onReviewPlanChange }: AthleteCardProps) {
+export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCheckIn, completedAt, onToggleDone, onReviewPlanChange, isNewSignup, onSignupSeen }: AthleteCardProps) {
   const router = useRouter();
   const today = new Date().toISOString().slice(0, 10);
   const analysis = analyzeWeek(athlete);
@@ -68,11 +70,14 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
     today,
   });
 
-  const isOrange = status === "checkin-open";
-  const isYellow = status === "checkin-done-task-open" || status === "task-open";
-  const isGreen = status === "checkin-done";
+  const isRed = !!isNewSignup;
+  const isOrange = !isRed && status === "checkin-open";
+  const isYellow = !isRed && (status === "checkin-done-task-open" || status === "task-open");
+  const isGreen = !isRed && status === "checkin-done";
 
-  const cardBg = isOrange
+  const cardBg = isRed
+    ? "bg-[#1a0505] border-[#ef4444]/30"
+    : isOrange
     ? "bg-[#1a1300] border-[#f59e0b]/25"
     : isYellow
     ? "bg-[#1a1200] border-[#eab308]/25"
@@ -80,7 +85,9 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
     ? "bg-[#0d1a14] border-[#10b981]/25"
     : "bg-[#141d2e] border-[#1e2d42]";
 
-  const avatarBg = isOrange
+  const avatarBg = isRed
+    ? "bg-[#ef4444]/15 text-[#ef4444]"
+    : isOrange
     ? "bg-[#f59e0b]/15 text-[#f59e0b]"
     : isYellow
     ? "bg-[#eab308]/15 text-[#eab308]"
@@ -88,7 +95,9 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
     ? "bg-[#10b981]/15 text-[#10b981]"
     : "bg-[#1d4ed8]/20 text-[#60a5fa]";
 
-  const accentBorderColor = isGreen
+  const accentBorderColor = isRed
+    ? "border-[#ef4444]/15"
+    : isGreen
     ? "border-[#10b981]/15"
     : isYellow
     ? "border-[#eab308]/10"
@@ -115,7 +124,7 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
     >
       {/* Clickable area → athlete detail */}
       <button
-        onClick={() => router.push(`/coach/athlete/${athlete.id}`)}
+        onClick={() => { onSignupSeen?.(); router.push(`/coach/athlete/${athlete.id}`); }}
         className="w-full text-left group"
       >
         {/* Header */}
@@ -139,7 +148,12 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            {(hasPendingCheckIn || isCheckInToday || isCompletedToday) && (
+            {isRed && (
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-[#ef4444]/10 text-[#f87171] border-[#ef4444]/25">
+                Neue Anmeldung
+              </span>
+            )}
+            {!isRed && (hasPendingCheckIn || isCheckInToday || isCompletedToday) && (
               <span className={cn(
                 "text-[10px] font-medium px-2 py-0.5 rounded-full border",
                 isGreen

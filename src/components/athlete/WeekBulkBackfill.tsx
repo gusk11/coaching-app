@@ -222,7 +222,6 @@ function DayRow({ day, weekday, dateStr, isToday, field, currentValue, isSaving,
 
 export function WeekBulkBackfill({ athlete, onUpdate }: Props) {
   const [isOpen, setIsOpen] = useState(false);
-  const [timeRange, setTimeRange] = useState<7 | 14>(7);
   const [selectedKey, setSelectedKey] = useState<string>("steps");
   const [savingDays, setSavingDays] = useState<Set<string>>(new Set());
   const [savedDays, setSavedDays] = useState<Set<string>>(new Set());
@@ -237,13 +236,18 @@ export function WeekBulkBackfill({ athlete, onUpdate }: Props) {
 
   const days = useMemo(() => {
     const result: string[] = [];
-    for (let i = timeRange - 1; i >= 0; i--) {
+    for (let i = 19; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       result.push(d.toISOString().split("T")[0]);
     }
     return result;
-  }, [timeRange]);
+  }, []);
+
+  const [selectedDay, setSelectedDay] = useState<string>(today);
+
+  const row1 = days.slice(0, 10);
+  const row2 = days.slice(10);
 
   function getCI(date: string) {
     return athlete.dailyCheckIns.find((ci) => ci.date === date);
@@ -318,49 +322,74 @@ export function WeekBulkBackfill({ athlete, onUpdate }: Props) {
 
       {isOpen && (
         <div className="border-t border-[#1e2d42] p-4 flex flex-col gap-3">
-          {/* Controls */}
-          <div className="flex gap-2">
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(Number(e.target.value) as 7 | 14)}
-              className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
-            >
-              <option value={7}>Letzte 7 Tage</option>
-              <option value={14}>Letzte 14 Tage</option>
-            </select>
-            <select
-              value={selectedKey}
-              onChange={(e) => setSelectedKey(e.target.value)}
-              className="flex-1 bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
-            >
-              {enabledFields.map((f) => (
-                <option key={String(f.key)} value={String(f.key)}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
+          {/* Field selector */}
+          <select
+            value={selectedKey}
+            onChange={(e) => setSelectedKey(e.target.value)}
+            className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
+          >
+            {enabledFields.map((f) => (
+              <option key={String(f.key)} value={String(f.key)}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Day tiles — 2 rows of 10 */}
+          <div className="flex flex-col gap-1">
+            {[row1, row2].map((row, ri) => (
+              <div key={ri} className="grid grid-cols-10 gap-1">
+                {row.map((day) => {
+                  const d = new Date(day + "T12:00:00");
+                  const isToday = day === today;
+                  const isSelected = day === selectedDay;
+                  const hasData = getValueForDay(day) !== undefined;
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => setSelectedDay(day)}
+                      className={cn(
+                        "flex flex-col items-center py-1.5 rounded-lg text-center transition-all",
+                        isSelected
+                          ? "bg-[#3b82f6]/20 border border-[#3b82f6]/50"
+                          : isToday
+                          ? "bg-[#0f1a2e] border border-[#3b82f6]/20"
+                          : "bg-[#0a1018] border border-transparent hover:border-[#1e2d42]"
+                      )}
+                    >
+                      <span className={cn("text-[9px] font-medium leading-tight", isToday ? "text-[#60a5fa]" : "text-[#5a7090]")}>
+                        {d.toLocaleDateString("de-DE", { weekday: "short" })}
+                      </span>
+                      <span className="text-[9px] text-[#3d5269] leading-tight">
+                        {d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}
+                      </span>
+                      {hasData && <div className="w-1 h-1 rounded-full bg-[#10b981]/60 mt-0.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
 
-          {/* Day rows */}
-          <div className="flex flex-col gap-1">
-            {days.map((day) => {
-              const d = new Date(day + "T12:00:00");
-              return (
-                <DayRow
-                  key={`${day}-${selectedField?.key}`}
-                  day={day}
-                  weekday={d.toLocaleDateString("de-DE", { weekday: "short" })}
-                  dateStr={d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}
-                  isToday={day === today}
-                  field={selectedField!}
-                  currentValue={getValueForDay(day)}
-                  isSaving={savingDays.has(day)}
-                  justSaved={savedDays.has(day)}
-                  onSave={(value) => saveForDay(day, value)}
-                />
-              );
-            })}
-          </div>
+          {/* Edit row for selected day */}
+          {selectedDay && selectedField && (() => {
+            const d = new Date(selectedDay + "T12:00:00");
+            return (
+              <DayRow
+                key={`${selectedDay}-${selectedField.key}`}
+                day={selectedDay}
+                weekday={d.toLocaleDateString("de-DE", { weekday: "short" })}
+                dateStr={d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}
+                isToday={selectedDay === today}
+                field={selectedField}
+                currentValue={getValueForDay(selectedDay)}
+                isSaving={savingDays.has(selectedDay)}
+                justSaved={savedDays.has(selectedDay)}
+                onSave={(value) => saveForDay(selectedDay, value)}
+              />
+            );
+          })()}
 
           <p className="text-[10px] text-[#3d5269] text-center">
             Werte werden sofort gespeichert — kein Speichern-Button nötig.

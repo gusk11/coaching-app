@@ -479,6 +479,12 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
             </div>
           )}
 
+          {/* Notizen-Hinweis */}
+          <div className="flex items-start gap-2 rounded-xl bg-[#0f1624] border border-[#1e2d42] px-3 py-2.5">
+            <Info size={13} className="text-[#5a7090] shrink-0 mt-0.5" />
+            <p className="text-xs text-[#5a7090]">Klicke auf die <span className="text-[#8fa3c0] font-medium">drei Punkte</span>, um Notizen zu Übungen hinzuzufügen.</p>
+          </div>
+
           {/* Timer-Leiste */}
           <div className={cn(
             "rounded-xl border px-4 py-3 flex items-center justify-between transition-colors",

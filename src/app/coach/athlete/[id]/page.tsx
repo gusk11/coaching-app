@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile, approvePlanChangeRequest, rejectPlanChangeRequest, saveTrainingPlanEntry, saveSupplementPlanEntry, toggleMealPlanActive, toggleTrainingPlanActive, toggleSupplementPlanActive } from "@/lib/store";
+import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile, approvePlanChangeRequest, rejectPlanChangeRequest, saveTrainingPlanEntry, saveSupplementPlanEntry, toggleMealPlanActive, toggleTrainingPlanActive, toggleSupplementPlanActive, exportAthleteQuestionnaireData } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { Athlete, AthleteProfile, GoalType, MealPlan, TrainingPlan, SupplementPlan, PlanChangeRequest } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
@@ -26,7 +26,7 @@ import {
   getGoalLabel, getGoalColor, getTrendIcon, getTrendColor, normalizeNutritionStatus, resolveAthleteWeight,
 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Pencil, Check, X, Trash2, ChevronDown } from "lucide-react";
+import { ArrowLeft, Pencil, Check, X, Trash2, ChevronDown, Download } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition, listContainer, listItem } from "@/lib/motion";
@@ -373,6 +373,21 @@ export default function CoachAthletePage() {
     } catch {
       setAthlete(previous);
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
+  }
+
+  async function handleDownloadQuestionnaire() {
+    try {
+      const data = await exportAthleteQuestionnaireData(athlete!.id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fragebogen_${athlete!.name.replace(/\s+/g, "_")}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      showToast("Export fehlgeschlagen.", "error");
     }
   }
 
@@ -780,6 +795,18 @@ export default function CoachAthletePage() {
                 </div>
               );
             })()}
+
+            {/* Fragebogen-Download */}
+            {athlete.profile && (
+              <button
+                type="button"
+                onClick={handleDownloadQuestionnaire}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#141d2e] border border-[#1e2d42] text-xs font-medium text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa] transition-colors self-start"
+              >
+                <Download size={13} />
+                Fragebogen als JSON herunterladen
+              </button>
+            )}
 
             {/* Athlete profile (formerly own tab) */}
             <AthleteProfileEditor

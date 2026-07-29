@@ -11,6 +11,7 @@ import {
   FoodItem, SupplementDBItem, ExerciseDBItem, GoalType,
   DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest, VideoFeedback,
   PlanChangeRequest, TrainingPlan, MealPlan, SupplementPlan, MaintenanceMode,
+  OnboardingCode,
 } from "@/types";
 import { TrainingPlanSchema, MealPlanSchema, SupplementPlanSchema } from "@/lib/planSchemas";
 import { getCheckInWeekStart } from "@/lib/utils";
@@ -27,10 +28,11 @@ function rowToAthlete(row: any): Athlete {
   const rawProfile = row.profile ?? undefined;
   const legalConsent: LegalConsent | undefined = rawProfile?.__lc ?? undefined;
   const introVideoSeen: boolean = rawProfile?.__ivs === true;
+  const isNewSignup: boolean | undefined = rawProfile?.__ns === true ? true : undefined;
   let profile: AthleteProfile | undefined;
   if (rawProfile) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { __lc, __ivs, ...rest } = rawProfile;
+    const { __lc, __ivs, __ns, ...rest } = rawProfile;
     profile = Object.keys(rest).length ? (rest as AthleteProfile) : undefined;
   }
   return {
@@ -42,6 +44,7 @@ function rowToAthlete(row: any): Athlete {
     avatarInitials: row.avatar_initials ?? "",
     onboardingCompleted: row.onboarding_completed ?? false,
     introVideoSeen,
+    isNewSignup,
     legalConsent,
     profile,
     profileImage: row.profile_image ?? undefined,
@@ -87,6 +90,7 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
     ...(a.profile ?? {}),
     ...(a.legalConsent ? { __lc: a.legalConsent } : {}),
     ...(a.introVideoSeen ? { __ivs: true } : {}),
+    ...(a.isNewSignup ? { __ns: true } : {}),
   };
   const profileOrNull = Object.keys(profileWithLegal).length ? profileWithLegal : null;
   return {
@@ -280,11 +284,17 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   if ("pin" in updates) row.pin = updates.pin;
   if ("avatarInitials" in updates) row.avatar_initials = updates.avatarInitials ?? null;
   if ("onboardingCompleted" in updates) row.onboarding_completed = updates.onboardingCompleted;
-  if ("legalConsent" in updates || "profile" in updates) {
-    // Merge legalConsent back into profile JSONB
+  if ("legalConsent" in updates || "profile" in updates || "isNewSignup" in updates) {
+    // Merge legalConsent / isNewSignup back into profile JSONB
     const p = updates.profile ?? undefined;
     const lc = updates.legalConsent ?? undefined;
-    row.profile = lc ? { ...(p ?? {}), __lc: lc } : (p ?? null);
+    const ns = updates.isNewSignup;
+    const merged = {
+      ...(p ?? {}),
+      ...(lc ? { __lc: lc } : {}),
+      ...(ns ? { __ns: true } : {}),
+    };
+    row.profile = Object.keys(merged).length ? merged : null;
   }
   if ("profileImage" in updates) row.profile_image = updates.profileImage ?? null;
   if ("startWeight" in updates) row.start_weight = updates.startWeight ?? null;
@@ -384,8 +394,9 @@ export async function registerAthlete(data: RegistrationData): Promise<Athlete> 
     athleteNumber,
     avatarInitials: getInitials(data.name),
     onboardingCompleted: true,
+    isNewSignup: true,
     legalConsent: data.legalConsent,
-    profile: { ...data.profile, personal: { email: data.email.toLowerCase().trim(), birthDate: data.birthDate } },
+    profile: { ...data.profile, personal: { email: data.email.toLowerCase().trim(), birthDate: data.birthDate || undefined } },
     startWeight: weight,
     currentWeight: weight,
     targetWeight: data.targetWeight ?? weight,
@@ -1560,4 +1571,75 @@ export async function setMaintenanceMode(m: MaintenanceMode): Promise<void> {
     message: m.message ?? null,
   });
   if (error) throw error;
+}
+
+// ─── Onboarding Codes ─────────────────────────────────────────────────────────
+
+export async function createOnboardingCode(code: string): Promise<OnboardingCode> {
+  const id = `oc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const createdAt = new Date().toISOString();
+  const { error } = await supabase.from("onboarding_codes").insert({ id, code, created_at: createdAt });
+  if (error) throw error;
+  return { id, code, createdAt };
+}
+
+export async function validateOnboardingCode(code: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("onboarding_codes")
+    .select("id")
+    .ilike("code", code)
+    .maybeSingle();
+  if (error) throw error;
+  return data !== null;
+}
+
+export async function markAthleteSignupSeen(athleteId: string): Promise<void> {
+  const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
+  // Remove __ns flag — athlete has acknowledged the new-signup state
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { __ns, ...rest } = row?.profile ?? {};
+  const merged = Object.keys(rest).length ? rest : null;
+  const { error } = await supabase.from("athletes")
+    .update({ profile: merged, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+}
+
+export async function exportAthleteQuestionnaireData(athleteId: string): Promise<object> {
+  const athlete = await getAthlete(athleteId);
+  const p = athlete.profile ?? {};
+  return {
+    meta: {
+      athleteId: athlete.id,
+      name: athlete.name,
+      email: athlete.email ?? p.personal?.email,
+      joinedAt: athlete.joinedAt,
+      startDate: athlete.startDate,
+    },
+    basics: {
+      startWeight: athlete.startWeight,
+      currentWeight: athlete.currentWeight,
+      targetWeight: athlete.targetWeight,
+      goalType: athlete.goalType,
+      goalText: athlete.goalText,
+      checkInDay: athlete.checkInDay,
+      experienceLevel: athlete.experienceLevel,
+      injuries: athlete.injuries,
+      trainingHistory: athlete.trainingHistory,
+      specialNotes: athlete.specialNotes,
+    },
+    personal: p.personal ?? null,
+    body: p.body ?? null,
+    lifestyle: p.lifestyle ?? null,
+    recovery: p.recovery ?? null,
+    health: p.health ?? null,
+    nutrition: p.nutrition ?? null,
+    foodPreferences: p.foodPreferences ?? null,
+    supplements: p.supplements ?? null,
+    training: p.training ?? null,
+    availability: p.availability ?? null,
+    goals: p.goals ?? null,
+    coachingPreferences: p.coachingPreferences ?? null,
+    finalNotes: p.finalNotes ?? null,
+  };
 }

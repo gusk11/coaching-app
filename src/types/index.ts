@@ -487,6 +487,7 @@ export interface Athlete {
   avatarInitials: string;
   onboardingCompleted?: boolean;
   introVideoSeen?: boolean;
+  isNewSignup?: boolean;
   legalConsent?: LegalConsent;
   profile?: AthleteProfile;
   /** Optional profile image — base64 dataUrl locally; swap url for remote URL when connecting cloud storage */
@@ -662,4 +663,10 @@ export interface MaintenanceMode {
   startTime: string;
   endTime: string;
   message?: string;
+}
+
+export interface OnboardingCode {
+  id: string;
+  code: string;
+  createdAt: string;
 }

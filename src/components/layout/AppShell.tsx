@@ -5,19 +5,24 @@ import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import {
   LayoutDashboard, Dumbbell,
-  ClipboardCheck, Users, Database, LogOut, ChevronRight,
-  Salad, User, Video, Wrench,
+  ClipboardCheck, Users, Database, LogOut, ChevronRight, ChevronLeft,
+  Salad, User, Video, Wrench, KeyRound, Settings,
 } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { pageTransition } from "@/lib/motion";
 import { isCheckInDay, getCheckInWeekStart, todayISO } from "@/lib/utils";
 import { isToolIntroSeen } from "@/lib/toolIntros";
+import { MaintenanceEditor } from "@/components/coach/MaintenanceEditor";
+import { OnboardingCodeManager } from "@/components/coach/OnboardingCodeManager";
+
+type SystemView = "root" | "maintenance" | "onboarding";
 
 interface NavItem {
   label: string;
   href: string;
   icon: ReactNode;
   toolIntroKey?: string;
+  panelKey?: string;
 }
 
 const athleteNav: NavItem[] = [
@@ -33,7 +38,7 @@ const coachNav: NavItem[] = [
   { label: "Athletenübersicht", href: "/coach/dashboard", icon: <Users size={20} /> },
   { label: "Datenbanken", href: "/coach/databases", icon: <Database size={20} /> },
   { label: "Video Feedbacks", href: "/coach/video-feedbacks", icon: <Video size={20} /> },
-  { label: "Wartungsarbeiten", href: "/coach/maintenance", icon: <Wrench size={20} /> },
+  { label: "System", href: "/coach/system", icon: <Settings size={20} />, panelKey: "system" },
 ];
 
 function NavItemButton({
@@ -105,6 +110,88 @@ function NavItemButton({
   );
 }
 
+// ─── System Panel ─────────────────────────────────────────────────────────────
+
+const SYSTEM_ITEMS = [
+  { key: "maintenance" as const, label: "Wartungsarbeiten", icon: <Wrench size={18} />, sub: "Athleten-Login blockieren" },
+  { key: "onboarding" as const, label: "Onboarding", icon: <KeyRound size={18} />, sub: "Onboarding-Codes erstellen" },
+];
+
+const SYSTEM_SUBS: Record<SystemView, string> = {
+  root: "",
+  maintenance: "Blockiert den Athleten-Login und das Onboarding während der Wartung.",
+  onboarding: "Erstelle Codes für das Athleten-Onboarding.",
+};
+
+function SystemPanel({
+  view,
+  setView,
+}: {
+  view: SystemView;
+  setView: (v: SystemView | null) => void;
+}) {
+  if (view === "root") {
+    return (
+      <div className="max-w-lg mx-auto flex flex-col gap-6 py-6 px-4">
+        <button
+          type="button"
+          onClick={() => setView(null)}
+          className="flex items-center gap-1.5 text-sm text-[#5a7090] hover:text-[#f0f4ff] transition-colors self-start"
+        >
+          <ChevronLeft size={16} />
+          Zurück
+        </button>
+        <div>
+          <h1 className="text-lg font-semibold text-[#f0f4ff]">System</h1>
+          <p className="text-xs text-[#5a7090] mt-1">Verwaltungseinstellungen</p>
+        </div>
+        <div className="flex flex-col gap-3">
+          {SYSTEM_ITEMS.map(({ key, label, icon, sub }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setView(key)}
+              className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 flex items-center justify-between hover:bg-[#1a2438] transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-[#5a7090]">{icon}</span>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-[#f0f4ff]">{label}</p>
+                  <p className="text-xs text-[#5a7090] mt-0.5">{sub}</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-[#5a7090]" />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-lg mx-auto flex flex-col gap-6 py-6 px-4">
+      <button
+        type="button"
+        onClick={() => setView("root")}
+        className="flex items-center gap-1.5 text-sm text-[#5a7090] hover:text-[#f0f4ff] transition-colors self-start"
+      >
+        <ChevronLeft size={16} />
+        System
+      </button>
+      <div>
+        <h1 className="text-lg font-semibold text-[#f0f4ff]">
+          {view === "maintenance" ? "Wartungsarbeiten" : "Onboarding"}
+        </h1>
+        <p className="text-xs text-[#5a7090] mt-1">{SYSTEM_SUBS[view]}</p>
+      </div>
+      {view === "maintenance" && <MaintenanceEditor />}
+      {view === "onboarding" && <OnboardingCodeManager />}
+    </div>
+  );
+}
+
+// ─── Shell ────────────────────────────────────────────────────────────────────
+
 interface AppShellProps {
   children: ReactNode;
   role: "athlete" | "coach";
@@ -119,6 +206,9 @@ export function AppShell({ children, role, title }: AppShellProps) {
   const [hasPendingIntroVideo, setHasPendingIntroVideo] = useState(false);
   const [openLoginHelpCount, setOpenLoginHelpCount] = useState(0);
   const [unseenToolIntros, setUnseenToolIntros] = useState<Set<string>>(new Set());
+  const [systemView, setSystemView] = useState<SystemView | null>(null);
+
+  useEffect(() => { setSystemView(null); }, [pathname]);
 
   useEffect(() => {
     if (role !== "athlete") return;
@@ -193,7 +283,9 @@ export function AppShell({ children, role, title }: AppShellProps) {
 
           <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto">
             {nav.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(item.href + "/");
+              const active = item.panelKey
+                ? systemView !== null
+                : pathname === item.href || pathname.startsWith(item.href + "/");
               const showPending = !active && role === "athlete" && (
                 (item.href === "/athlete/checkins" && hasPendingCheckins) ||
                 !!(item.toolIntroKey && unseenToolIntros.has(item.toolIntroKey))
@@ -213,7 +305,7 @@ export function AppShell({ children, role, title }: AppShellProps) {
                   showPending={showPending}
                   alertCount={alertCount}
                   variant="desktop"
-                  onClick={() => router.push(item.href)}
+                  onClick={() => item.panelKey ? setSystemView("root") : router.push(item.href)}
                 />
               );
             })}
@@ -254,11 +346,13 @@ export function AppShell({ children, role, title }: AppShellProps) {
 
             <nav className="flex overflow-x-auto px-3 pb-2.5 gap-1 scrollbar-none" aria-label="Hauptnavigation">
               {nav.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                const active = item.panelKey
+                  ? systemView !== null
+                  : pathname === item.href || pathname.startsWith(item.href + "/");
                 const showPending = !active && role === "athlete" && (
-                (item.href === "/athlete/checkins" && hasPendingCheckins) ||
-                !!(item.toolIntroKey && unseenToolIntros.has(item.toolIntroKey))
-              );
+                  (item.href === "/athlete/checkins" && hasPendingCheckins) ||
+                  !!(item.toolIntroKey && unseenToolIntros.has(item.toolIntroKey))
+                );
                 const alertCount = !active
                   ? role === "coach" && item.href === "/coach/dashboard"
                     ? openLoginHelpCount
@@ -274,15 +368,15 @@ export function AppShell({ children, role, title }: AppShellProps) {
                     showPending={showPending}
                     alertCount={alertCount}
                     variant="mobile"
-                    onClick={() => router.push(item.href)}
+                    onClick={() => item.panelKey ? setSystemView("root") : router.push(item.href)}
                   />
                 );
               })}
             </nav>
           </div>
 
-          {/* Desktop-only title bar */}
-          {title && (
+          {/* Desktop-only title bar — hidden when system panel is open (panel has its own heading) */}
+          {title && !systemView && (
             <header className="hidden md:flex shrink-0 px-6 py-4 border-b border-[#1e2d42] bg-[#0f1624] items-center gap-3">
               <h1 className="text-lg font-semibold text-[#f0f4ff]">{title}</h1>
             </header>
@@ -290,16 +384,29 @@ export function AppShell({ children, role, title }: AppShellProps) {
 
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={pathname}
-                variants={pageTransition}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                className="p-4 md:p-6 min-h-full w-full max-w-full"
-              >
-                {children}
-              </motion.div>
+              {systemView ? (
+                <motion.div
+                  key={systemView}
+                  variants={pageTransition}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="min-h-full w-full max-w-full"
+                >
+                  <SystemPanel view={systemView} setView={setSystemView} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={pathname}
+                  variants={pageTransition}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="p-4 md:p-6 min-h-full w-full max-w-full"
+                >
+                  {children}
+                </motion.div>
+              )}
             </AnimatePresence>
           </div>
         </main>
