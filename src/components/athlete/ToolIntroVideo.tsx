@@ -1,11 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
 import { PlayCircle, X, RefreshCw } from "lucide-react";
-import { isToolIntroSeen, markToolIntroSeen, INTRO_VIDEO_URL } from "@/lib/toolIntros";
+import { isToolIntroSeen, markToolIntroSeen, TOOL_INTRO_VIDEOS } from "@/lib/toolIntros";
 
 function getEmbedUrl(url: string): string {
-  const m = url.match(/[?&]v=([^&]+)/);
-  return m ? `https://www.youtube.com/embed/${m[1]}?autoplay=1` : url;
+  const shortM = url.match(/youtu\.be\/([^?&]+)/);
+  if (shortM) return `https://www.youtube.com/embed/${shortM[1]}?autoplay=1`;
+  const longM = url.match(/[?&]v=([^&]+)/);
+  return longM ? `https://www.youtube.com/embed/${longM[1]}?autoplay=1` : url;
 }
 
 interface Props {
@@ -85,7 +87,7 @@ export function ToolIntroVideo({ athleteId, toolKey, title, position }: Props) {
               <X size={16} />
             </button>
             <iframe
-              src={getEmbedUrl(INTRO_VIDEO_URL)}
+              src={getEmbedUrl(TOOL_INTRO_VIDEOS[toolKey] ?? "")}
               className="w-full h-full"
               allow="autoplay; encrypted-media; fullscreen"
               allowFullScreen

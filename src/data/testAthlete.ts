@@ -635,6 +635,11 @@ export const testAthlete: Athlete = {
 
   legalConsent: {
     privacyAccepted: true,
+    healthDataConsentAccepted: true,
+    signatureFullName: "Test Athlet",
+    signedAt: "2026-05-19T10:01:00.000Z",
+    documentVersion: "2026-07-29",
+    // legacy fields kept for reference
     privacyAcceptedAt: "2026-05-19T10:00:00.000Z",
     contractAccepted: true,
     contractAcceptedAt: "2026-05-19T10:01:00.000Z",

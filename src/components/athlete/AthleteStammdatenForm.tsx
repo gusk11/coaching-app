@@ -126,30 +126,30 @@ function LegalSection({ consent, coachMode = false }: { consent?: LegalConsent; 
       day: "2-digit", month: "2-digit", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
+  // signedAt is from the new flow; privacyAcceptedAt is the legacy fallback
+  const consentTimestamp = consent.signedAt ?? consent.privacyAcceptedAt;
   return (
     <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
       <SectionHeader>Rechtliches</SectionHeader>
       <DataRow
         label="Datenschutzerklärung"
-        value={consent.privacyAccepted ? `Akzeptiert am ${fmtDate(consent.privacyAcceptedAt)}` : "Nicht akzeptiert"}
+        value={consent.privacyAccepted
+          ? `Akzeptiert${consentTimestamp ? ` am ${fmtDate(consentTimestamp)}` : ""}`
+          : "Nicht akzeptiert"}
       />
       <DataRow
-        label="Coaching-Vertrag"
-        value={consent.contractAccepted ? `Akzeptiert am ${fmtDate(consent.contractAcceptedAt)}` : "Nicht akzeptiert"}
+        label="Einwilligung Gesundheitsdaten"
+        value={consent.healthDataConsentAccepted ? "Erteilt" : (consent.contractAccepted ? "Akzeptiert (Legacy)" : "Nicht erteilt")}
       />
-      <DataRow label="Vertragsversion" value={consent.legalVersion} />
-      {consent.signedName && <DataRow label="Bestätigungsname" value={consent.signedName} />}
+      {(consent.documentVersion ?? consent.legalVersion) && (
+        <DataRow label="Dokumentenversion" value={consent.documentVersion ?? consent.legalVersion ?? ""} />
+      )}
+      {(consent.signatureFullName ?? consent.signedName) && (
+        <DataRow label="Unterschrift" value={consent.signatureFullName ?? consent.signedName ?? ""} />
+      )}
       {coachMode && consent.signatureDataUrl && (
         <div className="flex flex-col gap-1.5 pt-1">
-          <span className="text-xs text-[#5a7090]">Digitale Unterschrift</span>
-          <div className="rounded-xl border border-[#2e4060] bg-[#0a0f1a] overflow-hidden p-2">
-            <img src={consent.signatureDataUrl} alt="Unterschrift" className="max-h-[80px] w-auto" />
-          </div>
-        </div>
-      )}
-      {!coachMode && consent.signatureDataUrl && (
-        <div className="flex flex-col gap-1.5 pt-1">
-          <span className="text-xs text-[#5a7090]">Digitale Unterschrift</span>
+          <span className="text-xs text-[#5a7090]">Digitale Unterschrift (Legacy)</span>
           <div className="rounded-xl border border-[#2e4060] bg-[#0a0f1a] overflow-hidden p-2">
             <img src={consent.signatureDataUrl} alt="Unterschrift" className="max-h-[80px] w-auto" />
           </div>

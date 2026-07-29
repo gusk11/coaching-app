@@ -470,12 +470,17 @@ export interface PlanChangeRequest {
 
 export interface LegalConsent {
   privacyAccepted: boolean;
-  privacyAcceptedAt: string;
-  contractAccepted: boolean;
-  contractAcceptedAt: string;
+  healthDataConsentAccepted: boolean;
+  signatureFullName: string;
+  signedAt: string; // ISO-Timestamp
+  documentVersion: string;
+  // Legacy fields kept for backward compat with pre-2026-07-29 records
+  privacyAcceptedAt?: string;
+  contractAccepted?: boolean;
+  contractAcceptedAt?: string;
   signatureDataUrl?: string;
   signedName?: string;
-  legalVersion: string;
+  legalVersion?: string;
 }
 
 export interface Athlete {

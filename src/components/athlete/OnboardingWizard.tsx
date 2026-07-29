@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { registerAthlete, getMaintenanceMode, validateOnboardingCode } from "@/lib/store";
+import { registerAthlete, getMaintenanceMode, validateOnboardingCode, saveLegalConsent } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight, Check, Play, X } from "lucide-react";
 import { AthleteProfile } from "@/types";
+import { LegalConsentStep, LegalConsentState } from "@/components/athlete/LegalConsentStep";
+import { LEGAL_DOCUMENT_VERSION } from "@/lib/legalTexts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -133,7 +135,7 @@ const STEPS = [
   "Basisdaten", "Alltag & Lifestyle", "Schlaf & Regeneration",
   "Gesundheit", "Ernährung", "Lebensmittel",
   "Supplemente", "Trainingserfahrung", "Verfügbarkeit",
-  "Ziele & Coaching", "Abschluss",
+  "Ziele & Coaching", "Abschluss", "Datenschutz & Einwilligung",
 ];
 
 // Intro-Video: videoUrl setzen sobald vorhanden, sonst Platzhalter
@@ -1061,6 +1063,11 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
   const [introPlaying, setIntroPlaying] = useState(false);
   const [outroPlaying, setOutroPlaying] = useState(false);
   const [completedAthleteId, setCompletedAthleteId] = useState("");
+  const [legalState, setLegalState] = useState<LegalConsentState>({
+    privacyAccepted: false,
+    healthDataConsentAccepted: false,
+    signatureFullName: "",
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const introIframeRef = useRef<HTMLIFrameElement>(null);
   const outroIframeRef = useRef<HTMLIFrameElement>(null);
@@ -1127,6 +1134,11 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
     }
     if (step === 11) {
       if (!data.confirmed) return "Bitte bestätige, dass du die Angaben ausgefüllt hast.";
+    }
+    if (step === 12) {
+      if (!legalState.privacyAccepted) return "Bitte bestätige die Datenschutzerklärung.";
+      if (!legalState.healthDataConsentAccepted) return "Bitte bestätige die Einwilligung zur Verarbeitung von Gesundheitsdaten.";
+      if (!legalState.signatureFullName.trim()) return "Bitte gib deinen vollständigen Namen als elektronische Unterschrift ein.";
     }
     return "";
   }
@@ -1200,6 +1212,13 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
         goalPriorities: data.priorities,
         goalText: data.shortTermGoal || data.longTermGoal || undefined,
         profile: buildProfile(data),
+      });
+      await saveLegalConsent(athlete.id, {
+        privacyAccepted: legalState.privacyAccepted,
+        healthDataConsentAccepted: legalState.healthDataConsentAccepted,
+        signatureFullName: legalState.signatureFullName.trim(),
+        signedAt: now,
+        documentVersion: LEGAL_DOCUMENT_VERSION,
       });
       setCompletedAthleteId(athlete.id);
       setPhase("complete");
@@ -1281,7 +1300,7 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
               style={{ aspectRatio: "9/16" }}>
               <iframe
                 ref={introIframeRef}
-                src="https://www.youtube.com/embed/ElZV49jyn9s?enablejsapi=1"
+                src="https://www.youtube.com/embed/q9VHnyvcYao?enablejsapi=1"
                 title="Onboarding Video – Vorher"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -1325,7 +1344,7 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
               style={{ aspectRatio: "9/16" }}>
               <iframe
                 ref={outroIframeRef}
-                src="https://www.youtube.com/embed/PaQm9oeclJ0?enablejsapi=1"
+                src="https://www.youtube.com/embed/MqGk1ko722o?enablejsapi=1"
                 title="Onboarding Video – Nachher"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -1362,6 +1381,7 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
     <Step9 key={9} d={data} u={update} />,
     <Step10 key={10} d={data} u={update} />,
     <Step11 key={11} d={data} u={update} />,
+    <LegalConsentStep key={12} onChange={setLegalState} />,
   ];
 
   return (
@@ -1409,7 +1429,7 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
             )}
             <button
               onClick={handleNext}
-              disabled={submitting}
+              disabled={submitting || (step === STEPS.length && (!legalState.privacyAccepted || !legalState.healthDataConsentAccepted || !legalState.signatureFullName.trim()))}
               className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {step === STEPS.length

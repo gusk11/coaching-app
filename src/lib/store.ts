@@ -333,6 +333,19 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   return loadAthletes();
 }
 
+export async function saveLegalConsent(
+  athleteId: string,
+  consent: NonNullable<Athlete["legalConsent"]>
+): Promise<void> {
+  const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
+  const merged = { ...(row?.profile ?? {}), __lc: consent };
+  const { error } = await supabase
+    .from("athletes")
+    .update({ profile: merged, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+}
+
 export async function markIntroVideoSeen(athleteId: string): Promise<void> {
   const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
   const merged = { ...(row?.profile ?? {}), __ivs: true };
