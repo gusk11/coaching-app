@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { PRIVACY_POLICY_TEXT, HEALTH_DATA_CONSENT_TEXT } from "@/lib/legalTexts";
 
 export interface LegalConsentState {
@@ -26,28 +25,18 @@ function DocSection({
   checkboxLabel: string;
   onToggle: (v: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   return (
     <div className="rounded-2xl bg-[#0f1624] border border-[#1e2d42] overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-3.5 text-left gap-3"
-      >
+      <div className="px-4 py-3.5">
         <span className="text-sm font-medium text-[#f0f4ff]">{title}</span>
-        {open
-          ? <ChevronUp size={16} className="text-[#5a7090] shrink-0" />
-          : <ChevronDown size={16} className="text-[#5a7090] shrink-0" />}
-      </button>
-      {open && (
-        <div className="border-t border-[#1e2d42]">
-          <div className="h-64 overflow-y-auto px-4 py-3">
-            <pre className="text-xs text-[#8fa3c0] whitespace-pre-wrap font-sans leading-relaxed">
-              {text}
-            </pre>
-          </div>
+      </div>
+      <div className="border-t border-[#1e2d42]">
+        <div className="h-64 overflow-y-auto px-4 py-3">
+          <pre className="text-xs text-[#8fa3c0] whitespace-pre-wrap font-sans leading-relaxed">
+            {text}
+          </pre>
         </div>
-      )}
+      </div>
       <div className="border-t border-[#1e2d42] px-4 py-3">
         <label className="flex items-start gap-3 cursor-pointer">
           <input
@@ -81,7 +70,7 @@ export function LegalConsentStep({ onChange }: Props) {
       <div>
         <p className="text-sm font-semibold text-[#f0f4ff]">Rechtliche Dokumente</p>
         <p className="text-xs text-[#5a7090] mt-1">
-          Bitte lies die folgenden Dokumente und bestätige deine Zustimmung. Klappe die Abschnitte auf, um den vollständigen Text zu lesen.
+          Bitte lies die folgenden Dokumente und bestätige deine Zustimmung.
         </p>
       </div>
 
