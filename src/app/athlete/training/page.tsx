@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Athlete } from "@/types";
-import { loadAuth, loadAthletes, saveTrainingLog, loadVideoFeedbacks, markVideoFeedbackSeen, setActiveTrainingPlan } from "@/lib/store";
+import { Athlete, TrainingPlan, TrainingLog } from "@/types";
+import { loadAuth, loadAthletes, saveTrainingLog, loadVideoFeedbacks, markVideoFeedbackSeen, setActiveTrainingPlan, buildRepeatSession, saveActiveSession } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { AppShell } from "@/components/layout/AppShell";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
@@ -75,6 +75,23 @@ export default function AthleteTraining() {
     } catch { /* ignore */ }
   }
 
+  function handlePlanReordered(updatedPlan: TrainingPlan) {
+    setAthlete((prev) => {
+      if (!prev) return prev;
+      const trainingPlans = (prev.trainingPlans ?? (prev.trainingPlan ? [prev.trainingPlan] : [])).map(
+        (p) => (p.id === updatedPlan.id ? updatedPlan : p)
+      );
+      return { ...prev, trainingPlan: updatedPlan, trainingPlans };
+    });
+  }
+
+  function handleRepeatLog(log: TrainingLog) {
+    if (!athlete) return;
+    const session = buildRepeatSession(athlete.id, log, today);
+    saveActiveSession(session);
+    setTab("log");
+  }
+
   const tabs: { key: Tab; label: string }[] = [
     { key: "log", label: "Training tracken" },
     { key: "plan", label: "Trainingsplan" },
@@ -122,6 +139,7 @@ export default function AthleteTraining() {
                   today={today}
                   athleteId={athlete.id}
                   onSave={handleSaveLog}
+                  onPlanReordered={handlePlanReordered}
                   videoFeedbacks={videoFeedbacks}
                 />
               ) : noplan}
@@ -149,7 +167,7 @@ export default function AthleteTraining() {
 
           {tab === "progress" && (
             <motion.div key="progress" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit">
-              <TrainingProgressView athlete={athlete} onUpdate={handleUpdateLogs} />
+              <TrainingProgressView athlete={athlete} onUpdate={handleUpdateLogs} onRepeatLog={handleRepeatLog} />
             </motion.div>
           )}
 

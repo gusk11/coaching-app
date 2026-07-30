@@ -8,9 +8,10 @@ import {
   ActiveSession,
   loadExerciseDB,
   addExerciseDBItem,
+  reorderTrainingDayExercises,
 } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search, MoreVertical, FileText, Pin, Hourglass, ChevronLeft, ChevronRight, ExternalLink, Info } from "lucide-react";
+import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search, MoreVertical, FileText, Pin, Hourglass, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ExternalLink, Info } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 import { SliderInput } from "@/components/ui/SliderInput";
@@ -21,6 +22,7 @@ interface Props {
   today: string;
   athleteId: string;
   onSave: (log: Omit<TrainingLog, "id" | "athleteId">) => void;
+  onPlanReordered?: (plan: TrainingPlan) => void;
   videoFeedbacks?: VideoFeedback[];
 }
 
@@ -162,7 +164,7 @@ function getPersistentExerciseNote(logs: TrainingLog[], exerciseId: string, exer
 }
 
 // ─── Haupt-Logger ──────────────────────────────────────────────────────────────
-export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, onSave, videoFeedbacks = [] }: Props) {
+export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, onSave, onPlanReordered, videoFeedbacks = [] }: Props) {
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedDayId, setSelectedDayId] = useState(trainingPlan.days[0]?.id ?? "");
@@ -395,6 +397,26 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
     setRemoveConfirmIdx(null);
   }
 
+  async function handleReorderExercise(exIdx: number, direction: "up" | "down") {
+    if (!session) return;
+    const ex = session.exercises[exIdx];
+    updateExercises((prev) => {
+      const next = [...prev];
+      const swapWith = direction === "up" ? exIdx - 1 : exIdx + 1;
+      if (swapWith < 0 || swapWith >= next.length) return prev;
+      [next[exIdx], next[swapWith]] = [next[swapWith], next[exIdx]];
+      return next;
+    });
+    if (!ex.addedByAthlete) {
+      try {
+        const updatedPlan = await reorderTrainingDayExercises(
+          athleteId, trainingPlan.id, session.trainingDayId, ex.exerciseId, direction
+        );
+        onPlanReordered?.(updatedPlan);
+      } catch { /* local reorder already applied; plan update non-critical */ }
+    }
+  }
+
   function addExerciseFromDB(item: ExerciseDBItem) {
     const exerciseId = `ex-adhoc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const isUnilateral = (item.laterality ?? "bilateral") === "unilateral";
@@ -565,6 +587,32 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0 mt-0.5 relative">
+                    {/* Reorder buttons */}
+                    <div className="flex flex-col">
+                      <Tooltip label="Nach oben">
+                        <button type="button"
+                          onClick={() => handleReorderExercise(exIdx, "up")}
+                          aria-label="Übung nach oben"
+                          className={cn(
+                            "p-0.5 rounded text-[#5a7090] hover:text-[#f0f4ff] hover:bg-[#1e2d42] transition-colors",
+                            exIdx === 0 && "invisible pointer-events-none"
+                          )}>
+                          <ChevronUp size={12} />
+                        </button>
+                      </Tooltip>
+                      <Tooltip label="Nach unten">
+                        <button type="button"
+                          onClick={() => handleReorderExercise(exIdx, "down")}
+                          aria-label="Übung nach unten"
+                          className={cn(
+                            "p-0.5 rounded text-[#5a7090] hover:text-[#f0f4ff] hover:bg-[#1e2d42] transition-colors",
+                            exIdx === session.exercises.length - 1 && "invisible pointer-events-none"
+                          )}>
+                          <ChevronDown size={12} />
+                        </button>
+                      </Tooltip>
+                    </div>
+
                     <Tooltip label="Notizen">
                       <button type="button"
                         onClick={() => setNoteMenuOpenId(noteMenuOpenId === ex.exerciseId ? null : ex.exerciseId)}

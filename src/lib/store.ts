@@ -1462,6 +1462,80 @@ export function getExercisesFromAthleteTrainingPlan(
   return result.sort((a, b) => a.name.localeCompare(b.name, "de"));
 }
 
+// ─── Training: Exercise Reorder ───────────────────────────────────────────────
+
+export async function reorderTrainingDayExercises(
+  athleteId: string,
+  planId: string,
+  dayId: string,
+  exerciseId: string,
+  direction: "up" | "down"
+): Promise<TrainingPlan> {
+  const a = await getAthlete(athleteId);
+  const allPlans = a.trainingPlans ?? (a.trainingPlan ? [a.trainingPlan] : []);
+  const planIdx = allPlans.findIndex((p) => p.id === planId);
+  if (planIdx === -1) throw new Error("Plan not found");
+
+  const plan = allPlans[planIdx];
+  const dayIdx = plan.days.findIndex((d) => d.id === dayId);
+  if (dayIdx === -1) throw new Error("Day not found");
+
+  const exercises = [...plan.days[dayIdx].exercises];
+  const exIdx = exercises.findIndex((e) => e.id === exerciseId);
+  if (exIdx === -1) throw new Error("Exercise not found");
+
+  const swapWith = direction === "up" ? exIdx - 1 : exIdx + 1;
+  if (swapWith < 0 || swapWith >= exercises.length) return plan;
+
+  [exercises[exIdx], exercises[swapWith]] = [exercises[swapWith], exercises[exIdx]];
+
+  const updatedPlan: TrainingPlan = {
+    ...plan,
+    days: plan.days.map((d, i) => (i === dayIdx ? { ...d, exercises } : d)),
+  };
+  const updatedPlans = allPlans.map((p) => (p.id === planId ? updatedPlan : p));
+  const activePlan = updatedPlans.find((p) => p.isActive) ?? updatedPlan;
+
+  await writeTrainingPlans(athleteId, updatedPlans, activePlan);
+  return updatedPlan;
+}
+
+// ─── Training: Repeat Session ─────────────────────────────────────────────────
+
+export function buildRepeatSession(
+  athleteId: string,
+  previousLog: TrainingLog,
+  today: string
+): ActiveSession {
+  return {
+    athleteId,
+    date: today,
+    trainingDayId: previousLog.trainingDayId,
+    exercises: previousLog.exercises.map((ex) => ({
+      exerciseId: ex.exerciseId,
+      exerciseName: ex.exerciseName,
+      laterality: ex.laterality,
+      sets: ex.sets.map((s, i) => ({
+        setNumber: i + 1,
+        weight: s.weight,
+        reps: s.reps,
+        rir: null,
+        weightLeft: s.weightLeft ?? null,
+        repsLeft: s.repsLeft ?? null,
+        weightRight: s.weightRight ?? null,
+        repsRight: s.repsRight ?? null,
+      })),
+      note: ex.note,
+      addedByAthlete: ex.addedByAthlete,
+    })),
+    note: "",
+    trainingBewertung: 3,
+    startedAt: new Date().toISOString(),
+    pausedAt: null,
+    totalPausedMs: 0,
+  };
+}
+
 export function getLastTrainingLogPerExercise(logs: TrainingLog[]): Map<string, TrainingLog> {
   const result = new Map<string, TrainingLog>();
   const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));

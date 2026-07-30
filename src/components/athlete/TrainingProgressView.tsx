@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Athlete } from "@/types";
+import { Athlete, TrainingLog } from "@/types";
 import { TrainingProgress } from "./TrainingProgress";
 import { AllTrainings } from "./AllTrainings";
 import { cn } from "@/lib/utils";
@@ -10,12 +10,13 @@ import { tabContentTransition } from "@/lib/motion";
 interface Props {
   athlete: Athlete;
   onUpdate: (athletes: Athlete[]) => void;
+  onRepeatLog?: (log: TrainingLog) => void;
   mode?: "athlete" | "coach";
 }
 
 type SubTab = "exercises" | "alltrainings";
 
-export function TrainingProgressView({ athlete, onUpdate, mode = "athlete" }: Props) {
+export function TrainingProgressView({ athlete, onUpdate, onRepeatLog, mode = "athlete" }: Props) {
   const [subTab, setSubTab] = useState<SubTab>("exercises");
 
   return (
@@ -52,6 +53,7 @@ export function TrainingProgressView({ athlete, onUpdate, mode = "athlete" }: Pr
               trainingLogs={athlete.trainingLogs ?? []}
               athleteId={athlete.id}
               onUpdate={onUpdate}
+              onRepeatLog={onRepeatLog}
               mode={mode}
             />
           </motion.div>

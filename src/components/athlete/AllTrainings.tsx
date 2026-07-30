@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { TrainingLog } from "@/types";
 import { Athlete } from "@/types";
-import { ChevronDown, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { updateTrainingLog, deleteTrainingLog } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
@@ -11,6 +11,7 @@ interface Props {
   trainingLogs: TrainingLog[];
   athleteId: string;
   onUpdate: (athletes: Athlete[]) => void;
+  onRepeatLog?: (log: TrainingLog) => void;
   mode?: "athlete" | "coach";
 }
 
@@ -114,7 +115,7 @@ function editStateToLog(state: EditState, original: TrainingLog): TrainingLog {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlete" }: Props) {
+export function AllTrainings({ trainingLogs, athleteId, onUpdate, onRepeatLog, mode = "athlete" }: Props) {
   const sorted = useMemo(
     () => [...trainingLogs].sort((a, b) => b.date.localeCompare(a.date)),
     [trainingLogs]
@@ -299,6 +300,17 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, mode = "athlet
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </Tooltip>
+                    {mode === "athlete" && onRepeatLog && (
+                      <Tooltip label="Nochmal ausführen">
+                        <button
+                          onClick={() => onRepeatLog(log)}
+                          aria-label="Nochmal ausführen"
+                          className="p-1.5 text-[#5a7090] hover:text-[#10b981] transition-colors rounded-lg hover:bg-[#10b981]/10"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      </Tooltip>
+                    )}
                     <button
                       onClick={() => startEdit(log)}
                       className="text-xs px-2.5 py-1 rounded-lg border border-[#1e2d42] text-[#8fa3c0] hover:text-[#f0f4ff] hover:border-[#3b82f6] transition-colors"
