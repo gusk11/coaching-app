@@ -13,7 +13,8 @@ import { LEGAL_DOCUMENT_VERSION } from "@/lib/legalTexts";
 interface WizardData {
   // Step 1: Basisdaten
   name: string; email: string; pin: string; pinConfirm: string;
-  birthDate: string; height: number; currentWeight: number;
+  birthDate: string; street: string; zipCode: string; city: string;
+  height: number; currentWeight: number;
   targetWeight: number; targetWeightUnknown: boolean;
   lowestWeight: number; lowestWeightUnknown: boolean;
   highestWeight: number; highestWeightUnknown: boolean;
@@ -79,7 +80,8 @@ interface WizardData {
 
 const DEFAULT: WizardData = {
   name: "", email: "", pin: "", pinConfirm: "",
-  birthDate: "", height: 175, currentWeight: 75,
+  birthDate: "", street: "", zipCode: "", city: "",
+  height: 175, currentWeight: 75,
   targetWeight: 70, targetWeightUnknown: false,
   lowestWeight: 65, lowestWeightUnknown: false,
   highestWeight: 80, highestWeightUnknown: false,
@@ -337,6 +339,16 @@ function Step1({ d, u }: { d: WizardData; u: (p: Partial<WizardData>) => void })
       <Q label="Wann bist du geboren?" hint="Optional">
         <input type="date" value={d.birthDate} onChange={(e) => u({ birthDate: e.target.value })} className={inp} />
       </Q>
+      <SectionDivider>Adresse</SectionDivider>
+      <TextField label="Straße und Hausnummer" value={d.street} onChange={(v) => u({ street: v })} placeholder="z. B. Musterstraße 1" />
+      <div className="grid grid-cols-[1fr_2fr] gap-3">
+        <Q label="PLZ">
+          <input type="text" value={d.zipCode} onChange={(e) => u({ zipCode: e.target.value })} placeholder="12345" className={inp} />
+        </Q>
+        <Q label="Ort">
+          <input type="text" value={d.city} onChange={(e) => u({ city: e.target.value })} placeholder="Musterstadt" className={inp} />
+        </Q>
+      </div>
       <SectionDivider>Körperdaten</SectionDivider>
       <SliderField label="Wie groß bist du?" value={d.height} onChange={(v) => u({ height: v })}
         min={140} max={220} unit=" cm" labelMin="140 cm" labelMax="220 cm" />
@@ -1128,6 +1140,9 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
     if (step === 1) {
       if (!data.name.trim()) return "Bitte gib deinen vollständigen Namen ein.";
       if (!data.email.trim() || !data.email.includes("@")) return "Bitte gib eine gültige E-Mail-Adresse ein.";
+      if (!data.street.trim()) return "Bitte gib deine Straße und Hausnummer ein.";
+      if (!data.zipCode.trim()) return "Bitte gib deine Postleitzahl ein.";
+      if (!data.city.trim()) return "Bitte gib deinen Wohnort ein.";
       if (data.pin.length < 4) return "Die PIN muss mindestens 4 Zeichen lang sein.";
       if (data.pin !== data.pinConfirm) return "Die PINs stimmen nicht überein.";
       // Email uniqueness is validated async in registerAthlete — skip sync check here
@@ -1211,6 +1226,9 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
         trainingHistory: data.trainingHistory || undefined,
         goalPriorities: data.priorities,
         goalText: data.shortTermGoal || data.longTermGoal || undefined,
+        street: data.street.trim() || undefined,
+        zipCode: data.zipCode.trim() || undefined,
+        city: data.city.trim() || undefined,
         profile: buildProfile(data),
       });
       await saveLegalConsent(athlete.id, {

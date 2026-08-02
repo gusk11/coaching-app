@@ -517,6 +517,9 @@ export interface Athlete {
   specialNotes?: string;
   trackingDevice?: TrackingDevice;
   trackingDeviceCustom?: string;
+  street?: string;
+  zipCode?: string;
+  city?: string;
 
   // Check-in configuration
   dailyCheckConfig?: DailyCheckConfig;

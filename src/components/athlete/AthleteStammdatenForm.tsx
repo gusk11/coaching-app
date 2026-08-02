@@ -224,6 +224,11 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
   const [goalText, setGoalText] = useState(athlete.goalText ?? "");
   const [checkInDay, setCheckInDay] = useState<0 | 1 | 2 | 3 | 4 | 5 | 6>(athlete.checkInDay);
 
+  // Address fields
+  const [street, setStreet] = useState(athlete.street ?? "");
+  const [zipCode, setZipCode] = useState(athlete.zipCode ?? "");
+  const [city, setCity] = useState(athlete.city ?? "");
+
   // Coach-mode-only fields
   const [specialNotes, setSpecialNotes] = useState(athlete.specialNotes ?? "");
   const [zielBeschreibung, setZielBeschreibung] = useState(athlete.zielBeschreibung ?? "");
@@ -235,6 +240,9 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
     setTrainingHistory(a.trainingHistory ?? "");
     setTrackingDevice(a.trackingDevice ?? "");
     setTrackingDeviceCustom(a.trackingDeviceCustom ?? "");
+    setStreet(a.street ?? "");
+    setZipCode(a.zipCode ?? "");
+    setCity(a.city ?? "");
     setName(a.name);
     setStartWeight(String(a.startWeight));
     setCurrentWeight(String(a.currentWeight));
@@ -265,6 +273,9 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
         goalType,
         goalText: goalText.trim() || undefined,
         checkInDay,
+        street: street.trim() || undefined,
+        zipCode: zipCode.trim() || undefined,
+        city: city.trim() || undefined,
       };
     }
     return { ...common, specialNotes: specialNotes.trim() || undefined, zielBeschreibung: zielBeschreibung.trim() || undefined, checkInDay };
@@ -348,6 +359,29 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
               }
             </div>
           </div>
+        </div>
+
+        {/* Adresse */}
+        <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-4">
+          <SectionHeader>Adresse</SectionHeader>
+          {editing ? (
+            <>
+              <FieldInput label="Straße und Hausnummer" value={street} onChange={setStreet} placeholder="z. B. Musterstraße 1" />
+              <div className="grid grid-cols-[1fr_2fr] gap-3">
+                <FieldInput label="PLZ" value={zipCode} onChange={setZipCode} placeholder="12345" />
+                <FieldInput label="Ort" value={city} onChange={setCity} placeholder="Musterstadt" />
+              </div>
+            </>
+          ) : (
+            <>
+              <DataRow label="Straße / Nr." value={athlete.street} />
+              <DataRow label="PLZ / Ort" value={
+                athlete.zipCode && athlete.city
+                  ? `${athlete.zipCode} ${athlete.city}`
+                  : (athlete.zipCode || athlete.city)
+              } />
+            </>
+          )}
         </div>
 
         {/* Körperdaten & Ziel */}
@@ -470,6 +504,19 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
         </div>
         <FieldInput label="Besonderheiten / Coach-Notizen" value={specialNotes} onChange={setSpecialNotes} placeholder="Interne Anmerkungen zum Athleten" rows={2} />
       </div>
+
+      {/* Adresse */}
+      {(athlete.street || athlete.zipCode || athlete.city) && (
+        <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">
+          <p className="text-xs text-[#5a7090] uppercase tracking-widest">Adresse</p>
+          <DataRow label="Straße / Nr." value={athlete.street} />
+          <DataRow label="PLZ / Ort" value={
+            athlete.zipCode && athlete.city
+              ? `${athlete.zipCode} ${athlete.city}`
+              : (athlete.zipCode || athlete.city)
+          } />
+        </div>
+      )}
 
       {/* Coaching-Fragebogen */}
       <div className="flex flex-col gap-3">

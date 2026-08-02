@@ -65,6 +65,9 @@ function rowToAthlete(row: any): Athlete {
     specialNotes: row.special_notes ?? undefined,
     trackingDevice: row.tracking_device ?? undefined,
     trackingDeviceCustom: row.tracking_device_custom ?? undefined,
+    street: row.street ?? undefined,
+    zipCode: row.zip_code ?? undefined,
+    city: row.city ?? undefined,
     dailyCheckConfig: row.daily_check_config ?? { ...DEFAULT_DAILY_CHECK_CONFIG },
     coachNote: row.coach_note ?? "",
     visibleNote: row.visible_note ?? "",
@@ -120,6 +123,9 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
     special_notes: a.specialNotes ?? null,
     tracking_device: a.trackingDevice ?? null,
     tracking_device_custom: a.trackingDeviceCustom ?? null,
+    street: a.street ?? null,
+    zip_code: a.zipCode ?? null,
+    city: a.city ?? null,
     daily_check_config: a.dailyCheckConfig ?? null,
     coach_note: a.coachNote ?? "",
     visible_note: a.visibleNote ?? "",
@@ -314,6 +320,9 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   if ("specialNotes" in updates) row.special_notes = updates.specialNotes ?? null;
   if ("trackingDevice" in updates) row.tracking_device = updates.trackingDevice ?? null;
   if ("trackingDeviceCustom" in updates) row.tracking_device_custom = updates.trackingDeviceCustom ?? null;
+  if ("street" in updates) row.street = updates.street ?? null;
+  if ("zipCode" in updates) row.zip_code = updates.zipCode ?? null;
+  if ("city" in updates) row.city = updates.city ?? null;
   if ("dailyCheckConfig" in updates) row.daily_check_config = updates.dailyCheckConfig ?? null;
   if ("coachNote" in updates) row.coach_note = updates.coachNote;
   if ("visibleNote" in updates) row.visible_note = updates.visibleNote;
@@ -401,6 +410,9 @@ export interface RegistrationData {
   goalPriorities?: string[];
   goalText?: string;
   legalConsent?: LegalConsent;
+  street?: string;
+  zipCode?: string;
+  city?: string;
 }
 
 export async function registerAthlete(data: RegistrationData): Promise<Athlete> {
@@ -435,6 +447,9 @@ export async function registerAthlete(data: RegistrationData): Promise<Athlete> 
     experienceLevel: (data.experienceLevel as Athlete["experienceLevel"]) ?? undefined,
     injuries: data.injuries,
     trainingHistory: data.trainingHistory,
+    street: data.street,
+    zipCode: data.zipCode,
+    city: data.city,
     dailyCheckConfig: { ...DEFAULT_DAILY_CHECK_CONFIG },
     coachNote: "",
     visibleNote: "",
