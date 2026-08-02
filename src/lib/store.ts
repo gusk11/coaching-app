@@ -16,9 +16,9 @@ import {
 import { TrainingPlanSchema, MealPlanSchema, SupplementPlanSchema } from "@/lib/planSchemas";
 import { getCheckInWeekStart } from "@/lib/utils";
 
-const AUTH_KEY = "coachOS_auth";
-const CHECK_IN_DONE_KEY = "coachOS_checkInDone";
-const ACTIVE_SESSION_KEY = "coachOS_activeSession";
+const AUTH_KEY = "processLab_auth";
+const CHECK_IN_DONE_KEY = "processLab_checkInDone";
+const ACTIVE_SESSION_KEY = "processLab_activeSession";
 
 // ─── Row Mappers ──────────────────────────────────────────────────────────────
 

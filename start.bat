@@ -1,9 +1,9 @@
 @echo off
-title CoachOS – Fitness Coaching Platform
+title Process Lab – Fitness Coaching Platform
 color 0B
 echo.
 echo  ============================================
-echo   CoachOS – Fitness Coaching Platform
+echo   Process Lab – Fitness Coaching Platform
 echo  ============================================
 echo.
 echo  Starte Server auf http://localhost:3002 ...

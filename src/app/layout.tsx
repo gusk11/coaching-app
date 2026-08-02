@@ -3,7 +3,7 @@ import "./globals.css";
 import { ToastContainer } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
-  title: "CoachOS — Fitness Coaching Platform",
+  title: "Process Lab — Fitness Coaching Platform",
   description: "Professionelle Coaching-Plattform für Fitness & Bodybuilding",
 };
 

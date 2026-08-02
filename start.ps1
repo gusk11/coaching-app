@@ -1,10 +1,10 @@
-# CoachOS Starter
-$Host.UI.RawUI.WindowTitle = "CoachOS – Fitness Coaching Platform"
+# Process Lab Starter
+$Host.UI.RawUI.WindowTitle = "Process Lab – Fitness Coaching Platform"
 Set-Location $PSScriptRoot
 
 Write-Host ""
 Write-Host " ============================================" -ForegroundColor Cyan
-Write-Host "  CoachOS – Fitness Coaching Platform" -ForegroundColor Cyan
+Write-Host "  Process Lab – Fitness Coaching Platform" -ForegroundColor Cyan
 Write-Host " ============================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host " Server startet auf http://localhost:3002 ..." -ForegroundColor Yellow

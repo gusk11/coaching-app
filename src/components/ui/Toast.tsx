@@ -12,7 +12,7 @@ interface ToastItem {
   type: ToastType;
 }
 
-const TOAST_EVENT = "coachOS:toast";
+const TOAST_EVENT = "processLab:toast";
 const TOAST_DURATION_MS = 3500;
 
 export function showToast(message: string, type: ToastType = "success") {

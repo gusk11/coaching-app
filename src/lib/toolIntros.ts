@@ -1,4 +1,4 @@
-const KEY_PREFIX = "coachOS_toolIntro_";
+const KEY_PREFIX = "processLab_toolIntro_";
 
 export const TOOL_INTRO_VIDEOS: Record<string, string> = {
   dashboard: "https://youtu.be/BUmnyhOKN3w",
