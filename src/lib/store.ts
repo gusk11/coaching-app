@@ -208,6 +208,7 @@ function rowToExercise(row: any): ExerciseDBItem {
     muscleGroup: row.muscle_group ?? "",
     equipmentType: row.equipment ?? undefined,
     laterality: (row.laterality === "unilateral" ? "unilateral" : "bilateral") as "bilateral" | "unilateral",
+    isTimeBased: row.is_time_based ?? false,
     notes: row.notes ?? undefined,
     executionLink: row.execution_link ?? undefined,
     currentTechFeedbackVideoId: row.current_tech_feedback_video_id ?? undefined,
@@ -922,6 +923,7 @@ export async function loadExerciseDB(): Promise<ExerciseDBItem[]> {
     const rows = seedExerciseDB.map((e) => ({
       id: e.id, name: e.name, muscle_group: e.muscleGroup ?? null,
       equipment: e.equipmentType ?? null, laterality: e.laterality ?? "bilateral",
+      is_time_based: e.isTimeBased ?? false,
       notes: e.notes ?? null, execution_link: e.executionLink ?? null,
     }));
     const { error: seedError } = await supabase.from("exercise_db").insert(rows);
@@ -937,6 +939,7 @@ export async function addExerciseDBItem(
   const { error } = await supabase.from("exercise_db").insert({
     id: `ex-${Date.now()}`, name: item.name, muscle_group: item.muscleGroup ?? null,
     equipment: item.equipmentType ?? null, laterality: item.laterality ?? "bilateral",
+    is_time_based: item.isTimeBased ?? false,
     notes: item.notes ?? null, execution_link: item.executionLink ?? null,
   });
   if (error) throw error;
@@ -952,6 +955,7 @@ export async function updateExerciseDBItem(
   if ("muscleGroup" in updates) row.muscle_group = updates.muscleGroup ?? null;
   if ("equipmentType" in updates) row.equipment = updates.equipmentType ?? null;
   if ("laterality" in updates) row.laterality = updates.laterality ?? "bilateral";
+  if ("isTimeBased" in updates) row.is_time_based = updates.isTimeBased ?? false;
   if ("notes" in updates) row.notes = updates.notes ?? null;
   if ("executionLink" in updates) row.execution_link = updates.executionLink ?? null;
   if ("currentTechFeedbackVideoId" in updates) row.current_tech_feedback_video_id = updates.currentTechFeedbackVideoId ?? null;

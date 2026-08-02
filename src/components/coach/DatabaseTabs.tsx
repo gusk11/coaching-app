@@ -486,7 +486,7 @@ const MUSCLE_GROUPS = ["Brust", "Rücken", "Beine", "Schultern", "Bizeps", "Triz
 const EQUIPMENT_OPTIONS = ["Langhantel", "Kurzhantel", "Kabelzug", "Maschine", "Körpergewicht", "Sonstiges"] as const;
 
 function emptyExerciseForm(): Partial<ExerciseDBItem> {
-  return { name: "", muscleGroup: "", equipmentType: "", laterality: "bilateral", notes: "", executionLink: "" };
+  return { name: "", muscleGroup: "", equipmentType: "", laterality: "bilateral", isTimeBased: false, notes: "", executionLink: "" };
 }
 
 function ExerciseForm({ initial, onSave, onClose }: {
@@ -520,6 +520,7 @@ function ExerciseForm({ initial, onSave, onClose }: {
       name: form.name?.trim() ?? "", muscleGroup: form.muscleGroup?.trim() ?? "",
       equipmentType: form.equipmentType?.trim() || undefined,
       laterality: form.laterality ?? "bilateral",
+      isTimeBased: form.isTimeBased ?? false,
       notes: form.notes?.trim() || undefined,
       executionLink: form.executionLink?.trim() || undefined,
     });
@@ -567,6 +568,17 @@ function ExerciseForm({ initial, onSave, onClose }: {
                 <button key={lat} type="button" onClick={() => setForm((prev) => ({ ...prev, laterality: lat }))}
                   className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${(form.laterality ?? "bilateral") === lat ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]" : "bg-[#0f1624] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/30"}`}>
                   {lat === "bilateral" ? "Bilateral (beidseitig)" : "Unilateral (einseitig)"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Zeitübung</label>
+            <div className="flex gap-2">
+              {([false, true] as const).map((val) => (
+                <button key={String(val)} type="button" onClick={() => setForm((prev) => ({ ...prev, isTimeBased: val }))}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${(form.isTimeBased ?? false) === val ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]" : "bg-[#0f1624] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/30"}`}>
+                  {val ? "Ja (Zeit-/Dauerübung)" : "Nein (Wiederholungsübung)"}
                 </button>
               ))}
             </div>
@@ -716,6 +728,9 @@ function ExerciseDBContent() {
                   <div key={e.id} className="grid grid-cols-12 px-4 py-3 items-start hover:bg-[#192236] transition-colors">
                     <div className="col-span-3 pr-3">
                       <p className="text-sm text-[#f0f4ff] font-medium leading-snug line-clamp-2">{e.name}</p>
+                      {e.isTimeBased && (
+                        <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#10b981]/10 text-[#34d399] border border-[#10b981]/20 mt-0.5">Zeitübung</span>
+                      )}
                     </div>
                     <div className="col-span-2 pr-3">
                       <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20">

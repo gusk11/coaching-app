@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { TrainingPlan, TrainingDay, Exercise, TrainingPlanMode, ExerciseDBItem } from "@/types";
 import { loadExerciseDB } from "@/lib/store";
 import { Trash2, Plus, ChevronDown, ChevronUp, GripVertical, ExternalLink, Database, X, ArrowUp, ArrowDown } from "lucide-react";
@@ -16,6 +16,8 @@ interface Props {
 
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 
+type TrackedFields = NonNullable<TrainingPlan["trackedFields"]>;
+
 function emptyExercise(): Exercise {
   return {
     id: `ex-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -30,9 +32,10 @@ function exerciseFromDB(item: ExerciseDBItem): Exercise {
     id: `ex-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     name: item.name,
     sets: 3,
-    reps: "8-12",
+    reps: item.isTimeBased ? "20-30 Sek." : "8-12",
     muscleGroup: item.muscleGroup,
     laterality: item.laterality ?? "bilateral",
+    isTimeBased: item.isTimeBased,
     exerciseDbNote: item.notes,
     videoUrl: item.executionLink,
     exerciseDbId: item.id,
@@ -51,6 +54,8 @@ function emptyDay(mode: TrainingPlanMode, index: number): TrainingDay {
     cardioNote: "",
   };
 }
+
+// ─── Exercise DB Picker ───────────────────────────────────────────────────────
 
 interface DBPickerProps {
   exercises: ExerciseDBItem[];
@@ -107,6 +112,7 @@ function ExerciseDBPicker({ exercises, onSelect, onClose }: DBPickerProps) {
               <span className="text-[10px] text-[#5a7090]">
                 {item.muscleGroup}
                 {item.equipmentType && <span className="text-[#3a5070]"> · {item.equipmentType}</span>}
+                {item.isTimeBased && <span className="text-[#a78bfa]"> · Zeitübung</span>}
               </span>
             </button>
           ))}
@@ -116,48 +122,80 @@ function ExerciseDBPicker({ exercises, onSelect, onClose }: DBPickerProps) {
   );
 }
 
+// ─── Insert Button (between exercises) ───────────────────────────────────────
+
+function InsertButton({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="flex items-center gap-1.5 group py-0.5">
+      <div className="flex-1 h-px bg-transparent group-hover:bg-[#3b82f6]/20 transition-colors" />
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Übung hier einfügen"
+        className="p-0.5 rounded-full opacity-0 group-hover:opacity-100 text-[#3b82f6] hover:bg-[#3b82f6]/10 transition-all"
+      >
+        <Plus size={10} />
+      </button>
+      <div className="flex-1 h-px bg-transparent group-hover:bg-[#3b82f6]/20 transition-colors" />
+    </div>
+  );
+}
+
+// ─── Exercise Row ─────────────────────────────────────────────────────────────
+
 interface ExerciseRowProps {
   exercise: Exercise;
   onChange: (updated: Exercise) => void;
   onDelete: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  showCadence?: boolean;
+  trackedFields: TrackedFields;
+  onDragStart: () => void;
+  onDragOver: () => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
+  isDragOver: boolean;
+  isDragging: boolean;
 }
 
-function ExerciseRow({ exercise, onChange, onDelete, onMoveUp, onMoveDown, canMoveUp, canMoveDown, showCadence }: ExerciseRowProps) {
+function ExerciseRow({
+  exercise,
+  onChange,
+  onDelete,
+  trackedFields,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDragOver,
+  isDragging,
+}: ExerciseRowProps) {
   const isFromDB = !!exercise.exerciseDbId;
 
   return (
-    <div className="flex items-start gap-2 py-2 border-b border-[#1e2d42]/60 last:border-0">
-      <div className="flex flex-col items-center gap-0.5 mt-1.5 shrink-0">
-        <Tooltip label="Nach oben">
-          <button
-            type="button"
-            onClick={onMoveUp}
-            aria-label="Übung nach oben"
-            disabled={!canMoveUp}
-            className="p-0.5 rounded hover:bg-[#1e2d42] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-          >
-            <ArrowUp size={11} className="text-[#5a7090]" />
-          </button>
-        </Tooltip>
-        <GripVertical size={12} className="text-[#2a3d54]" />
-        <Tooltip label="Nach unten">
-          <button
-            type="button"
-            onClick={onMoveDown}
-            aria-label="Übung nach unten"
-            disabled={!canMoveDown}
-            className="p-0.5 rounded hover:bg-[#1e2d42] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-          >
-            <ArrowDown size={11} className="text-[#5a7090]" />
-          </button>
-        </Tooltip>
+    <div
+      onDragOver={(e) => { e.preventDefault(); onDragOver(); }}
+      onDrop={onDrop}
+      className={cn(
+        "flex items-start gap-2 py-2 rounded-lg transition-all",
+        isDragging && "opacity-40",
+        isDragOver && "ring-1 ring-[#3b82f6]/50 bg-[#3b82f6]/5"
+      )}
+    >
+      {/* Drag handle */}
+      <div
+        draggable={true}
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = "move";
+          onDragStart();
+        }}
+        onDragEnd={onDragEnd}
+        className="mt-1.5 shrink-0 cursor-grab active:cursor-grabbing"
+        aria-label="Übung verschieben"
+      >
+        <GripVertical size={14} className="text-[#2a3d54] hover:text-[#5a7090] transition-colors" />
       </div>
+
       <div className="flex-1 flex flex-col gap-1.5">
+        {/* Name */}
         {isFromDB ? (
           <div className="bg-[#0a1120] rounded-lg px-2.5 py-2 border border-[#1e2d42] flex flex-col gap-0.5">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -168,6 +206,9 @@ function ExerciseRow({ exercise, onChange, onDelete, onMoveUp, onMoveDown, canMo
               )}
               {exercise.laterality === "unilateral" && (
                 <span className="text-[9px] bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20 rounded px-1.5 py-0.5 font-medium leading-none">Uni</span>
+              )}
+              {exercise.isTimeBased && (
+                <span className="text-[9px] bg-[#a78bfa]/10 text-[#a78bfa] border border-[#a78bfa]/20 rounded px-1.5 py-0.5 font-medium leading-none">Zeit</span>
               )}
             </div>
             {exercise.exerciseDbNote && (
@@ -195,7 +236,9 @@ function ExerciseRow({ exercise, onChange, onDelete, onMoveUp, onMoveDown, canMo
           />
         )}
 
-        <div className="grid grid-cols-3 gap-1.5">
+        {/* Tracked inputs */}
+        <div className="flex flex-wrap gap-1.5">
+          {/* Sets — always visible */}
           <div className="flex items-center gap-1">
             <label className="text-xs text-[#5a7090] shrink-0">Sätze</label>
             <input
@@ -204,40 +247,60 @@ function ExerciseRow({ exercise, onChange, onDelete, onMoveUp, onMoveDown, canMo
               max={20}
               value={exercise.sets}
               onChange={(e) => onChange({ ...exercise, sets: Number(e.target.value) })}
-              className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] w-full"
+              className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] w-16"
             />
           </div>
-          <div className="flex items-center gap-1">
-            <label className="text-xs text-[#5a7090] shrink-0">Wdh.</label>
-            <input
-              value={exercise.reps}
-              onChange={(e) => onChange({ ...exercise, reps: e.target.value })}
-              placeholder="8-12"
-              className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] w-full"
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            <label className="text-xs text-[#5a7090] shrink-0">RIR</label>
-            <input
-              type="number"
-              min={0}
-              max={5}
-              value={exercise.rir ?? ""}
-              onChange={(e) => onChange({ ...exercise, rir: e.target.value ? Number(e.target.value) : undefined })}
-              placeholder="–"
-              className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] w-full"
-            />
-          </div>
+
+          {/* Reps / Zeit */}
+          {trackedFields.reps && (
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-[#5a7090] shrink-0">
+                {exercise.isTimeBased ? "Zeit" : "Wdh."}
+              </label>
+              <input
+                value={exercise.reps}
+                onChange={(e) => onChange({ ...exercise, reps: e.target.value })}
+                placeholder={exercise.isTimeBased ? "20-30 Sek." : "8-12"}
+                className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] w-24"
+              />
+            </div>
+          )}
+
+          {/* RIR */}
+          {trackedFields.rir && (
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-[#5a7090] shrink-0">RIR</label>
+              <input
+                type="number"
+                min={0}
+                max={5}
+                value={exercise.rir ?? ""}
+                onChange={(e) => onChange({ ...exercise, rir: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="–"
+                className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] w-16"
+              />
+            </div>
+          )}
+
+          {/* Custom field */}
+          {trackedFields.custom?.enabled && (
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-[#5a7090] shrink-0">
+                {trackedFields.custom.label || "Custom"}
+              </label>
+              <input
+                type="number"
+                value={exercise.customValue ?? ""}
+                onChange={(e) => onChange({ ...exercise, customValue: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="–"
+                className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1.5 text-[#f0f4ff] text-xs focus:outline-none focus:border-[#3b82f6] w-20"
+              />
+            </div>
+          )}
         </div>
 
-        <input
-          value={exercise.note ?? ""}
-          onChange={(e) => onChange({ ...exercise, note: e.target.value || undefined })}
-          placeholder={isFromDB ? "Weitere Anmerkungen (individuell)" : "Notiz (optional)"}
-          className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2.5 py-1.5 text-[#5a7090] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
-        />
-
-        {showCadence && (
+        {/* Cadence */}
+        {trackedFields.cadence && (
           <div className="flex items-center gap-2 flex-wrap">
             <label className="text-[10px] text-[#5a7090] shrink-0">Kadenz (E–B–K–O, Sek.)</label>
             <CadenceInput
@@ -246,6 +309,14 @@ function ExerciseRow({ exercise, onChange, onDelete, onMoveUp, onMoveDown, canMo
             />
           </div>
         )}
+
+        {/* Note */}
+        <input
+          value={exercise.note ?? ""}
+          onChange={(e) => onChange({ ...exercise, note: e.target.value || undefined })}
+          placeholder={isFromDB ? "Weitere Anmerkungen (individuell)" : "Notiz (optional)"}
+          className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2.5 py-1.5 text-[#5a7090] text-xs focus:outline-none focus:border-[#3b82f6] transition-colors"
+        />
       </div>
 
       <Tooltip label="Übung entfernen">
@@ -261,6 +332,8 @@ function ExerciseRow({ exercise, onChange, onDelete, onMoveUp, onMoveDown, canMo
     </div>
   );
 }
+
+// ─── Training Editor ──────────────────────────────────────────────────────────
 
 export function TrainingEditor({ plan, athleteId, onSave }: Props) {
   const initPlan = plan ?? {
@@ -283,7 +356,7 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
   const [cardioMinuten, setCardioMinuten] = useState(initPlan.cardioMinuten ?? 0);
   const [cardioFrequenz, setCardioFrequenz] = useState<"woche" | "taeglich">(initPlan.cardioFrequenz ?? "woche");
   const [cardioIntensity, setCardioIntensity] = useState(initPlan.cardioIntensity ?? "");
-  const [trackedFields, setTrackedFields] = useState(
+  const [trackedFields, setTrackedFields] = useState<TrackedFields>(
     initPlan.trackedFields ?? { weight: true, reps: true, rir: true, cadence: false, custom: { label: "", enabled: false } }
   );
   const [days, setDays] = useState<TrainingDay[]>(initPlan.days);
@@ -291,6 +364,10 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
   const [dbExercises, setDbExercises] = useState<ExerciseDBItem[]>([]);
   const [pickerOpenDayId, setPickerOpenDayId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ dayId: string; exId: string } | null>(null);
+
+  // Drag & drop state (exercise reordering within a day)
+  const [dragSrc, setDragSrc] = useState<{ dayId: string; idx: number } | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<{ dayId: string; idx: number } | null>(null);
 
   useEffect(() => {
     loadExerciseDB().then(setDbExercises);
@@ -337,6 +414,18 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
     );
   }
 
+  function addExerciseAt(dayId: string, insertIdx: number) {
+    const ex = emptyExercise();
+    setDays((prev) =>
+      prev.map((d) => {
+        if (d.id !== dayId) return d;
+        const arr = [...d.exercises];
+        arr.splice(insertIdx, 0, ex);
+        return { ...d, exercises: arr };
+      })
+    );
+  }
+
   function addExerciseFromDB(dayId: string, item: ExerciseDBItem) {
     const ex = exerciseFromDB(item);
     setDays((prev) =>
@@ -345,18 +434,38 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
     setPickerOpenDayId(null);
   }
 
-  function moveExercise(dayId: string, exId: string, dir: -1 | 1) {
+  function reorderExercises(dayId: string, srcIdx: number, destIdx: number) {
     setDays((prev) =>
       prev.map((d) => {
         if (d.id !== dayId) return d;
-        const idx = d.exercises.findIndex((e) => e.id === exId);
-        const next = idx + dir;
-        if (idx === -1 || next < 0 || next >= d.exercises.length) return d;
         const arr = [...d.exercises];
-        [arr[idx], arr[next]] = [arr[next], arr[idx]];
+        const [moved] = arr.splice(srcIdx, 1);
+        arr.splice(destIdx, 0, moved);
         return { ...d, exercises: arr };
       })
     );
+  }
+
+  function handleExerciseDragStart(dayId: string, idx: number) {
+    setDragSrc({ dayId, idx });
+  }
+
+  function handleExerciseDragOver(dayId: string, idx: number) {
+    if (!dragSrc || dragSrc.dayId !== dayId) return;
+    setDragOverTarget({ dayId, idx });
+  }
+
+  function handleExerciseDrop(dayId: string, targetIdx: number) {
+    if (dragSrc && dragSrc.dayId === dayId && dragSrc.idx !== targetIdx) {
+      reorderExercises(dayId, dragSrc.idx, targetIdx);
+    }
+    setDragSrc(null);
+    setDragOverTarget(null);
+  }
+
+  function handleExerciseDragEnd() {
+    setDragSrc(null);
+    setDragOverTarget(null);
   }
 
   function updateExercise(dayId: string, exId: string, updated: Exercise) {
@@ -645,20 +754,26 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
               </div>
 
               {expanded && (
-                <div className="p-4 flex flex-col gap-3">
-                  {/* Exercises */}
+                <div className="p-4 flex flex-col gap-1">
+                  {/* Exercises with insert buttons between them */}
                   {day.exercises.map((ex, exIdx) => (
-                    <ExerciseRow
-                      key={ex.id}
-                      exercise={ex}
-                      onChange={(updated) => updateExercise(day.id, ex.id, updated)}
-                      onDelete={() => setDeleteConfirm({ dayId: day.id, exId: ex.id })}
-                      onMoveUp={() => moveExercise(day.id, ex.id, -1)}
-                      onMoveDown={() => moveExercise(day.id, ex.id, 1)}
-                      canMoveUp={exIdx > 0}
-                      canMoveDown={exIdx < day.exercises.length - 1}
-                      showCadence={!!trackedFields.cadence}
-                    />
+                    <Fragment key={ex.id}>
+                      {exIdx > 0 && (
+                        <InsertButton onClick={() => addExerciseAt(day.id, exIdx)} />
+                      )}
+                      <ExerciseRow
+                        exercise={ex}
+                        onChange={(updated) => updateExercise(day.id, ex.id, updated)}
+                        onDelete={() => setDeleteConfirm({ dayId: day.id, exId: ex.id })}
+                        trackedFields={trackedFields}
+                        onDragStart={() => handleExerciseDragStart(day.id, exIdx)}
+                        onDragOver={() => handleExerciseDragOver(day.id, exIdx)}
+                        onDrop={() => handleExerciseDrop(day.id, exIdx)}
+                        onDragEnd={handleExerciseDragEnd}
+                        isDragOver={dragOverTarget?.dayId === day.id && dragOverTarget?.idx === exIdx}
+                        isDragging={dragSrc?.dayId === day.id && dragSrc?.idx === exIdx}
+                      />
+                    </Fragment>
                   ))}
 
                   {/* DB Picker */}
@@ -671,7 +786,7 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
                   )}
 
                   {/* Add buttons */}
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap pt-2">
                     <button
                       type="button"
                       onClick={() => setPickerOpenDayId(pickerOpenDayId === day.id ? null : day.id)}
@@ -690,7 +805,7 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
                   </div>
 
                   {/* Per-day cardio */}
-                  <div className="flex flex-col gap-1.5 pt-2 border-t border-[#1e2d42]/60">
+                  <div className="flex flex-col gap-1.5 pt-3 border-t border-[#1e2d42]/60 mt-2">
                     <label className="text-xs font-medium text-[#8fa3c0]">Cardio für diesen Tag</label>
                     <input
                       value={day.cardioNote ?? ""}

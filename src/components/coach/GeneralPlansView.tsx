@@ -10,7 +10,7 @@ import { SupplementList } from "@/components/athlete/SupplementList";
 import { showToast } from "@/components/ui/Toast";
 import { cn, resolveAthleteWeight } from "@/lib/utils";
 import { copyMealPlan, copyTrainingPlan, copySupplementPlan } from "@/lib/planClipboard";
-import { Upload, Loader2, Pencil, X, Copy, ClipboardPaste } from "lucide-react";
+import { Upload, Loader2, Pencil, X, Check, Copy, ClipboardPaste } from "lucide-react";
 
 type PlanSubTab = "Ernährung" | "Training" | "Supplements";
 
@@ -147,7 +147,7 @@ function PlanToggleRow({
               : "text-[#5a7090] hover:text-[#10b981] hover:bg-[#10b981]/10",
           )}
         >
-          <X size={14} />
+          {isActive ? <X size={14} /> : <Check size={14} />}
         </button>
       </div>
     </div>

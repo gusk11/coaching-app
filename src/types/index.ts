@@ -312,6 +312,7 @@ export interface ExerciseDBItem {
   muscleGroup: string;
   equipmentType?: string;   // "Langhantel" | "Kurzhantel" | "Kabelzug" | "Maschine" | "Körpergewicht"
   laterality?: "bilateral" | "unilateral";
+  isTimeBased?: boolean;
   notes?: string;
   executionLink?: string;
   currentTechFeedbackVideoId?: string;
@@ -384,7 +385,7 @@ export interface Exercise {
   id: string;
   name: string;
   sets: number;
-  reps: string; // e.g. "8-12"
+  reps: string; // e.g. "8-12"; interpreted as seconds/range when isTimeBased is true
   rir?: number;
   rpe?: number;
   restSeconds?: number;
@@ -392,6 +393,7 @@ export interface Exercise {
   videoUrl?: string;       // execution link (mapped from DB's executionLink on import)
   muscleGroup?: string;    // snapshot from ÜbungenDB
   laterality?: "bilateral" | "unilateral"; // snapshot from ÜbungenDB
+  isTimeBased?: boolean;   // snapshot from ÜbungenDB
   exerciseDbNote?: string; // snapshot of DB notes
   exerciseDbId?: string;   // reference to ExerciseDBItem (snapshot approach)
   cadence?: { eccentric: number; bottomHold: number; concentric: number; topHold: number };
