@@ -70,22 +70,17 @@ export default function CheckInsPage() {
   const today = todayISO();
   const weekStart = getCheckInWeekStart(today, athlete?.checkInDay ?? 1);
 
-  // Days going back from the most recent check-in day
-  const checkInDay = athlete?.checkInDay ?? 1;
+  // Last 14 days ending today (today − 13 … today), oldest first
   const checkInPeriodDays = useMemo(() => {
     const todayDate = new Date(today + "T12:00:00");
-    const todayDow = todayDate.getDay();
-    const daysSinceCheckInDay = (todayDow - checkInDay + 7) % 7;
-    const checkInDayDate = new Date(todayDate);
-    checkInDayDate.setDate(todayDate.getDate() - daysSinceCheckInDay);
     const days: string[] = [];
-    for (let i = 14; i >= 0; i--) {
-      const d = new Date(checkInDayDate);
-      d.setDate(checkInDayDate.getDate() - i);
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(todayDate);
+      d.setDate(todayDate.getDate() - i);
       days.push(d.toISOString().split("T")[0]);
     }
     return days;
-  }, [today, checkInDay]);
+  }, [today]);
 
   if (!athlete) {
     return (

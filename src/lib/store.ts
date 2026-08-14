@@ -522,12 +522,26 @@ async function getAthlete(id: string): Promise<Athlete> {
   return rowToAthlete(data);
 }
 
+function computeFreemealTotal(a: Athlete, checkIn: Omit<DailyCheckIn, "id" | "athleteId">): number | undefined {
+  if (checkIn.nutritionStatus !== "plan_followed_freemeal" || checkIn.freemealKcal == null) return undefined;
+  const plan = checkIn.selectedMealPlanId
+    ? (a.mealPlans ?? []).find((p) => p.id === checkIn.selectedMealPlanId)
+    : (a.mealPlans ?? []).find((p) => p.isActive);
+  if (!plan) return undefined;
+  const baseKcal = plan.meals
+    .filter((m) => !m.isFreeMeal)
+    .reduce((sum, m) => sum + m.entries.reduce((ms, e) => ms + (e.foodItem.kcalPer100g * e.amountG / 100), 0), 0);
+  return Math.round(baseKcal + checkIn.freemealKcal);
+}
+
 export async function addDailyCheckIn(
   athleteId: string,
   checkIn: Omit<DailyCheckIn, "id" | "athleteId">
 ): Promise<Athlete[]> {
   const a = await getAthlete(athleteId);
-  const newCheckIn: DailyCheckIn = { ...checkIn, id: `dc-${athleteId}-${Date.now()}`, athleteId };
+  const calculatedTotalKcal = computeFreemealTotal(a, checkIn);
+  const enriched = calculatedTotalKcal != null ? { ...checkIn, calculatedTotalKcal } : checkIn;
+  const newCheckIn: DailyCheckIn = { ...enriched, id: `dc-${athleteId}-${Date.now()}`, athleteId };
   const filtered = a.dailyCheckIns.filter((c) => c.date !== checkIn.date);
   const daily_check_ins = [...filtered, newCheckIn].sort((x, y) => x.date.localeCompare(y.date));
   const { error } = await supabase.from("athletes")
@@ -561,8 +575,10 @@ export async function updateDailyCheckIn(
   data: Omit<DailyCheckIn, "id" | "athleteId">
 ): Promise<Athlete[]> {
   const a = await getAthlete(athleteId);
+  const calculatedTotalKcal = computeFreemealTotal(a, data);
+  const enriched = calculatedTotalKcal != null ? { ...data, calculatedTotalKcal } : data;
   const daily_check_ins = a.dailyCheckIns.map((c) =>
-    c.id === checkInId ? { ...data, id: checkInId, athleteId } : c
+    c.id === checkInId ? { ...enriched, id: checkInId, athleteId } : c
   ).sort((x, y) => x.date.localeCompare(y.date));
   const latest = daily_check_ins.at(-1);
   const { error } = await supabase.from("athletes")

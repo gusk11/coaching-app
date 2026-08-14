@@ -6,7 +6,7 @@ import { copyMeal, getMealClipboard } from "@/lib/planClipboard";
 import { Trash2, Plus, ChevronDown, ChevronUp, Pencil, ArrowLeft, ArrowUp, ArrowDown, Search, X, Copy, ClipboardPaste } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
-import { calculateMealMacros, calculateDayMacros, roundMacro, roundSalt } from "@/lib/utils";
+import { cn, calculateMealMacros, calculateDayMacros, roundMacro, roundSalt } from "@/lib/utils";
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -317,6 +317,10 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
     });
   }
 
+  function toggleFreeMeal(id: string) {
+    setMeals((prev) => prev.map((m) => ({ ...m, isFreeMeal: m.id === id ? !m.isFreeMeal : false })));
+  }
+
   function deleteMeal(id: string) {
     const meal = meals.find((m) => m.id === id);
     if (meal) {
@@ -586,6 +590,18 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
                   <button type="button" onClick={() => handleCopyMeal(meal)} aria-label="Mahlzeit kopieren"
                     className="p-1 rounded-lg hover:bg-[#1e2d42] transition-colors">
                     <Copy size={13} className="text-[#5a7090] hover:text-[#60a5fa]" />
+                  </button>
+                </Tooltip>
+                <Tooltip label={meal.isFreeMeal ? "Freie Mahlzeit entfernen" : "Als freie Mahlzeit markieren"}>
+                  <button type="button" onClick={() => toggleFreeMeal(meal.id)}
+                    aria-label={meal.isFreeMeal ? "Freie Mahlzeit entfernen" : "Als freie Mahlzeit markieren"}
+                    className={cn(
+                      "px-1.5 py-0.5 rounded text-[10px] font-medium transition-all border",
+                      meal.isFreeMeal
+                        ? "bg-[#10b981]/20 text-[#34d399] border-[#10b981]/40"
+                        : "bg-[#1e2d42] text-[#5a7090] border-[#1e2d42] hover:border-[#3b82f6]/30"
+                    )}>
+                    Freemeal
                   </button>
                 </Tooltip>
                 <Tooltip label="Mahlzeit löschen">

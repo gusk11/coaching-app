@@ -117,7 +117,7 @@ const METRICS: MetricDef[] = [
     key: "nutritionCompliance", label: "Ernährungs-Compliance", type: "compliance", color: "#60a5fa",
     getValue: (ci) => {
       const ns = normalizeNutritionStatus(ci);
-      if (ns === "meal_plan_followed") return 1;
+      if (ns === "meal_plan_followed" || ns === "plan_followed_freemeal") return 1;
       if (ns === "calorie_tracker_used") return 0.5;
       return 0;
     },

@@ -16,6 +16,7 @@ type CheckInDraft = {
   nutritionStatus?: NutritionStatusType; selectedMealPlanId?: string; noExactNutritionReason?: string;
   macroKcal?: number; macroProtein?: number; macroFat?: number; macroCarbs?: number;
   macroFiber?: number; macroSalt?: number; macroTrackingAccuracy?: number;
+  freemealKcal?: number;
   customValues?: Record<string, string | number | boolean>;
 };
 
@@ -35,9 +36,10 @@ interface DailyCheckInFormProps {
 }
 
 const nutritionOptions: { value: NutritionStatusType; label: string; desc: string }[] = [
-  { value: "calorie_tracker_used",  label: "Kalorien getrackt",               desc: "Makros manuell erfasst und eingetragen" },
-  { value: "meal_plan_followed",    label: "Ernährungsplan eingehalten",      desc: "Einen Plan vollständig umgesetzt" },
-  { value: "no_exact_info",         label: "Keine genaue Angabe möglich",     desc: "Mengen unklar oder Plan nicht eingehalten" },
+  { value: "calorie_tracker_used",    label: "Kalorien getrackt",                    desc: "Makros manuell erfasst und eingetragen" },
+  { value: "meal_plan_followed",      label: "Ernährungsplan eingehalten",           desc: "Einen Plan vollständig umgesetzt" },
+  { value: "plan_followed_freemeal",  label: "Ernährungsplan eingehalten (Freemeal)", desc: "Plan eingehalten, eine Mahlzeit frei gewählt" },
+  { value: "no_exact_info",           label: "Keine genaue Angabe möglich",          desc: "Mengen unklar oder Plan nicht eingehalten" },
 ];
 
 export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, mealPlans, onSubmit }: DailyCheckInFormProps) {
@@ -94,6 +96,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
   const [macroTrackingAccuracy, setMacroTrackingAccuracy] = useState<1|2|3|4|5>(
     (draft?.macroTrackingAccuracy ?? init?.macroTrackingAccuracy ?? 3) as 1|2|3|4|5
   );
+  const [freemealKcal, setFreemealKcal] = useState(draft?.freemealKcal ?? init?.freemealKcal ?? 0);
 
   const [submitted, setSubmitted] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -113,6 +116,8 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       nutritionStatus === "calorie_tracker_used" ? "tracked_in_calorie_tracker"
       : nutritionStatus === "no_exact_info" ? "not_followed"
       : "fully_followed";
+
+    const isPlanBased = nutritionStatus === "meal_plan_followed" || nutritionStatus === "plan_followed_freemeal";
 
     onSubmit({
       date: date ?? todayISO(),
@@ -139,7 +144,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       note: cfg.notes ? note : "",
       mealCompliance: cfg.nutritionCompliance ? legacyCompliance : "fully_followed",
       nutritionStatus: cfg.nutritionCompliance ? nutritionStatus : undefined,
-      selectedMealPlanId: cfg.nutritionCompliance && nutritionStatus === "meal_plan_followed" && selectedMealPlanId ? selectedMealPlanId : undefined,
+      selectedMealPlanId: cfg.nutritionCompliance && isPlanBased && selectedMealPlanId ? selectedMealPlanId : undefined,
       noExactNutritionReason: cfg.nutritionCompliance && nutritionStatus === "no_exact_info" ? noExactNutritionReason : undefined,
       deviationReason: cfg.nutritionCompliance && nutritionStatus === "no_exact_info" ? noExactNutritionReason : undefined,
       calories: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroKcal : undefined,
@@ -149,6 +154,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       fiber: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroFiber : undefined,
       salt: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroSalt : undefined,
       macroTrackingAccuracy: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroTrackingAccuracy : undefined,
+      freemealKcal: cfg.nutritionCompliance && nutritionStatus === "plan_followed_freemeal" ? freemealKcal : undefined,
       customFieldValues: Object.keys(customValues).length > 0 ? customValues : undefined,
     });
     try { sessionStorage.removeItem(draftKey); } catch {}
@@ -340,8 +346,8 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
             ))}
           </div>
 
-          {/* Plan selector when meal_plan_followed */}
-          {nutritionStatus === "meal_plan_followed" && mealPlans && mealPlans.length > 0 && (
+          {/* Plan selector when meal_plan_followed or plan_followed_freemeal */}
+          {(nutritionStatus === "meal_plan_followed" || nutritionStatus === "plan_followed_freemeal") && mealPlans && mealPlans.length > 0 && (
             <div className="flex flex-col gap-2 pl-1">
               <label className="text-xs font-medium text-[#8fa3c0]">Welchen Plan hast du eingehalten?</label>
               <div className="flex flex-col gap-1.5">
@@ -363,6 +369,45 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
               </div>
             </div>
           )}
+
+          {/* Freemeal kcal input when plan_followed_freemeal */}
+          {nutritionStatus === "plan_followed_freemeal" && (() => {
+            const activePlan = selectedMealPlanId
+              ? mealPlans?.find((p) => p.id === selectedMealPlanId)
+              : mealPlans?.find((p) => p.isActive) ?? mealPlans?.[0];
+            const baseKcal = activePlan
+              ? Math.round(activePlan.meals
+                  .filter((m) => !m.isFreeMeal)
+                  .reduce((sum, m) => sum + m.entries.reduce((ms, e) => ms + (e.foodItem.kcalPer100g * e.amountG / 100), 0), 0))
+              : null;
+            const totalKcal = baseKcal != null ? baseKcal + freemealKcal : null;
+            return (
+              <div className="flex flex-col gap-3 pt-1 pl-1">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-[#8fa3c0]">Kalorien der freien Mahlzeit (kcal)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={freemealKcal}
+                    onChange={(e) => setFreemealKcal(Number(e.target.value))}
+                    className={inputCls}
+                  />
+                </div>
+                {totalKcal != null && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#10b981]/10 border border-[#10b981]/30">
+                    <span className="text-xs text-[#34d399]">
+                      Gesamt: <span className="font-semibold">{totalKcal} kcal</span>
+                    </span>
+                    {baseKcal != null && (
+                      <span className="text-[10px] text-[#5a7090]">
+                        (Plan {baseKcal} + Freemeal {freemealKcal})
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Manual macro entry when calorie_tracker_used */}
           {nutritionStatus === "calorie_tracker_used" && (

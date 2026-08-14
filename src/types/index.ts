@@ -17,7 +17,7 @@ export type MealComplianceType =
   | "meal_plan_followed"
   | "no_exact_info";
 
-export type NutritionStatusType = "calorie_tracker_used" | "meal_plan_followed" | "no_exact_info";
+export type NutritionStatusType = "calorie_tracker_used" | "meal_plan_followed" | "no_exact_info" | "plan_followed_freemeal";
 
 // ─── Calorie Tracker ─────────────────────────────────────────────────────────
 
@@ -199,6 +199,8 @@ export interface DailyCheckIn {
   salt?: number;
   macroTrackingAccuracy?: 1 | 2 | 3 | 4 | 5;
   customFieldValues?: Record<string, string | number | boolean>;
+  freemealKcal?: number;
+  calculatedTotalKcal?: number;
   /** ISO date (yyyy-mm-dd) when the coach marked this check-in as reviewed/done. */
   completedAt?: string;
 }
@@ -356,6 +358,7 @@ export interface Meal {
   time?: string | null; // "08:00" or null = no fixed time
   entries: MealEntry[];
   note?: string;
+  isFreeMeal?: boolean;
 }
 
 export type MealPlanType = "fixed" | "macro_targets";

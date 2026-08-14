@@ -103,6 +103,38 @@ function NutritionMealPlan({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete
   );
 }
 
+function NutritionFreemeal({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
+  const plans: MealPlan[] = athlete.mealPlans ?? [];
+  const plan = ci.selectedMealPlanId
+    ? plans.find(p => p.id === ci.selectedMealPlanId)
+    : plans[0];
+
+  if (!plan) {
+    return (
+      <>
+        <CheckInRow label="Quelle" value="Ernährungsplan (Freemeal)" />
+        <div className="py-4 text-center">
+          <p className="text-xs text-[#5a7090]">Kein Ernährungsplan gefunden.</p>
+        </div>
+      </>
+    );
+  }
+
+  const fixedMeals = plan.meals.filter(m => !m.isFreeMeal);
+  const fixedMacros = calculateDayMacros(fixedMeals);
+
+  return (
+    <>
+      <CheckInRow label="Quelle" value={`Ernährungsplan (Freemeal): ${plan.title}`} />
+      <div className="flex flex-wrap gap-1 justify-around py-3 border-b border-[#1e2d42]">
+        <MacroChip label="Gesamt kcal" value={ci.calculatedTotalKcal ?? fixedMacros.kcal + (ci.freemealKcal ?? 0)} unit="" color="text-[#f0f4ff] font-bold" />
+        <MacroChip label="Plan-Basis" value={fixedMacros.kcal} unit="" color="text-[#8fa3c0]" />
+        <MacroChip label="Freemeal" value={ci.freemealKcal ?? 0} unit="" color="text-[#34d399]" />
+      </div>
+    </>
+  );
+}
+
 function MealDetails({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
   const status = normalizeNutritionStatus(ci);
 
@@ -152,17 +184,27 @@ function MealDetails({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
     );
   }
 
-  if (status === "meal_plan_followed") {
+  if (status === "meal_plan_followed" || status === "plan_followed_freemeal") {
     const plans: MealPlan[] = athlete.mealPlans ?? [];
     const plan = ci.selectedMealPlanId
       ? plans.find(p => p.id === ci.selectedMealPlanId)
       : plans[0];
     if (!plan || plan.meals.length === 0) return null;
+    const visibleMeals = status === "plan_followed_freemeal" ? plan.meals.filter(m => !m.isFreeMeal) : plan.meals;
+    const sectionLabel = status === "plan_followed_freemeal" ? `Feste Mahlzeiten (${plan.title})` : `Mahlzeiten (${plan.title})`;
     return (
       <section>
-        <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Mahlzeiten ({plan.title})</p>
+        <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">{sectionLabel}</p>
         <div className="flex flex-col gap-3">
-          {plan.meals.map(meal => {
+          {status === "plan_followed_freemeal" && ci.freemealKcal != null && (
+            <div className="rounded-xl bg-[#141d2e] border border-[#10b981]/30 overflow-hidden">
+              <div className="px-3 py-2 flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#34d399]">Freie Mahlzeit</span>
+                <span className="text-[10px] text-[#34d399]">{ci.freemealKcal} kcal</span>
+              </div>
+            </div>
+          )}
+          {visibleMeals.map(meal => {
             const macros = calculateMealMacros(meal.entries);
             return (
               <div key={meal.id} className="rounded-xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">
@@ -298,6 +340,9 @@ export function DailyCheckDetailModal({ ci, athlete, onClose }: Props) {
             )}
             {status === "meal_plan_followed" && (
               <NutritionMealPlan ci={ci} athlete={athlete} />
+            )}
+            {status === "plan_followed_freemeal" && (
+              <NutritionFreemeal ci={ci} athlete={athlete} />
             )}
             {status === "no_exact_info" && (
               <>
