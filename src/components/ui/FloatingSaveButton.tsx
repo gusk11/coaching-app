@@ -37,7 +37,7 @@ export function FloatingSaveButton({ onClick, label = "Speichern" }: Props) {
       initial={{ opacity: 0, y: 12, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.18 }}
-      className={`fixed bottom-5 right-4 z-40 flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm shadow-xl border transition-colors ${
+      className={`fixed bottom-5 right-4 z-[200] flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm shadow-xl border transition-colors ${
         saved
           ? "bg-[#081a10] border-[#10b981]/35 text-[#34d399]"
           : "bg-[#3b82f6] border-[#3b82f6]/80 text-white hover:bg-[#2563eb]"
