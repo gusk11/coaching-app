@@ -17,6 +17,9 @@ type CheckInDraft = {
   macroKcal?: number; macroProtein?: number; macroFat?: number; macroCarbs?: number;
   macroFiber?: number; macroSalt?: number; macroTrackingAccuracy?: number;
   freemealKcal?: number;
+  freemealProtein?: number;
+  freemealCarbs?: number;
+  freemealFat?: number;
   customValues?: Record<string, string | number | boolean>;
 };
 
@@ -97,6 +100,9 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
     (draft?.macroTrackingAccuracy ?? init?.macroTrackingAccuracy ?? 3) as 1|2|3|4|5
   );
   const [freemealKcal, setFreemealKcal] = useState(draft?.freemealKcal ?? init?.freemealKcal ?? 0);
+  const [freemealProtein, setFreemealProtein] = useState(draft?.freemealProtein ?? init?.freemealProtein ?? 0);
+  const [freemealCarbs, setFreemealCarbs] = useState(draft?.freemealCarbs ?? init?.freemealCarbs ?? 0);
+  const [freemealFat, setFreemealFat] = useState(draft?.freemealFat ?? init?.freemealFat ?? 0);
 
   const [submitted, setSubmitted] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -155,6 +161,9 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       salt: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroSalt : undefined,
       macroTrackingAccuracy: cfg.nutritionCompliance && nutritionStatus === "calorie_tracker_used" ? macroTrackingAccuracy : undefined,
       freemealKcal: cfg.nutritionCompliance && nutritionStatus === "plan_followed_freemeal" ? freemealKcal : undefined,
+      freemealProtein: cfg.nutritionCompliance && nutritionStatus === "plan_followed_freemeal" ? freemealProtein : undefined,
+      freemealCarbs: cfg.nutritionCompliance && nutritionStatus === "plan_followed_freemeal" ? freemealCarbs : undefined,
+      freemealFat: cfg.nutritionCompliance && nutritionStatus === "plan_followed_freemeal" ? freemealFat : undefined,
       customFieldValues: Object.keys(customValues).length > 0 ? customValues : undefined,
     });
     try { sessionStorage.removeItem(draftKey); } catch {}
@@ -370,39 +379,67 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
             </div>
           )}
 
-          {/* Freemeal kcal input when plan_followed_freemeal */}
+          {/* Freemeal inputs when plan_followed_freemeal */}
           {nutritionStatus === "plan_followed_freemeal" && (() => {
             const activePlan = selectedMealPlanId
               ? mealPlans?.find((p) => p.id === selectedMealPlanId)
               : mealPlans?.find((p) => p.isActive) ?? mealPlans?.[0];
-            const baseKcal = activePlan
-              ? Math.round(activePlan.meals
-                  .filter((m) => !m.isFreeMeal)
-                  .reduce((sum, m) => sum + m.entries.reduce((ms, e) => ms + (e.foodItem.kcalPer100g * e.amountG / 100), 0), 0))
-              : null;
-            const totalKcal = baseKcal != null ? baseKcal + freemealKcal : null;
+            const fixedMeals = activePlan?.meals.filter((m) => !m.isFreeMeal) ?? [];
+            const base = fixedMeals.reduce(
+              (acc, m) => {
+                for (const e of m.entries) {
+                  const r = e.amountG / 100;
+                  acc.kcal += e.foodItem.kcalPer100g * r;
+                  acc.protein += e.foodItem.proteinPer100g * r;
+                  acc.carbs += e.foodItem.carbsPer100g * r;
+                  acc.fat += e.foodItem.fatPer100g * r;
+                }
+                return acc;
+              },
+              { kcal: 0, protein: 0, carbs: 0, fat: 0 }
+            );
+            const hasBase = activePlan != null;
+            const totalKcal = hasBase ? Math.round(base.kcal) + freemealKcal : null;
+            const totalProtein = hasBase ? Math.round(base.protein) + freemealProtein : null;
+            const totalCarbs = hasBase ? Math.round(base.carbs) + freemealCarbs : null;
+            const totalFat = hasBase ? Math.round(base.fat) + freemealFat : null;
             return (
               <div className="flex flex-col gap-3 pt-1 pl-1">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-[#8fa3c0]">Kalorien der freien Mahlzeit (kcal)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={freemealKcal}
-                    onChange={(e) => setFreemealKcal(Number(e.target.value))}
-                    className={inputCls}
-                  />
+                <p className="text-xs font-medium text-[#8fa3c0]">Werte der freien Mahlzeit</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Kalorien (kcal)", value: freemealKcal, set: setFreemealKcal },
+                    { label: "Protein (g)",     value: freemealProtein, set: setFreemealProtein },
+                    { label: "Kohlenhydrate (g)", value: freemealCarbs, set: setFreemealCarbs },
+                    { label: "Fett (g)",        value: freemealFat, set: setFreemealFat },
+                  ].map(({ label, value, set }) => (
+                    <div key={label} className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-[#8fa3c0]">{label}</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={value}
+                        onChange={(e) => set(Number(e.target.value))}
+                        className={inputCls}
+                      />
+                    </div>
+                  ))}
                 </div>
                 {totalKcal != null && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#10b981]/10 border border-[#10b981]/30">
-                    <span className="text-xs text-[#34d399]">
-                      Gesamt: <span className="font-semibold">{totalKcal} kcal</span>
-                    </span>
-                    {baseKcal != null && (
-                      <span className="text-[10px] text-[#5a7090]">
-                        (Plan {baseKcal} + Freemeal {freemealKcal})
+                  <div className="flex flex-col gap-1 px-3 py-2 rounded-xl bg-[#10b981]/10 border border-[#10b981]/30">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-[#34d399]">
+                        Gesamt: <span className="font-semibold">{totalKcal} kcal</span>
                       </span>
-                    )}
+                      <span className="text-[10px] text-[#5a7090]">
+                        (Plan {Math.round(base.kcal)} + Freemeal {freemealKcal})
+                      </span>
+                    </div>
+                    <div className="flex gap-3 text-[10px] text-[#5a7090]">
+                      <span>P: <span className="text-[#60a5fa]">{totalProtein}g</span> ({Math.round(base.protein)} + {freemealProtein})</span>
+                      <span>K: {totalCarbs}g ({Math.round(base.carbs)} + {freemealCarbs})</span>
+                      <span>F: {totalFat}g ({Math.round(base.fat)} + {freemealFat})</span>
+                    </div>
                   </div>
                 )}
               </div>

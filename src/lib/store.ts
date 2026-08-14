@@ -522,16 +522,39 @@ async function getAthlete(id: string): Promise<Athlete> {
   return rowToAthlete(data);
 }
 
-function computeFreemealTotal(a: Athlete, checkIn: Omit<DailyCheckIn, "id" | "athleteId">): number | undefined {
+type FreemealTotals = {
+  calculatedTotalKcal: number;
+  calculatedTotalProtein: number;
+  calculatedTotalCarbs: number;
+  calculatedTotalFat: number;
+};
+
+function computeFreemealTotals(a: Athlete, checkIn: Omit<DailyCheckIn, "id" | "athleteId">): FreemealTotals | undefined {
   if (checkIn.nutritionStatus !== "plan_followed_freemeal" || checkIn.freemealKcal == null) return undefined;
   const plan = checkIn.selectedMealPlanId
     ? (a.mealPlans ?? []).find((p) => p.id === checkIn.selectedMealPlanId)
     : (a.mealPlans ?? []).find((p) => p.isActive);
   if (!plan) return undefined;
-  const baseKcal = plan.meals
-    .filter((m) => !m.isFreeMeal)
-    .reduce((sum, m) => sum + m.entries.reduce((ms, e) => ms + (e.foodItem.kcalPer100g * e.amountG / 100), 0), 0);
-  return Math.round(baseKcal + checkIn.freemealKcal);
+  const fixedMeals = plan.meals.filter((m) => !m.isFreeMeal);
+  const base = fixedMeals.reduce(
+    (acc, m) => {
+      for (const e of m.entries) {
+        const r = e.amountG / 100;
+        acc.kcal += e.foodItem.kcalPer100g * r;
+        acc.protein += e.foodItem.proteinPer100g * r;
+        acc.carbs += e.foodItem.carbsPer100g * r;
+        acc.fat += e.foodItem.fatPer100g * r;
+      }
+      return acc;
+    },
+    { kcal: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+  return {
+    calculatedTotalKcal: Math.round(base.kcal + checkIn.freemealKcal),
+    calculatedTotalProtein: Math.round(base.protein + (checkIn.freemealProtein ?? 0)),
+    calculatedTotalCarbs: Math.round(base.carbs + (checkIn.freemealCarbs ?? 0)),
+    calculatedTotalFat: Math.round(base.fat + (checkIn.freemealFat ?? 0)),
+  };
 }
 
 export async function addDailyCheckIn(
@@ -539,8 +562,8 @@ export async function addDailyCheckIn(
   checkIn: Omit<DailyCheckIn, "id" | "athleteId">
 ): Promise<Athlete[]> {
   const a = await getAthlete(athleteId);
-  const calculatedTotalKcal = computeFreemealTotal(a, checkIn);
-  const enriched = calculatedTotalKcal != null ? { ...checkIn, calculatedTotalKcal } : checkIn;
+  const totals = computeFreemealTotals(a, checkIn);
+  const enriched = totals != null ? { ...checkIn, ...totals } : checkIn;
   const newCheckIn: DailyCheckIn = { ...enriched, id: `dc-${athleteId}-${Date.now()}`, athleteId };
   const filtered = a.dailyCheckIns.filter((c) => c.date !== checkIn.date);
   const daily_check_ins = [...filtered, newCheckIn].sort((x, y) => x.date.localeCompare(y.date));
@@ -575,8 +598,8 @@ export async function updateDailyCheckIn(
   data: Omit<DailyCheckIn, "id" | "athleteId">
 ): Promise<Athlete[]> {
   const a = await getAthlete(athleteId);
-  const calculatedTotalKcal = computeFreemealTotal(a, data);
-  const enriched = calculatedTotalKcal != null ? { ...data, calculatedTotalKcal } : data;
+  const totals = computeFreemealTotals(a, data);
+  const enriched = totals != null ? { ...data, ...totals } : data;
   const daily_check_ins = a.dailyCheckIns.map((c) =>
     c.id === checkInId ? { ...enriched, id: checkInId, athleteId } : c
   ).sort((x, y) => x.date.localeCompare(y.date));

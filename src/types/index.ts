@@ -200,7 +200,13 @@ export interface DailyCheckIn {
   macroTrackingAccuracy?: 1 | 2 | 3 | 4 | 5;
   customFieldValues?: Record<string, string | number | boolean>;
   freemealKcal?: number;
+  freemealProtein?: number;
+  freemealCarbs?: number;
+  freemealFat?: number;
   calculatedTotalKcal?: number;
+  calculatedTotalProtein?: number;
+  calculatedTotalCarbs?: number;
+  calculatedTotalFat?: number;
   /** ISO date (yyyy-mm-dd) when the coach marked this check-in as reviewed/done. */
   completedAt?: string;
 }
