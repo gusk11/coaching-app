@@ -68,6 +68,7 @@ function rowToAthlete(row: any): Athlete {
     street: row.street ?? undefined,
     zipCode: row.zip_code ?? undefined,
     city: row.city ?? undefined,
+    isHidden: row.is_hidden ?? undefined,
     dailyCheckConfig: row.daily_check_config ?? { ...DEFAULT_DAILY_CHECK_CONFIG },
     coachNote: row.coach_note ?? "",
     visibleNote: row.visible_note ?? "",
@@ -126,6 +127,7 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
     street: a.street ?? null,
     zip_code: a.zipCode ?? null,
     city: a.city ?? null,
+    is_hidden: a.isHidden ?? null,
     daily_check_config: a.dailyCheckConfig ?? null,
     coach_note: a.coachNote ?? "",
     visible_note: a.visibleNote ?? "",
@@ -380,6 +382,15 @@ export async function markIntroVideoSeen(athleteId: string): Promise<void> {
 export async function deleteAthlete(id: string): Promise<void> {
   const { error } = await supabase.from("athletes").delete().eq("id", id);
   if (error) throw error;
+}
+
+export async function setAthleteHidden(athleteId: string, hidden: boolean): Promise<Athlete[]> {
+  const { error } = await supabase
+    .from("athletes")
+    .update({ is_hidden: hidden || null, updated_at: new Date().toISOString() })
+    .eq("id", athleteId);
+  if (error) throw error;
+  return loadAthletes();
 }
 
 // ─── Registration & Login ─────────────────────────────────────────────────────

@@ -534,6 +534,8 @@ export interface Athlete {
   dailyCheckConfig?: DailyCheckConfig;
   weeklyCheckConfig?: WeeklyCheckConfig;
 
+  isHidden?: boolean;
+
   coachNote: string;
   visibleNote: string;
   dailyCheckIns: DailyCheckIn[];

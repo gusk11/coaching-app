@@ -101,7 +101,9 @@ export default function CoachDashboard() {
   const todayDayOfWeek = useMemo(() => new Date().getDay() as 0|1|2|3|4|5|6, []);
   const todayStr = useMemo(() => todayDateString(), []);
 
-  const athletesWithStatus = useMemo(() => athletes.map((a) => {
+  const visibleAthletes = useMemo(() => athletes.filter((a) => !a.isHidden), [athletes]);
+
+  const athletesWithStatus = useMemo(() => visibleAthletes.map((a) => {
     const mostRecentCheckInDate = getMostRecentCheckInDate(a.checkInDay, todayDayOfWeek, todayStr);
     const joinedDate = a.joinedAt.split("T")[0];
     const isCheckInToday = a.checkInDay === todayDayOfWeek;
@@ -127,8 +129,8 @@ export default function CoachDashboard() {
 
   const taskStats = useMemo(() => {
     if (!isLoaded) return { total: 0, done: 0 };
-    return loadTaskStats(athletes.map((a) => a.id));
-  }, [athletes, isLoaded]);
+    return loadTaskStats(visibleAthletes.map((a) => a.id));
+  }, [visibleAthletes, isLoaded]);
 
   const sortedAthletes = useMemo(() => {
     const newSignups = athletesWithStatus.filter((s) => s.athlete.isNewSignup);
@@ -248,7 +250,7 @@ export default function CoachDashboard() {
               className="w-full bg-[#141d2e] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-sm appearance-none cursor-pointer hover:border-[#3b82f6]/40 transition-colors focus:outline-none focus:border-[#3b82f6] text-[#8fa3c0]"
             >
               <option value="" disabled>Athleten-Profil öffnen…</option>
-              {athletes.map((a) => (
+              {visibleAthletes.map((a) => (
                 <option key={a.id} value={a.id} className="text-[#f0f4ff] bg-[#141d2e]">{a.name}</option>
               ))}
             </select>
@@ -386,7 +388,7 @@ export default function CoachDashboard() {
                       className="w-full bg-[#141d2e] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-sm appearance-none cursor-pointer focus:outline-none focus:border-[#3b82f6] transition-colors text-[#f0f4ff]"
                     >
                       <option value="" disabled>Athleten auswählen…</option>
-                      {athletes.map((a) => (
+                      {visibleAthletes.map((a) => (
                         <option key={a.id} value={a.id}>{a.name}</option>
                       ))}
                     </select>

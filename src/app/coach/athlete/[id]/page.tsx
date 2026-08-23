@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile, approvePlanChangeRequest, rejectPlanChangeRequest, saveTrainingPlanEntry, saveSupplementPlanEntry, toggleMealPlanActive, toggleTrainingPlanActive, toggleSupplementPlanActive, exportAthleteQuestionnaireData } from "@/lib/store";
+import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, setAthleteHidden, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile, approvePlanChangeRequest, rejectPlanChangeRequest, saveTrainingPlanEntry, saveSupplementPlanEntry, toggleMealPlanActive, toggleTrainingPlanActive, toggleSupplementPlanActive, exportAthleteQuestionnaireData } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { Athlete, AthleteProfile, GoalType, MealPlan, TrainingPlan, SupplementPlan, PlanChangeRequest } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
@@ -26,7 +26,7 @@ import {
   getGoalLabel, getGoalColor, getTrendIcon, getTrendColor, normalizeNutritionStatus, resolveAthleteWeight,
 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Pencil, Check, X, Trash2, ChevronDown, Download } from "lucide-react";
+import { ArrowLeft, Pencil, Check, X, Trash2, ChevronDown, Download, EyeOff, Eye } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition, listContainer, listItem } from "@/lib/motion";
@@ -403,6 +403,21 @@ export default function CoachAthletePage() {
       router.replace("/coach/dashboard");
     } catch {
       showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");
+    }
+  }
+
+  async function handleToggleHidden() {
+    const newHidden = !athlete!.isHidden;
+    const previous = athlete;
+    setAthlete((a) => a ? { ...a, isHidden: newHidden } : a);
+    try {
+      const updated = await setAthleteHidden(athlete!.id, newHidden);
+      const found = updated.find((a) => a.id === athlete!.id);
+      if (found) setAthlete(found);
+      showToast(newHidden ? "Athlet verborgen." : "Athlet wieder eingeblendet.", "success");
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Aktualisieren.", "error");
     }
   }
 
@@ -900,8 +915,19 @@ export default function CoachAthletePage() {
               )}
             </div>
 
-            {/* ── GEFAHRENZONE: ATHLET LÖSCHEN ── */}
+            {/* ── ATHLET VERBERGEN ── */}
             <div className="mt-4">
+              <button
+                onClick={handleToggleHidden}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-[#1e2d42] bg-[#141d2e] text-[#8fa3c0] text-sm font-medium hover:border-[#3b82f6]/40 hover:text-[#60a5fa] transition-all"
+              >
+                {athlete.isHidden ? <Eye size={15} /> : <EyeOff size={15} />}
+                {athlete.isHidden ? "Athleten-Profil wieder einblenden" : "Athleten-Profil verbergen"}
+              </button>
+            </div>
+
+            {/* ── GEFAHRENZONE: ATHLET LÖSCHEN ── */}
+            <div className="mt-3">
               {!showDeleteZone ? (
                 <button
                   onClick={() => { setShowDeleteZone(true); setDeleteStep(1); setDeleteNameInput(""); setDeleteConfirmInput(""); }}
