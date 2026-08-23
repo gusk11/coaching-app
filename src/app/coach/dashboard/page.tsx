@@ -7,7 +7,7 @@ import { Athlete, LoginHelpRequest, PlanChangeRequest } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { AthleteCard } from "@/components/coach/AthleteCard";
 import { PlanChangeReviewModal } from "@/components/coach/PlanChangeReviewModal";
-import { analyzeWeek, getCheckInWeekStart } from "@/lib/utils";
+import { analyzeWeek, getCheckInWeekStart, cn } from "@/lib/utils";
 import { StatCard } from "@/components/ui/StatCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { X, Check, Trash2, ChevronDown, Plus, Pencil } from "lucide-react";
@@ -72,6 +72,8 @@ export default function CoachDashboard() {
   const [editingTypes, setEditingTypes] = useState(false);
   const [newTypeInput, setNewTypeInput] = useState("");
 
+  const [showHidden, setShowHidden] = useState(false);
+
   // Plan change review
   const [reviewState, setReviewState] = useState<{ athlete: Athlete; request: PlanChangeRequest } | null>(null);
 
@@ -102,6 +104,7 @@ export default function CoachDashboard() {
   const todayStr = useMemo(() => todayDateString(), []);
 
   const visibleAthletes = useMemo(() => athletes.filter((a) => !a.isHidden), [athletes]);
+  const hiddenAthletes = useMemo(() => athletes.filter((a) => a.isHidden), [athletes]);
 
   const athletesWithStatus = useMemo(() => visibleAthletes.map((a) => {
     const mostRecentCheckInDate = getMostRecentCheckInDate(a.checkInDay, todayDayOfWeek, todayStr);
@@ -356,6 +359,41 @@ export default function CoachDashboard() {
             </motion.div>
           ))}
         </motion.div>
+        )}
+
+        {/* Hidden athletes */}
+        {isLoaded && hiddenAthletes.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => setShowHidden((v) => !v)}
+              className="flex items-center justify-between w-full px-1 py-1 text-left group"
+            >
+              <span className="text-sm font-semibold text-[#3b4d6a] group-hover:text-[#5a7090] transition-colors">
+                Verborgene Athleten ({hiddenAthletes.length})
+              </span>
+              <ChevronDown
+                size={16}
+                className={cn("text-[#3b4d6a] transition-transform group-hover:text-[#5a7090]", showHidden && "rotate-180")}
+              />
+            </button>
+            <AnimatePresence>
+              {showHidden && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col gap-3 overflow-hidden"
+                >
+                  {hiddenAthletes.map((a) => (
+                    <div key={a.id} className="opacity-40 hover:opacity-60 transition-opacity">
+                      <AthleteCard athlete={a} />
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         )}
 
       </div>
