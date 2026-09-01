@@ -284,6 +284,22 @@ export function getCheckInWeekStart(today: string, checkInDay: number): string {
   return start.toISOString().split("T")[0];
 }
 
+export function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function getLastTwoWeekStarts(): [Date, Date] {
+  const thisWeek = getWeekStart(new Date());
+  const lastWeek = new Date(thisWeek);
+  lastWeek.setDate(lastWeek.getDate() - 7);
+  return [thisWeek, lastWeek];
+}
+
 export async function copyTextToClipboard(text: string): Promise<boolean> {
   if (typeof navigator !== "undefined" && navigator.clipboard) {
     try {

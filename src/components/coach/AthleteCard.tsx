@@ -1,16 +1,17 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Athlete, PlanChangeRequest } from "@/types";
+import { Athlete, PlanChangeRequest, WeeklyCheckIn } from "@/types";
 import { getAthleteCardStatus } from "@/lib/store";
 import {
   analyzeWeek, calculateDistanceToGoal, calculateGoalProgressPercent,
   getGoalLabel, getGoalColor, getTrendIcon, getTrendColor,
+  getLastTwoWeekStarts,
 } from "@/lib/utils";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { Check, GitPullRequest } from "lucide-react";
+import { Check, GitPullRequest, CheckCircle2, XCircle } from "lucide-react";
 
 const DAY_NAMES = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
@@ -23,6 +24,19 @@ function loadVisibleTasks(athleteId: string, today: string): StoredTask[] {
     const tasks: StoredTask[] = JSON.parse(raw);
     return tasks.filter((t) => t.checkedAt === null || t.checkedAt >= today);
   } catch { return []; }
+}
+
+function formatMonday(d: Date): string {
+  return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.`;
+}
+
+function weekHasWeeklyCheckIn(weekIns: WeeklyCheckIn[], weekMonday: Date): boolean {
+  const nextMonday = new Date(weekMonday);
+  nextMonday.setDate(nextMonday.getDate() + 7);
+  return weekIns.some((ci) => {
+    const d = new Date(ci.date + "T12:00:00");
+    return d >= weekMonday && d < nextMonday;
+  });
 }
 
 function formatCheckInDate(date: string): string {
@@ -57,6 +71,10 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
 
   const isDone = !!completedAt;
   const isCompletedToday = completedAt === today;
+
+  const [thisWeekStart, lastWeekStart] = getLastTwoWeekStarts();
+  const thisWeekHasCI = weekHasWeeklyCheckIn(athlete.weeklyCheckIns, thisWeekStart);
+  const lastWeekHasCI = weekHasWeeklyCheckIn(athlete.weeklyCheckIns, lastWeekStart);
 
   const [tasks, setTasks] = useState<StoredTask[]>([]);
   useEffect(() => { setTasks(loadVisibleTasks(athlete.id, today)); }, [athlete.id, today]);
@@ -200,6 +218,23 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
           <Badge variant={analysis.trend === "falling" && athlete.goalType === "cut" ? "success" : analysis.trend === "rising" && athlete.goalType === "bulk" ? "success" : "default"}>
             {getTrendIcon(analysis.trend)} {analysis.changeKg > 0 ? "+" : ""}{analysis.changeKg} kg
           </Badge>
+        </div>
+
+        {/* Weekly check-in status */}
+        <div className="flex items-center gap-4 mt-2">
+          {([
+            { label: "Diese Woche", weekStart: thisWeekStart, hasCI: thisWeekHasCI },
+            { label: "Letzte Woche", weekStart: lastWeekStart, hasCI: lastWeekHasCI },
+          ] as const).map(({ label, weekStart, hasCI }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <span className="text-[10px] text-[#3b4d6a]">{label}</span>
+              <span className="text-[10px] text-[#8fa3c0]">{formatMonday(weekStart)}</span>
+              {hasCI
+                ? <CheckCircle2 size={11} className="text-[#10b981] shrink-0" />
+                : <XCircle size={11} className="text-[#ef4444]/40 shrink-0" />
+              }
+            </div>
+          ))}
         </div>
       </button>
 
