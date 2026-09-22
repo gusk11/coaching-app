@@ -131,7 +131,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       measurementTime,
       appetite,
       digestion,
-      caffeine,
+      caffeine: cfg.caffeine ? caffeine : 0,
       steps: cfg.steps ? steps : 0,
       cardio: cfg.cardioCompleted ? cardio : false,
       cardioDuration: cfg.cardioCompleted && cardio ? cardioDuration : undefined,
@@ -247,15 +247,17 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
             onChange={setSteps}
           />
         )}
-        <NumberSliderInput
-          label="Koffein"
-          value={caffeine}
-          min={0}
-          max={600}
-          sliderStep={10}
-          unit="mg"
-          onChange={setCaffeine}
-        />
+        {cfg.caffeine && (
+          <NumberSliderInput
+            label="Koffein"
+            value={caffeine}
+            min={0}
+            max={600}
+            sliderStep={10}
+            unit="mg"
+            onChange={setCaffeine}
+          />
+        )}
       </div>
 
       {/* Resting heart rate + HRV + SpO₂ + Blood pressure */}

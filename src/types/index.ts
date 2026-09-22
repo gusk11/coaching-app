@@ -90,7 +90,8 @@ export interface DailyCheckConfig {
   cardioCompleted: boolean;
   trainingCompleted: boolean;
   nutritionCompliance: boolean;
-  calorieTracking: boolean;
+  calorieTracking?: boolean;
+  caffeine: boolean;
   notes: boolean;
   customFields?: CustomCheckField[];
 }
@@ -148,7 +149,7 @@ export const DEFAULT_DAILY_CHECK_CONFIG: DailyCheckConfig = {
   cardioCompleted: true,
   trainingCompleted: true,
   nutritionCompliance: true,
-  calorieTracking: true,
+  caffeine: true,
   notes: true,
 };
 

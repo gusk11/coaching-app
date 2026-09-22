@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef } from "react";
-import { WeeklyCheckIn, Athlete } from "@/types";
+import { WeeklyCheckIn, Athlete, DEFAULT_WEEKLY_CHECK_CONFIG } from "@/types";
 import { SliderInput } from "@/components/ui/SliderInput";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 import { analyzeWeek, todayISO, getCheckInWeekStart } from "@/lib/utils";
@@ -15,6 +15,7 @@ interface WeeklyCheckInFormProps {
 }
 
 export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, weekStartOverride }: WeeklyCheckInFormProps) {
+  const cfg = { ...DEFAULT_WEEKLY_CHECK_CONFIG, ...athlete.weeklyCheckConfig };
   const today = todayISO();
   const weekStart = getCheckInWeekStart(today, athlete.checkInDay);
   const analysis = analyzeWeek(athlete);
@@ -86,58 +87,66 @@ export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, we
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        <SliderInput label="Gesamteinschätzung der Woche" value={overallWeekRating} onChange={(v) => setOverallWeekRating(v as 1|2|3|4|5)} />
-        <SliderInput label="Zufriedenheit mit der Woche" value={weekSatisfaction} onChange={(v) => setWeekSatisfaction(v as 1|2|3|4|5)} />
-        <SliderInput label="Zufriedenheit mit dir selbst" value={selfSatisfaction} onChange={(v) => setSelfSatisfaction(v as 1|2|3|4|5)} />
+      <div className="flex flex-col gap-4">
+        {cfg.overallWeekRating && <SliderInput label="Gesamteinschätzung der Woche" value={overallWeekRating} onChange={(v) => setOverallWeekRating(v as 1|2|3|4|5)} />}
+        {cfg.weekSatisfaction && <SliderInput label="Zufriedenheit mit der Woche" value={weekSatisfaction} onChange={(v) => setWeekSatisfaction(v as 1|2|3|4|5)} />}
+        {cfg.selfSatisfaction && <SliderInput label="Zufriedenheit mit dir selbst" value={selfSatisfaction} onChange={(v) => setSelfSatisfaction(v as 1|2|3|4|5)} />}
       </div>
 
-      <SliderInput
-        label="Wie einfach war es, sich diese Woche an den Ernährungsplan zu halten?"
-        value={nutritionAdherence}
-        onChange={(v) => setNutritionAdherence(v as 1|2|3|4|5)}
-        labelMin="Sehr schwer"
-        labelMax="Sehr leicht"
-      />
-
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-[#8fa3c0]">Hunger, Cravings oder Probleme?</label>
-        <textarea
-          value={hungerCravings}
-          onChange={(e) => setHungerCravings(e.target.value)}
-          rows={2}
-          placeholder="Gab es Cravings, Hunger oder Schwierigkeiten?"
-          className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none"
+      {cfg.nutritionAdherence && (
+        <SliderInput
+          label="Wie einfach war es, sich diese Woche an den Ernährungsplan zu halten?"
+          value={nutritionAdherence}
+          onChange={(v) => setNutritionAdherence(v as 1|2|3|4|5)}
+          labelMin="Sehr schwer"
+          labelMax="Sehr leicht"
         />
+      )}
+
+      {cfg.hungerCravings && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#8fa3c0]">Hunger, Cravings oder Probleme?</label>
+          <textarea
+            value={hungerCravings}
+            onChange={(e) => setHungerCravings(e.target.value)}
+            rows={2}
+            placeholder="Gab es Cravings, Hunger oder Schwierigkeiten?"
+            className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none"
+          />
+        </div>
+      )}
+
+      <div className="flex flex-col gap-4">
+        {cfg.trainingRating && <SliderInput label="Wie lief dein Training diese Woche?" value={trainingRating} onChange={(v) => setTrainingRating(v as 1|2|3|4|5)} />}
+        {cfg.stressAvg && <SliderInput label="Stressdurchschnitt" value={stressAvg} onChange={(v) => setStressAvg(v as 1|2|3|4|5)} colorMode="negative_high" labelMin="Entspannt" labelMax="Sehr gestresst" />}
+        {cfg.energyAvg && <SliderInput label="Energiedurchschnitt" value={energyAvg} onChange={(v) => setEnergyAvg(v as 1|2|3|4|5)} labelMin="Erschöpft" labelMax="Voller Energie" />}
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        <SliderInput label="Wie lief dein Training diese Woche?" value={trainingRating} onChange={(v) => setTrainingRating(v as 1|2|3|4|5)} />
-        <SliderInput label="Stressdurchschnitt" value={stressAvg} onChange={(v) => setStressAvg(v as 1|2|3|4|5)} colorMode="negative_high" labelMin="Entspannt" labelMax="Sehr gestresst" />
-        <SliderInput label="Energiedurchschnitt" value={energyAvg} onChange={(v) => setEnergyAvg(v as 1|2|3|4|5)} labelMin="Erschöpft" labelMax="Voller Energie" />
-      </div>
+      {cfg.specialEvents && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#8fa3c0]">Besondere Ereignisse</label>
+          <textarea
+            value={specialEvents}
+            onChange={(e) => setSpecialEvents(e.target.value)}
+            rows={2}
+            placeholder="Urlaub, Krankheit, Stress, Event..."
+            className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none"
+          />
+        </div>
+      )}
 
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-[#8fa3c0]">Besondere Ereignisse</label>
-        <textarea
-          value={specialEvents}
-          onChange={(e) => setSpecialEvents(e.target.value)}
-          rows={2}
-          placeholder="Urlaub, Krankheit, Stress, Event..."
-          className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-[#8fa3c0]">Freie Wochenanmerkung</label>
-        <textarea
-          value={freeNote}
-          onChange={(e) => setFreeNote(e.target.value)}
-          rows={3}
-          placeholder="Eigene Gedanken zur Woche..."
-          className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none"
-        />
-      </div>
+      {cfg.freeNote && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-[#8fa3c0]">Freie Wochenanmerkung</label>
+          <textarea
+            value={freeNote}
+            onChange={(e) => setFreeNote(e.target.value)}
+            rows={3}
+            placeholder="Eigene Gedanken zur Woche..."
+            className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors resize-none"
+          />
+        </div>
+      )}
 
       <FloatingSaveButton
         onClick={() => formRef.current?.requestSubmit()}

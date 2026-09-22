@@ -63,7 +63,7 @@ export const CHECK_CONFIG_LABELS: { key: keyof DailyCheckConfig; label: string }
   { key: "cardioCompleted", label: "Cardio absolviert" },
   { key: "trainingCompleted", label: "Training absolviert" },
   { key: "nutritionCompliance", label: "Ernährungsplan Compliance" },
-  { key: "calorieTracking", label: "Kalorien getrackt" },
+  { key: "caffeine", label: "Koffein" },
   { key: "notes", label: "Tagesanmerkung" },
 ];
 

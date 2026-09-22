@@ -29,7 +29,7 @@ const FIELD_DEFS: FieldDef[] = [
   { key: "sleepQuality",   label: "Schlafqualität", configKey: "sleepQuality",       type: "scale"                                                   },
   { key: "appetite",       label: "Appetit",        configKey: "appetite",           type: "scale"                                                   },
   { key: "digestion",      label: "Verdauung",      configKey: "digestion",          type: "scale"                                                   },
-  { key: "caffeine",       label: "Koffein",        configKey: null,                 type: "number",    min: 0,   max: 800,   step: 10,  unit: "mg"  },
+  { key: "caffeine",       label: "Koffein",        configKey: "caffeine",           type: "number",    min: 0,   max: 800,   step: 10,  unit: "mg"  },
   { key: "training",       label: "Training",       configKey: "trainingCompleted",  type: "boolean"                                                 },
   { key: "cardio",         label: "Cardio",         configKey: "cardioCompleted",    type: "boolean"                                                 },
   { key: "nutritionStatus",label: "Ernährung",      configKey: "nutritionCompliance",type: "nutrition"                                               },
