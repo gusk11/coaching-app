@@ -5,6 +5,7 @@ import { Trash2, Plus, Database, Search, X, ExternalLink } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 import { loadSupplementDB } from "@/lib/store";
+import { sanitizeHref } from "@/lib/utils";
 
 interface Props {
   plan?: SupplementPlan;
@@ -211,7 +212,7 @@ export function SupplementEditor({ plan, athleteId, onSave }: Props) {
                 )}
                 {selectedDBItem.link && (
                   <a
-                    href={selectedDBItem.link}
+                    href={sanitizeHref(selectedDBItem.link)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-[#3b82f6] hover:text-[#60a5fa] transition-colors w-fit"
@@ -368,7 +369,7 @@ export function SupplementEditor({ plan, athleteId, onSave }: Props) {
                 {s.link && (
                   <Tooltip label="Link öffnen">
                     <a
-                      href={s.link}
+                      href={sanitizeHref(s.link)}
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label="Link öffnen"

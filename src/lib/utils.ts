@@ -217,6 +217,17 @@ export function todayISO(): string {
   return toISODate(new Date());
 }
 
+/**
+ * Computes the stable tracking key for a plan exercise.
+ * Used to group logs by exercise+variant across plan changes.
+ */
+export function getTrackingKey(exerciseDbId: string | undefined, variantLabel?: string): string | undefined {
+  if (!exerciseDbId) return undefined;
+  const label = variantLabel?.trim();
+  if (!label) return exerciseDbId;
+  return `${exerciseDbId}::${label.toLowerCase()}`;
+}
+
 export function getGoalLabel(goal: string, customText?: string): string {
   if (goal === "custom") return customText?.trim() || "Individuell";
   const map: Record<string, string> = {
@@ -298,6 +309,15 @@ export function getLastTwoWeekStarts(): [Date, Date] {
   const lastWeek = new Date(thisWeek);
   lastWeek.setDate(lastWeek.getDate() - 7);
   return [thisWeek, lastWeek];
+}
+
+export function sanitizeHref(url: string | undefined | null): string {
+  if (!url) return "#";
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") return url;
+  } catch {}
+  return "#";
 }
 
 export async function copyTextToClipboard(text: string): Promise<boolean> {

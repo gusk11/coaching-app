@@ -1,14 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { findAthleteByLogin, saveAuth, addLoginHelpRequest, getMaintenanceMode } from "@/lib/store";
+import { saveAuth, addLoginHelpRequest, getMaintenanceMode } from "@/lib/store";
 import { MaintenanceMode } from "@/types";
 import { OnboardingWizard } from "@/components/athlete/OnboardingWizard";
 import { showToast } from "@/components/ui/Toast";
 
 type View = "login" | "register";
 
-const COACH_PASSWORD = process.env.NEXT_PUBLIC_COACH_PASSWORD ?? "";
 const DEFAULT_MAINTENANCE_MSG =
   "Die App befindet sich momentan in der Wartung. Bitte versuche es später erneut.";
 
@@ -68,7 +67,12 @@ export default function LoginPage() {
       return;
     }
     if (nameOrEmail.trim().toLowerCase() === "coach") {
-      if (pin === COACH_PASSWORD) {
+      const res = await fetch("/api/coach-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pin }),
+      });
+      if (res.ok) {
         saveAuth("coach", null);
         router.push("/coach/dashboard");
       } else {
@@ -80,12 +84,17 @@ export default function LoginPage() {
       showToast(maintenance.message || DEFAULT_MAINTENANCE_MSG, "error");
       return;
     }
-    const athlete = await findAthleteByLogin(nameOrEmail, pin);
-    if (!athlete) {
+    const res = await fetch("/api/athlete-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nameOrEmail, pin }),
+    });
+    if (!res.ok) {
       setLoginError("Name/E-Mail oder PIN ungültig.");
       return;
     }
-    saveAuth("athlete", athlete.id);
+    const { athleteId } = await res.json();
+    saveAuth("athlete", athleteId);
     router.push("/athlete/dashboard");
   }
 

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { SupplementPlan } from "@/types";
 import { Pill, ExternalLink } from "lucide-react";
 import { PlanSwitcher } from "@/components/ui/PlanSwitcher";
+import { sanitizeHref } from "@/lib/utils";
 
 function SingleSupplementList({ plan }: { plan: SupplementPlan }) {
   return (
@@ -48,7 +49,7 @@ function SingleSupplementList({ plan }: { plan: SupplementPlan }) {
                 <p className="text-xs text-[#5a7090] mb-1">Produktempfehlung:</p>
                 {s.link ? (
                   <a
-                    href={s.link}
+                    href={sanitizeHref(s.link)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-xs text-[#3b82f6] hover:text-[#60a5fa] transition-colors w-fit"

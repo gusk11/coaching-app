@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseAdmin } from "@/lib/supabase-server";
+const supabase = createSupabaseAdmin();
 
 const NOW = "2026-06-04T00:00:00.000Z";
 
@@ -397,7 +398,7 @@ export async function POST(request: NextRequest) {
     : athletes?.find((a: { id: string; name: string }) => !TEST_IDS.includes(a.id));
 
   if (!athlete) {
-    return NextResponse.json({ ok: false, step: "find_athlete", error: `No athlete found (prefix="${namePrefix}"). Pass ?athlete=name to target a specific athlete.`, available: athletes?.map((a: { id: string; name: string }) => a.name) }, { status: 404 });
+    return NextResponse.json({ ok: false, step: "find_athlete", error: `No athlete found (prefix="${namePrefix}"). Pass ?athlete=name to target a specific athlete.` }, { status: 404 });
   }
 
   // 5. Build and upsert plans

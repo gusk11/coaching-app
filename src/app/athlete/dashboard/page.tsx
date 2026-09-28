@@ -17,7 +17,7 @@ import {
 } from "@/lib/utils";
 import { ClipboardCheck, CalendarPlus, Video } from "lucide-react";
 import { VideoFeedback } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, sanitizeHref } from "@/lib/utils";
 import { VideoFeedbackCategoryBadge } from "@/components/ui/VideoFeedbackCategoryBadge";
 import { motion } from "framer-motion";
 import { listContainer, listItem } from "@/lib/motion";
@@ -144,7 +144,7 @@ export default function AthleteDashboard() {
         {unseenFeedbacks.map((fb) => (
           <a
             key={fb.id}
-            href={fb.loomUrl}
+            href={sanitizeHref(fb.loomUrl)}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => {

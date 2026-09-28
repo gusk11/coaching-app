@@ -4,7 +4,7 @@ import { VideoFeedback } from "@/types";
 import { loadVideoFeedbacks, markVideoFeedbackSeen } from "@/lib/store";
 import { VideoFeedbackCategoryBadge } from "@/components/ui/VideoFeedbackCategoryBadge";
 import { Video, ExternalLink, Search, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, sanitizeHref } from "@/lib/utils";
 
 const CATEGORY_FILTERS: { value: VideoFeedback["category"] | ""; label: string }[] = [
   { value: "", label: "Alle" },
@@ -142,7 +142,7 @@ export function VideoFeedbackOverview({ athleteId }: { athleteId: string }) {
           {filtered.map((fb) => (
             <a
               key={fb.id}
-              href={fb.loomUrl}
+              href={sanitizeHref(fb.loomUrl)}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => handleOpen(fb)}

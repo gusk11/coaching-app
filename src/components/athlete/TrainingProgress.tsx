@@ -71,19 +71,25 @@ interface WeekStats {
   comparable: number;
 }
 
-function buildExerciseHistory(trainingLogs: TrainingLog[]): Map<string, ExSession[]> {
-  const map = new Map<string, ExSession[]>();
+function buildExerciseHistory(trainingLogs: TrainingLog[]): {
+  history: Map<string, ExSession[]>;
+  displayNames: Map<string, string>;
+} {
+  const history = new Map<string, ExSession[]>();
+  const displayNames = new Map<string, string>();
   for (const log of trainingLogs) {
     for (const exLog of log.exercises) {
-      const name = exLog.exerciseName;
-      if (!map.has(name)) map.set(name, []);
-      map.get(name)!.push({ date: log.date, trainingDayName: log.trainingDayName, exLog });
+      const key = exLog.trackingKey ?? exLog.exerciseName;
+      const displayName = exLog.variantLabel ? `${exLog.exerciseName} · ${exLog.variantLabel}` : exLog.exerciseName;
+      if (!history.has(key)) history.set(key, []);
+      history.get(key)!.push({ date: log.date, trainingDayName: log.trainingDayName, exLog });
+      if (!displayNames.has(key)) displayNames.set(key, displayName);
     }
   }
-  for (const sessions of map.values()) {
+  for (const sessions of history.values()) {
     sessions.sort((a, b) => a.date.localeCompare(b.date));
   }
-  return map;
+  return { history, displayNames };
 }
 
 function processSessions(sessions: ExSession[]): ProcessedSession[] {
@@ -122,7 +128,8 @@ function computeWeekStats(trainingLogs: TrainingLog[], exerciseHistory: Map<stri
   const logsInRange = trainingLogs.filter(l => l.date >= fromDate && l.date <= toDate);
   for (const log of logsInRange) {
     for (const exLog of log.exercises) {
-      const allSessions = exerciseHistory.get(exLog.exerciseName) ?? [];
+      const key = exLog.trackingKey ?? exLog.exerciseName;
+      const allSessions = exerciseHistory.get(key) ?? [];
       const prevSession = [...allSessions].filter(s => s.date < log.date).pop();
       if (!prevSession) continue;
 
@@ -253,11 +260,16 @@ function SessionCard({ session, defaultOpen }: CardProps) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function TrainingProgress({ trainingLogs, mode = "athlete" }: Props) {
-  const exerciseHistory = useMemo(() => buildExerciseHistory(trainingLogs), [trainingLogs]);
+  const { history: exerciseHistory, displayNames: exerciseDisplayNames } = useMemo(
+    () => buildExerciseHistory(trainingLogs),
+    [trainingLogs]
+  );
 
   const exerciseNames = useMemo(
-    () => [...exerciseHistory.keys()].sort((a, b) => a.localeCompare(b, "de")),
-    [exerciseHistory]
+    () => [...exerciseHistory.keys()].sort((a, b) =>
+      (exerciseDisplayNames.get(a) ?? a).localeCompare(exerciseDisplayNames.get(b) ?? b, "de")
+    ),
+    [exerciseHistory, exerciseDisplayNames]
   );
 
   const [selectedExercise, setSelectedExercise] = useState<string>(exerciseNames[0] ?? "");
@@ -331,7 +343,7 @@ export function TrainingProgress({ trainingLogs, mode = "athlete" }: Props) {
             className="w-full bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm appearance-none pr-8 focus:outline-none focus:border-[#3b82f6]"
           >
             {exerciseNames.map(name => (
-              <option key={name} value={name}>{name}</option>
+              <option key={name} value={name}>{exerciseDisplayNames.get(name) ?? name}</option>
             ))}
           </select>
           <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5a7090] pointer-events-none" />

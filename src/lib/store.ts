@@ -1,17 +1,13 @@
 "use client";
-import { supabase } from "@/lib/supabase";
 import { athletes as initialAthletes } from "@/data/athletes";
 import { foodItems as baseFoodItems } from "@/data/foodItems";
-import { seedCustomFoods } from "@/data/seedCustomFoods";
-import { seedSupplementDB } from "@/data/seedSupplements";
-import { seedExerciseDB } from "@/data/seedExercises";
 import {
   Athlete, AthleteProfile, LegalConsent, DailyCheckIn, WeeklyCheckIn,
   WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay,
   FoodItem, SupplementDBItem, ExerciseDBItem, GoalType,
   DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest, VideoFeedback,
   PlanChangeRequest, TrainingPlan, MealPlan, SupplementPlan, MaintenanceMode,
-  OnboardingCode,
+  OnboardingCode, ExerciseVariant,
 } from "@/types";
 import { TrainingPlanSchema, MealPlanSchema, SupplementPlanSchema } from "@/lib/planSchemas";
 import { getCheckInWeekStart } from "@/lib/utils";
@@ -24,7 +20,6 @@ const ACTIVE_SESSION_KEY = "processLab_activeSession";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToAthlete(row: any): Athlete {
-  // legalConsent is embedded in profile JSONB under __lc to avoid an extra column
   const rawProfile = row.profile ?? undefined;
   const legalConsent: LegalConsent | undefined = rawProfile?.__lc ?? undefined;
   const introVideoSeen: boolean = rawProfile?.__ivs === true;
@@ -69,6 +64,7 @@ function rowToAthlete(row: any): Athlete {
     zipCode: row.zip_code ?? undefined,
     city: row.city ?? undefined,
     isHidden: row.is_hidden ?? undefined,
+    exerciseVariants: row.exercise_variants ?? [],
     dailyCheckConfig: row.daily_check_config ?? { ...DEFAULT_DAILY_CHECK_CONFIG },
     coachNote: row.coach_note ?? "",
     visibleNote: row.visible_note ?? "",
@@ -91,7 +87,6 @@ function rowToAthlete(row: any): Athlete {
 }
 
 function athleteToRow(a: Athlete): Record<string, unknown> {
-  // Embed legalConsent and introVideoSeen in profile JSONB under __lc / __ivs
   const profileWithLegal = {
     ...(a.profile ?? {}),
     ...(a.legalConsent ? { __lc: a.legalConsent } : {}),
@@ -128,6 +123,7 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
     zip_code: a.zipCode ?? null,
     city: a.city ?? null,
     is_hidden: a.isHidden ?? null,
+    exercise_variants: a.exerciseVariants ?? [],
     daily_check_config: a.dailyCheckConfig ?? null,
     coach_note: a.coachNote ?? "",
     visible_note: a.visibleNote ?? "",
@@ -187,7 +183,6 @@ function foodItemToRow(f: FoodItem): Record<string, unknown> {
     notes: f.notes ?? null,
     is_active: f.isActive ?? true,
   };
-  // Only include source when defined — column must exist in DB (see migration SQL)
   if (f.source !== undefined) row.source = f.source;
   return row;
 }
@@ -258,34 +253,37 @@ export function clearAuth() {
   localStorage.removeItem(AUTH_KEY);
 }
 
+// ─── Internal fetch helper ────────────────────────────────────────────────────
+
+async function api<T = unknown>(path: string, opts?: RequestInit): Promise<T> {
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    const msg = await res.text().catch(() => `HTTP ${res.status}`);
+    throw new Error(msg);
+  }
+  return res.json() as Promise<T>;
+}
+
+function jsonOpts(method: string, body: unknown): RequestInit {
+  return {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  };
+}
+
 // ─── Athletes ─────────────────────────────────────────────────────────────────
 
 export async function loadAthletes(): Promise<Athlete[]> {
-  const { data, error } = await supabase.from("athletes").select("*").order("name");
-  if (error) throw error;
-  if (!data || data.length === 0) {
-    const rows = initialAthletes.map(athleteToRow);
-    const { error: seedError } = await supabase.from("athletes").insert(rows);
-    if (seedError) console.error("Seed athletes error:", seedError);
-    return initialAthletes;
-  }
-  return data.map(rowToAthlete);
-}
-
-async function nextAthleteNumber(): Promise<string> {
-  const { data } = await supabase.from("athletes").select("athlete_number");
-  const max = (data ?? []).reduce((acc, row) => {
-    const n = parseInt(row.athlete_number ?? "0", 10);
-    return isNaN(n) ? acc : Math.max(acc, n);
-  }, 0);
-  return String(max + 1).padStart(4, "0");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>("/api/athletes");
+  return rows.map(rowToAthlete);
 }
 
 export async function addAthlete(athlete: Athlete): Promise<Athlete[]> {
-  const athleteNumber = athlete.athleteNumber ?? await nextAthleteNumber();
-  const { error } = await supabase.from("athletes").insert(athleteToRow({ ...athlete, athleteNumber }));
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>("/api/athletes", jsonOpts("POST", athleteToRow(athlete)));
+  return rows.map(rowToAthlete);
 }
 
 export async function updateAthlete(id: string, updates: Partial<Athlete>): Promise<Athlete[]> {
@@ -296,7 +294,6 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   if ("avatarInitials" in updates) row.avatar_initials = updates.avatarInitials ?? null;
   if ("onboardingCompleted" in updates) row.onboarding_completed = updates.onboardingCompleted;
   if ("legalConsent" in updates || "profile" in updates || "isNewSignup" in updates) {
-    // Merge legalConsent / isNewSignup back into profile JSONB
     const p = updates.profile ?? undefined;
     const lc = updates.legalConsent ?? undefined;
     const ns = updates.isNewSignup;
@@ -341,56 +338,67 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   if ("weeklyTrendTargetPercent" in updates) row.weekly_trend_target_percent = updates.weeklyTrendTargetPercent ?? null;
   if ("planBearbeitungErlaubt" in updates) row.plan_bearbeitung_erlaubt = updates.planBearbeitungErlaubt ?? false;
   if ("planChangeRequests" in updates) row.plan_change_requests = updates.planChangeRequests ?? [];
+  if ("exerciseVariants" in updates) row.exercise_variants = updates.exerciseVariants ?? [];
+  if ("isHidden" in updates) row.is_hidden = updates.isHidden ?? null;
   row.updated_at = new Date().toISOString();
-  const { error } = await supabase.from("athletes").update(row).eq("id", id);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${id}`, jsonOpts("PATCH", { row }));
+  return rows.map(rowToAthlete);
 }
 
 export async function saveLegalConsent(
   athleteId: string,
   consent: NonNullable<Athlete["legalConsent"]>
 ): Promise<void> {
-  const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
-  const merged = { ...(row?.profile ?? {}), __lc: consent };
-  const { error } = await supabase
-    .from("athletes")
-    .update({ profile: merged, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
+  const a = await getAthlete(athleteId);
+  const merged = { ...(a.profile ?? {}), __lc: consent };
+  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { profile: merged, updated_at: new Date().toISOString() },
+  }));
 }
 
 export async function markAthleteToolIntroSeen(athleteId: string, toolKey: string): Promise<void> {
-  const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
-  const sti: string[] = row?.profile?.__sti ?? [];
+  const a = await getAthlete(athleteId);
+  const sti: string[] = a.seenToolIntros ?? [];
   if (sti.includes(toolKey)) return;
-  const merged = { ...(row?.profile ?? {}), __sti: [...sti, toolKey] };
-  const { error } = await supabase
-    .from("athletes")
-    .update({ profile: merged, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
+  const merged = { ...(a.profile ?? {}), __sti: [...sti, toolKey] };
+  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { profile: merged, updated_at: new Date().toISOString() },
+  }));
 }
 
 export async function markIntroVideoSeen(athleteId: string): Promise<void> {
-  const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
-  const merged = { ...(row?.profile ?? {}), __ivs: true };
-  const { error } = await supabase.from("athletes").update({ profile: merged }).eq("id", athleteId);
-  if (error) throw error;
+  const a = await getAthlete(athleteId);
+  const merged = { ...(a.profile ?? {}), __ivs: true };
+  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", { row: { profile: merged } }));
 }
 
 export async function deleteAthlete(id: string): Promise<void> {
-  const { error } = await supabase.from("athletes").delete().eq("id", id);
-  if (error) throw error;
+  await api(`/api/athletes/${id}`, { method: "DELETE" });
 }
 
 export async function setAthleteHidden(athleteId: string, hidden: boolean): Promise<Athlete[]> {
-  const { error } = await supabase
-    .from("athletes")
-    .update({ is_hidden: hidden || null, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { is_hidden: hidden || null, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
+}
+
+// ─── Exercise Variants ────────────────────────────────────────────────────────
+
+export async function getAthleteExerciseVariants(athleteId: string): Promise<ExerciseVariant[]> {
+  const a = await getAthlete(athleteId);
+  return a.exerciseVariants ?? [];
+}
+
+export async function addExerciseVariant(athleteId: string, variant: ExerciseVariant): Promise<ExerciseVariant[]> {
+  const a = await getAthlete(athleteId);
+  const updated = [...(a.exerciseVariants ?? []), variant];
+  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { exercise_variants: updated, updated_at: new Date().toISOString() },
+  }));
+  return updated;
 }
 
 // ─── Registration & Login ─────────────────────────────────────────────────────
@@ -427,30 +435,42 @@ export interface RegistrationData {
 }
 
 export async function registerAthlete(data: RegistrationData): Promise<Athlete> {
-  const { data: existing, error: checkError } = await supabase
-    .from("athletes")
-    .select("id")
-    .ilike("email", data.email.trim());
-  if (checkError) throw checkError;
-  if (existing && existing.length > 0) throw new Error("E-Mail-Adresse bereits registriert.");
-
-  const today = new Date().toISOString().split("T")[0];
-  const weight = data.currentWeight ?? 0;
-  const athleteNumber = await nextAthleteNumber();
-  const newAthlete: Athlete = {
-    id: `athlete-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  const payload = {
     name: data.name.trim(),
     email: data.email.toLowerCase().trim(),
     pin: data.pin,
-    athleteNumber,
+    birthDate: data.birthDate,
+    currentWeight: data.currentWeight,
+    targetWeight: data.targetWeight,
+    goalType: deriveGoalType(data.goalPriorities ?? []),
+    goalText: data.goalText,
+    checkInDay: data.checkInDay ?? 1,
+    experienceLevel: data.experienceLevel,
+    injuries: data.injuries,
+    trainingHistory: data.trainingHistory,
+    street: data.street,
+    zipCode: data.zipCode,
+    city: data.city,
+    profile: { ...data.profile, personal: { email: data.email.toLowerCase().trim(), birthDate: data.birthDate || undefined } },
+    legalConsent: data.legalConsent,
+    dailyCheckConfig: { ...DEFAULT_DAILY_CHECK_CONFIG },
+  };
+  const result = await api<{ ok: boolean; athleteId: string }>("/api/register", jsonOpts("POST", payload));
+  // Build a minimal Athlete object for immediate use; full data loaded on next loadAthletes()
+  const today = new Date().toISOString().split("T")[0];
+  return {
+    id: result.athleteId,
+    name: data.name.trim(),
+    email: data.email.toLowerCase().trim(),
+    pin: data.pin,
     avatarInitials: getInitials(data.name),
     onboardingCompleted: true,
     isNewSignup: true,
     legalConsent: data.legalConsent,
     profile: { ...data.profile, personal: { email: data.email.toLowerCase().trim(), birthDate: data.birthDate || undefined } },
-    startWeight: weight,
-    currentWeight: weight,
-    targetWeight: data.targetWeight ?? weight,
+    startWeight: data.currentWeight ?? 0,
+    currentWeight: data.currentWeight ?? 0,
+    targetWeight: data.targetWeight ?? data.currentWeight ?? 0,
     goalType: deriveGoalType(data.goalPriorities ?? []),
     goalText: data.goalText,
     checkInDay: data.checkInDay ?? 1,
@@ -473,64 +493,44 @@ export async function registerAthlete(data: RegistrationData): Promise<Athlete> 
     notes: [],
     joinedAt: today,
   };
-  const { error } = await supabase.from("athletes").insert(athleteToRow(newAthlete));
-  if (error) throw error;
-  return newAthlete;
-}
-
-function normalizeLoginName(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, "");
-}
-
-export async function findAthleteByLogin(nameOrEmail: string, pin: string): Promise<Athlete | null> {
-  const { data, error } = await supabase.from("athletes").select("*");
-  if (error) throw error;
-  if (!data) return null;
-  const key = nameOrEmail.trim().toLowerCase();
-  const keyNorm = normalizeLoginName(nameOrEmail);
-  return data.map(rowToAthlete).find((a) => {
-    const emailMatch = (a.email || a.profile?.personal?.email || "").toLowerCase() === key;
-    const nameMatch = normalizeLoginName(a.name) === keyNorm;
-    return (emailMatch || nameMatch) && a.pin === pin;
-  }) ?? null;
 }
 
 export async function updateAthleteCredentials(
   athleteId: string,
   updates: { name?: string; email?: string; pin?: string }
 ): Promise<Athlete[]> {
-  const { data, error: fetchError } = await supabase
-    .from("athletes").select("*").eq("id", athleteId).single();
-  if (fetchError) throw fetchError;
-  const current = rowToAthlete(data);
-  const newName = updates.name?.trim() ?? current.name;
-  const newEmail = updates.email?.toLowerCase().trim() ?? current.email ?? "";
-  const newPin = updates.pin?.trim() ?? current.pin;
+  const a = await getAthlete(athleteId);
+  const newName = updates.name?.trim() ?? a.name;
+  const newEmail = updates.email?.toLowerCase().trim() ?? a.email ?? "";
+  const newPin = updates.pin?.trim() ?? a.pin;
   const newInitials = newName.split(/\s+/).map((w) => w[0]?.toUpperCase() ?? "").slice(0, 2).join("");
-  const updatedProfile = current.profile
-    ? { ...current.profile, personal: { ...current.profile.personal, email: newEmail || undefined } }
+  const updatedProfile = a.profile
+    ? { ...a.profile, personal: { ...a.profile.personal, email: newEmail || undefined } }
     : undefined;
-  const profileWithLegal = current.legalConsent
-    ? { ...(updatedProfile ?? {}), __lc: current.legalConsent }
+  const profileWithLegal = a.legalConsent
+    ? { ...(updatedProfile ?? {}), __lc: a.legalConsent }
     : (updatedProfile ?? null);
-  const { error } = await supabase.from("athletes").update({
-    name: newName,
-    email: newEmail || null,
-    pin: newPin,
-    avatar_initials: updates.name ? newInitials : current.avatarInitials,
-    profile: profileWithLegal,
-    updated_at: new Date().toISOString(),
-  }).eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: {
+      name: newName,
+      email: newEmail || null,
+      pin: newPin,
+      avatar_initials: updates.name ? newInitials : a.avatarInitials,
+      profile: profileWithLegal,
+      updated_at: new Date().toISOString(),
+    },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 // ─── JSONB array mutation helpers ─────────────────────────────────────────────
 
 async function getAthlete(id: string): Promise<Athlete> {
-  const { data, error } = await supabase.from("athletes").select("*").eq("id", id).single();
-  if (error) throw error;
-  return rowToAthlete(data);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${id}`);
+  if (!rows.length) throw new Error(`Athlete ${id} not found`);
+  return rowToAthlete(rows[0]);
 }
 
 type FreemealTotals = {
@@ -578,11 +578,11 @@ export async function addDailyCheckIn(
   const newCheckIn: DailyCheckIn = { ...enriched, id: `dc-${athleteId}-${Date.now()}`, athleteId };
   const filtered = a.dailyCheckIns.filter((c) => c.date !== checkIn.date);
   const daily_check_ins = [...filtered, newCheckIn].sort((x, y) => x.date.localeCompare(y.date));
-  const { error } = await supabase.from("athletes")
-    .update({ daily_check_ins, current_weight: checkIn.weight, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { daily_check_ins, current_weight: checkIn.weight, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function addWeeklyCheckIn(
@@ -590,17 +590,15 @@ export async function addWeeklyCheckIn(
   checkIn: Omit<WeeklyCheckIn, "id" | "athleteId">
 ): Promise<Athlete[]> {
   const a = await getAthlete(athleteId);
-  // Always derive weekStart from the athlete's configured checkInDay, not the caller's value,
-  // so late or early submissions land in the correct period regardless of fill-in date.
   const weekStart = getCheckInWeekStart(checkIn.date, a.checkInDay);
   const newCheckIn: WeeklyCheckIn = { ...checkIn, weekStart, id: `wc-${athleteId}-${Date.now()}`, athleteId };
   const filtered = a.weeklyCheckIns.filter((c) => c.weekStart !== weekStart);
   const weekly_check_ins = [...filtered, newCheckIn];
-  const { error } = await supabase.from("athletes")
-    .update({ weekly_check_ins, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { weekly_check_ins, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function updateDailyCheckIn(
@@ -615,11 +613,11 @@ export async function updateDailyCheckIn(
     c.id === checkInId ? { ...enriched, id: checkInId, athleteId } : c
   ).sort((x, y) => x.date.localeCompare(y.date));
   const latest = daily_check_ins.at(-1);
-  const { error } = await supabase.from("athletes")
-    .update({ daily_check_ins, ...(latest ? { current_weight: latest.weight } : {}), updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { daily_check_ins, ...(latest ? { current_weight: latest.weight } : {}), updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function updateWeeklyCheckIn(
@@ -631,11 +629,11 @@ export async function updateWeeklyCheckIn(
   const weekly_check_ins = a.weeklyCheckIns.map((c) =>
     c.id === checkInId ? { ...data, id: checkInId, athleteId } : c
   );
-  const { error } = await supabase.from("athletes")
-    .update({ weekly_check_ins, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { weekly_check_ins, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function deleteDailyCheckIn(
@@ -647,11 +645,11 @@ export async function deleteDailyCheckIn(
     .filter((c) => c.id !== checkInId)
     .sort((x, y) => x.date.localeCompare(y.date));
   const latest = daily_check_ins.at(-1);
-  const { error } = await supabase.from("athletes")
-    .update({ daily_check_ins, ...(latest ? { current_weight: latest.weight } : {}), updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { daily_check_ins, ...(latest ? { current_weight: latest.weight } : {}), updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function deleteWeeklyCheckIn(
@@ -660,11 +658,11 @@ export async function deleteWeeklyCheckIn(
 ): Promise<Athlete[]> {
   const a = await getAthlete(athleteId);
   const weekly_check_ins = a.weeklyCheckIns.filter((c) => c.id !== checkInId);
-  const { error } = await supabase.from("athletes")
-    .update({ weekly_check_ins, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { weekly_check_ins, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function addWeeklyAdjustment(
@@ -679,21 +677,21 @@ export async function addWeeklyAdjustment(
     createdAt: new Date().toISOString(),
   };
   const weekly_adjustments = [...(a.weeklyAdjustments ?? []), newAdj];
-  const { error } = await supabase.from("athletes")
-    .update({ weekly_adjustments, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { weekly_adjustments, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function deleteWeeklyAdjustment(athleteId: string, adjId: string): Promise<Athlete[]> {
   const a = await getAthlete(athleteId);
   const weekly_adjustments = (a.weeklyAdjustments ?? []).filter((w) => w.id !== adjId);
-  const { error } = await supabase.from("athletes")
-    .update({ weekly_adjustments, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { weekly_adjustments, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function saveCalorieTrackerDay(
@@ -704,11 +702,11 @@ export async function saveCalorieTrackerDay(
   const newDay: CalorieTrackerDay = { ...day, id: `ct-${athleteId}-${day.date}`, athleteId };
   const filtered = (a.calorieTrackerDays ?? []).filter((d) => d.date !== day.date);
   const calorie_tracker_days = [...filtered, newDay].sort((x, y) => x.date.localeCompare(y.date));
-  const { error } = await supabase.from("athletes")
-    .update({ calorie_tracker_days, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { calorie_tracker_days, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function saveTrainingLog(
@@ -721,21 +719,21 @@ export async function saveTrainingLog(
     (l) => l.date !== log.date || l.trainingDayId !== log.trainingDayId
   );
   const training_logs = [...filtered, newLog].sort((x, y) => x.date.localeCompare(y.date));
-  const { error } = await supabase.from("athletes")
-    .update({ training_logs, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { training_logs, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function deleteTrainingLog(athleteId: string, logId: string): Promise<Athlete[]> {
   const a = await getAthlete(athleteId);
   const training_logs = (a.trainingLogs ?? []).filter((l) => l.id !== logId);
-  const { error } = await supabase.from("athletes")
-    .update({ training_logs, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { training_logs, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function updateTrainingLog(athleteId: string, log: TrainingLog): Promise<Athlete[]> {
@@ -743,11 +741,11 @@ export async function updateTrainingLog(athleteId: string, log: TrainingLog): Pr
   const training_logs = (a.trainingLogs ?? [])
     .map((l) => l.id === log.id ? log : l)
     .sort((x, y) => x.date.localeCompare(y.date));
-  const { error } = await supabase.from("athletes")
-    .update({ training_logs, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { training_logs, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 // ─── Plan Change Requests ─────────────────────────────────────────────────────
@@ -767,10 +765,9 @@ export async function createPlanChangeRequest(
     createdAt: new Date().toISOString(),
   };
   const plan_change_requests = [...(a.planChangeRequests ?? []), request];
-  const { error } = await supabase.from("athletes")
-    .update({ plan_change_requests, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
+  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { plan_change_requests, updated_at: new Date().toISOString() },
+  }));
 }
 
 export async function getPendingPlanChangeRequests(athleteId: string): Promise<PlanChangeRequest[]> {
@@ -796,9 +793,9 @@ export async function approvePlanChangeRequest(athleteId: string, requestId: str
       ? currentPlans.map((p) => p.id === proposed.id ? proposed : p)
       : [...currentPlans, proposed];
   }
-  const { error } = await supabase.from("athletes").update(row).eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", { row }));
+  return rows.map(rowToAthlete);
 }
 
 export async function rejectPlanChangeRequest(athleteId: string, requestId: string): Promise<Athlete[]> {
@@ -806,31 +803,23 @@ export async function rejectPlanChangeRequest(athleteId: string, requestId: stri
   const plan_change_requests = (a.planChangeRequests ?? []).map((r) =>
     r.id === requestId ? { ...r, status: "rejected" as const } : r
   );
-  const { error } = await supabase.from("athletes")
-    .update({ plan_change_requests, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { plan_change_requests, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 // ─── Food Database ────────────────────────────────────────────────────────────
 
 export async function loadCustomFoods(): Promise<FoodItem[]> {
-  const { data, error } = await supabase.from("custom_foods").select("*").order("name");
-  if (error) throw error;
-  if (!data || data.length === 0) {
-    const rows = seedCustomFoods.map(foodItemToRow);
-    const { error: seedError } = await supabase.from("custom_foods").insert(rows);
-    if (seedError) console.error("Seed custom foods error:", seedError);
-    return seedCustomFoods;
-  }
-  return data.map(rowToFoodItem);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>("/api/databases/custom-foods");
+  return rows.map(rowToFoodItem);
 }
 
 export async function loadDeactivatedFoods(): Promise<string[]> {
-  const { data, error } = await supabase.from("deactivated_foods").select("food_id");
-  if (error) throw error;
-  return (data ?? []).map((row: { food_id: string }) => row.food_id);
+  return api<string[]>("/api/databases/deactivated-foods");
 }
 
 export async function getAllFoodItems(): Promise<FoodItem[]> {
@@ -848,31 +837,15 @@ export async function addCustomFood(
     isActive: true,
     createdAt: new Date().toISOString(),
   };
-  const { error } = await supabase.from("custom_foods").insert(foodItemToRow(newFood));
-  if (error) throw error;
-  return loadCustomFoods();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>("/api/databases/custom-foods", jsonOpts("POST", foodItemToRow(newFood)));
+  return rows.map(rowToFoodItem);
 }
 
 export async function updateCustomFood(id: string, updates: Partial<FoodItem>): Promise<FoodItem[]> {
-  const row: Record<string, unknown> = {};
-  if ("name" in updates) row.name = updates.name;
-  if ("category" in updates) row.category = updates.category ?? null;
-  if ("kcalPer100g" in updates) row.kcal_per_100g = updates.kcalPer100g ?? null;
-  if ("proteinPer100g" in updates) row.protein_per_100g = updates.proteinPer100g ?? null;
-  if ("carbsPer100g" in updates) row.carbs_per_100g = updates.carbsPer100g ?? null;
-  if ("fatPer100g" in updates) row.fat_per_100g = updates.fatPer100g ?? null;
-  if ("fiberPer100g" in updates) row.fiber_per_100g = updates.fiberPer100g ?? null;
-  if ("saltPer100g" in updates) row.salt_per_100g = updates.saltPer100g ?? null;
-  if ("defaultAmount" in updates) row.default_amount = updates.defaultAmount ?? null;
-  if ("defaultAmountUnit" in updates) row.default_amount_unit = updates.defaultAmountUnit ?? null;
-  if ("servingLabel" in updates) row.serving_label = updates.servingLabel ?? null;
-  if ("notes" in updates) row.notes = updates.notes ?? null;
-  if ("isActive" in updates) row.is_active = updates.isActive;
-  if ("source" in updates && updates.source !== undefined) row.source = updates.source;
-  row.updated_at = new Date().toISOString();
-  const { error } = await supabase.from("custom_foods").update(row).eq("id", id);
-  if (error) throw error;
-  return loadCustomFoods();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/databases/custom-foods/${encodeURIComponent(id)}`, jsonOpts("PATCH", updates));
+  return rows.map(rowToFoodItem);
 }
 
 export async function deleteCustomFood(id: string): Promise<FoodItem[]> {
@@ -881,10 +854,9 @@ export async function deleteCustomFood(id: string): Promise<FoodItem[]> {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error ?? "Delete failed");
   }
-  // Direct query without re-seeding (avoids re-inserting all seed foods if table becomes empty)
-  const { data, error } = await supabase.from("custom_foods").select("*").order("name");
-  if (error) throw error;
-  return (data ?? []).map(rowToFoodItem);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>("/api/databases/custom-foods");
+  return rows.map(rowToFoodItem);
 }
 
 export async function deleteBaseFoodItem(id: string): Promise<string[]> {
@@ -903,22 +875,17 @@ export async function toggleFoodActive(
   isCustom: boolean
 ): Promise<{ deactivated: string[]; customFoods: FoodItem[] }> {
   if (isCustom) {
-    const { data, error: fetchError } = await supabase
-      .from("custom_foods").select("is_active").eq("id", id).single();
-    if (fetchError) throw fetchError;
-    const newActive = !(data?.is_active ?? true);
-    const { error } = await supabase.from("custom_foods")
-      .update({ is_active: newActive, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) throw error;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = await api<any[]>("/api/databases/custom-foods");
+    const current = rows.map(rowToFoodItem).find((f) => f.id === id);
+    const newActive = !(current?.isActive ?? true);
+    await api(`/api/databases/custom-foods/${encodeURIComponent(id)}`, jsonOpts("PATCH", { isActive: newActive }));
   } else {
     const hidden = await loadDeactivatedFoods();
     if (hidden.includes(id)) {
-      const { error } = await supabase.from("deactivated_foods").delete().eq("food_id", id);
-      if (error) throw error;
+      await api("/api/databases/deactivated-foods", jsonOpts("DELETE", { foodId: id }));
     } else {
-      const { error } = await supabase.from("deactivated_foods").insert({ food_id: id });
-      if (error) throw error;
+      await api("/api/databases/deactivated-foods", jsonOpts("POST", { foodId: id }));
     }
   }
   const [deactivated, customFoods] = await Promise.all([loadDeactivatedFoods(), loadCustomFoods()]);
@@ -928,112 +895,63 @@ export async function toggleFoodActive(
 // ─── Supplement Database ──────────────────────────────────────────────────────
 
 export async function loadSupplementDB(): Promise<SupplementDBItem[]> {
-  const { data, error } = await supabase.from("supplement_db").select("*").order("name");
-  if (error) throw error;
-  if (!data || data.length === 0) {
-    const rows = seedSupplementDB.map((s) => ({
-      id: s.id, name: s.name, category: s.category ?? null,
-      standard_dosage: s.standardDosage ?? null, timing: s.timing ?? null,
-      instructions: s.instructions ?? null, notes: s.notes ?? null, link: s.link ?? null,
-    }));
-    const { error: seedError } = await supabase.from("supplement_db").insert(rows);
-    if (seedError) console.error("Seed supplement_db error:", seedError);
-    return seedSupplementDB;
-  }
-  return data.map(rowToSupplement);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>("/api/databases/supplements");
+  return rows.map(rowToSupplement);
 }
 
 export async function addSupplementDBItem(
   item: Omit<SupplementDBItem, "id" | "createdAt" | "updatedAt">
 ): Promise<SupplementDBItem[]> {
-  const { error } = await supabase.from("supplement_db").insert({
-    id: `supp-${Date.now()}`, name: item.name, category: item.category ?? null,
-    standard_dosage: item.standardDosage ?? null, timing: item.timing ?? null,
-    instructions: item.instructions ?? null, notes: item.notes ?? null, link: item.link ?? null,
-  });
-  if (error) throw error;
-  return loadSupplementDB();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>("/api/databases/supplements", jsonOpts("POST", item));
+  return rows.map(rowToSupplement);
 }
 
 export async function updateSupplementDBItem(
   id: string,
   updates: Partial<SupplementDBItem>
 ): Promise<SupplementDBItem[]> {
-  const row: Record<string, unknown> = {};
-  if ("name" in updates) row.name = updates.name;
-  if ("category" in updates) row.category = updates.category ?? null;
-  if ("standardDosage" in updates) row.standard_dosage = updates.standardDosage ?? null;
-  if ("timing" in updates) row.timing = updates.timing ?? null;
-  if ("instructions" in updates) row.instructions = updates.instructions ?? null;
-  if ("notes" in updates) row.notes = updates.notes ?? null;
-  if ("link" in updates) row.link = updates.link ?? null;
-  row.updated_at = new Date().toISOString();
-  const { error } = await supabase.from("supplement_db").update(row).eq("id", id);
-  if (error) throw error;
-  return loadSupplementDB();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/databases/supplements/${encodeURIComponent(id)}`, jsonOpts("PATCH", updates));
+  return rows.map(rowToSupplement);
 }
 
 export async function deleteSupplementDBItem(id: string): Promise<SupplementDBItem[]> {
-  const { error } = await supabase.from("supplement_db").delete().eq("id", id);
-  if (error) throw error;
-  return loadSupplementDB();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/databases/supplements/${encodeURIComponent(id)}`, { method: "DELETE" });
+  return rows.map(rowToSupplement);
 }
 
 // ─── Exercise Database ────────────────────────────────────────────────────────
 
 export async function loadExerciseDB(): Promise<ExerciseDBItem[]> {
-  const { data, error } = await supabase.from("exercise_db").select("*").order("name");
-  if (error) throw error;
-  if (!data || data.length === 0) {
-    const rows = seedExerciseDB.map((e) => ({
-      id: e.id, name: e.name, muscle_group: e.muscleGroup ?? null,
-      equipment: e.equipmentType ?? null, laterality: e.laterality ?? "bilateral",
-      is_time_based: e.isTimeBased ?? false,
-      notes: e.notes ?? null, execution_link: e.executionLink ?? null,
-    }));
-    const { error: seedError } = await supabase.from("exercise_db").insert(rows);
-    if (seedError) console.error("Seed exercise_db error:", seedError);
-    return seedExerciseDB;
-  }
-  return data.map(rowToExercise);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>("/api/databases/exercises");
+  return rows.map(rowToExercise);
 }
 
 export async function addExerciseDBItem(
   item: Omit<ExerciseDBItem, "id" | "createdAt" | "updatedAt">
 ): Promise<ExerciseDBItem[]> {
-  const { error } = await supabase.from("exercise_db").insert({
-    id: `ex-${Date.now()}`, name: item.name, muscle_group: item.muscleGroup ?? null,
-    equipment: item.equipmentType ?? null, laterality: item.laterality ?? "bilateral",
-    is_time_based: item.isTimeBased ?? false,
-    notes: item.notes ?? null, execution_link: item.executionLink ?? null,
-  });
-  if (error) throw error;
-  return loadExerciseDB();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>("/api/databases/exercises", jsonOpts("POST", item));
+  return rows.map(rowToExercise);
 }
 
 export async function updateExerciseDBItem(
   id: string,
   updates: Partial<ExerciseDBItem>
 ): Promise<ExerciseDBItem[]> {
-  const row: Record<string, unknown> = {};
-  if ("name" in updates) row.name = updates.name;
-  if ("muscleGroup" in updates) row.muscle_group = updates.muscleGroup ?? null;
-  if ("equipmentType" in updates) row.equipment = updates.equipmentType ?? null;
-  if ("laterality" in updates) row.laterality = updates.laterality ?? "bilateral";
-  if ("isTimeBased" in updates) row.is_time_based = updates.isTimeBased ?? false;
-  if ("notes" in updates) row.notes = updates.notes ?? null;
-  if ("executionLink" in updates) row.execution_link = updates.executionLink ?? null;
-  if ("currentTechFeedbackVideoId" in updates) row.current_tech_feedback_video_id = updates.currentTechFeedbackVideoId ?? null;
-  row.updated_at = new Date().toISOString();
-  const { error } = await supabase.from("exercise_db").update(row).eq("id", id);
-  if (error) throw error;
-  return loadExerciseDB();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/databases/exercises/${encodeURIComponent(id)}`, jsonOpts("PATCH", updates));
+  return rows.map(rowToExercise);
 }
 
 export async function deleteExerciseDBItem(id: string): Promise<ExerciseDBItem[]> {
-  const { error } = await supabase.from("exercise_db").delete().eq("id", id);
-  if (error) throw error;
-  return loadExerciseDB();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/databases/exercises/${encodeURIComponent(id)}`, { method: "DELETE" });
+  return rows.map(rowToExercise);
 }
 
 export async function exportAllDatabases(): Promise<{
@@ -1052,36 +970,26 @@ export async function exportAllDatabases(): Promise<{
 // ─── Login Help Requests ──────────────────────────────────────────────────────
 
 export async function loadLoginHelpRequests(): Promise<LoginHelpRequest[]> {
-  const { data, error } = await supabase
-    .from("login_help_requests")
-    .select("*")
-    .order("requested_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map(rowToLoginHelpRequest);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>("/api/login-help");
+  return rows.map(rowToLoginHelpRequest);
 }
 
 export async function addLoginHelpRequest(enteredName: string, note?: string): Promise<LoginHelpRequest[]> {
-  const { error } = await supabase.from("login_help_requests").insert({
-    id: `lhr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    entered_name: enteredName.trim(),
-    note: note?.trim() || null,
-    status: "open",
-  });
-  if (error) throw error;
-  return loadLoginHelpRequests();
+  await api("/api/login-help", jsonOpts("POST", { enteredName, note }));
+  return [];
 }
 
 export async function resolveLoginHelpRequest(id: string): Promise<LoginHelpRequest[]> {
-  const { error } = await supabase
-    .from("login_help_requests").update({ status: "resolved" }).eq("id", id);
-  if (error) throw error;
-  return loadLoginHelpRequests();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/login-help/${id}`, { method: "PATCH" });
+  return rows.map(rowToLoginHelpRequest);
 }
 
 export async function deleteLoginHelpRequest(id: string): Promise<LoginHelpRequest[]> {
-  const { error } = await supabase.from("login_help_requests").delete().eq("id", id);
-  if (error) throw error;
-  return loadLoginHelpRequests();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/login-help/${id}`, { method: "DELETE" });
+  return rows.map(rowToLoginHelpRequest);
 }
 
 // ─── Video Feedbacks ──────────────────────────────────────────────────────────
@@ -1103,94 +1011,54 @@ function rowToVideoFeedback(row: any): VideoFeedback {
 }
 
 export async function loadVideoFeedbacks(athleteId?: string): Promise<VideoFeedback[]> {
-  let query = supabase.from("video_feedbacks").select("*").order("created_at", { ascending: false });
-  if (athleteId) query = query.eq("athlete_id", athleteId);
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data ?? []).map(rowToVideoFeedback);
+  const url = athleteId
+    ? `/api/video-feedbacks?athleteId=${encodeURIComponent(athleteId)}`
+    : "/api/video-feedbacks";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(url);
+  return rows.map(rowToVideoFeedback);
 }
 
 export async function loadVideoFeedbacksByCategory(
   athleteId: string,
   category: VideoFeedback["category"]
 ): Promise<VideoFeedback[]> {
-  const { data, error } = await supabase
-    .from("video_feedbacks")
-    .select("*")
-    .eq("athlete_id", athleteId)
-    .eq("category", category)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map(rowToVideoFeedback);
+  const url = `/api/video-feedbacks?athleteId=${encodeURIComponent(athleteId)}&category=${encodeURIComponent(category)}`;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(url);
+  return rows.map(rowToVideoFeedback);
 }
 
 export async function addVideoFeedback(data: Omit<VideoFeedback, "id" | "createdAt">): Promise<VideoFeedback[]> {
-  const id = `vf-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-  const { error } = await supabase.from("video_feedbacks").insert({
-    id,
-    athlete_id: data.athleteId,
-    title: data.title,
-    date: data.date,
-    loom_url: data.loomUrl,
-    category: data.category,
-    linked_exercise_ids: data.linkedExerciseIds ?? null,
-    linked_weekly_check_in_id: data.linkedWeeklyCheckInId ?? null,
-    created_at: new Date().toISOString(),
-  });
-  if (error) {
-    console.error("[addVideoFeedback] Supabase error:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
-    throw new Error(error.message ?? JSON.stringify(error));
-  }
-  return loadVideoFeedbacks();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>("/api/video-feedbacks", jsonOpts("POST", data));
+  return rows.map(rowToVideoFeedback);
 }
 
 export async function deleteVideoFeedback(id: string): Promise<VideoFeedback[]> {
-  const { error } = await supabase.from("video_feedbacks").delete().eq("id", id);
-  if (error) throw error;
-  return loadVideoFeedbacks();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/video-feedbacks/${id}`, { method: "DELETE" });
+  return rows.map(rowToVideoFeedback);
 }
 
 export async function markVideoFeedbackSeen(id: string): Promise<void> {
-  const { error } = await supabase
-    .from("video_feedbacks")
-    .update({ seen_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) throw error;
+  await api(`/api/video-feedbacks/${id}`, jsonOpts("PATCH", {}));
 }
 
 export async function linkVideoFeedbackToExercises(
   videoFeedbackId: string,
   exerciseIds: string[]
 ): Promise<void> {
-  const now = new Date().toISOString();
+  // Update exercise_db entries
   for (const exerciseId of exerciseIds) {
-    const { error } = await supabase
-      .from("exercise_db")
-      .update({ current_tech_feedback_video_id: videoFeedbackId, updated_at: now })
-      .eq("id", exerciseId);
-    if (error) {
-      console.error("[linkVideoFeedbackToExercises] exercise_db update error:", {
-        message: error.message, details: error.details, hint: error.hint, code: error.code,
-      });
-      throw new Error(error.message ?? JSON.stringify(error));
-    }
+    await api(`/api/databases/exercises/${encodeURIComponent(exerciseId)}`, jsonOpts("PATCH", {
+      currentTechFeedbackVideoId: videoFeedbackId,
+    }));
   }
-  // video_feedbacks has no updated_at column — only update linked_exercise_ids
-  const { error } = await supabase
-    .from("video_feedbacks")
-    .update({ linked_exercise_ids: exerciseIds })
-    .eq("id", videoFeedbackId);
-  if (error) {
-    console.error("[linkVideoFeedbackToExercises] video_feedbacks update error:", {
-      message: error.message, details: error.details, hint: error.hint, code: error.code,
-    });
-    throw new Error(error.message ?? JSON.stringify(error));
-  }
+  // Update video feedback linked_exercise_ids
+  await api(`/api/video-feedbacks/${videoFeedbackId}`, jsonOpts("PATCH", {
+    linkedExerciseIds: exerciseIds,
+  }));
 }
 
 // ─── Check-In & Training Counters ─────────────────────────────────────────────
@@ -1231,15 +1099,14 @@ export async function updateAthleteProfile(
   athleteId: string,
   profile: import("@/types").AthleteProfile
 ): Promise<Athlete[]> {
-  const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
-  const currentRaw = row?.profile ?? {};
+  const a = await getAthlete(athleteId);
+  const currentRaw = a.profile ?? {};
   const merged = { ...currentRaw, ...profile };
-  const { error } = await supabase
-    .from("athletes")
-    .update({ profile: merged, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { profile: merged, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 // ─── Multi-plan helpers ───────────────────────────────────────────────────────
@@ -1250,22 +1117,11 @@ export async function addImportedTrainingPlan(athleteId: string, plan: TrainingP
   const existing = a.trainingPlans ?? (a.trainingPlan ? [a.trainingPlan] : []);
   const withoutSameId = existing.filter((p) => p.id !== plan.id);
   const training_plans = [...withoutSameId, plan];
-  // Try writing to training_plans array column; fall back to single column if column doesn't exist
-  const { error } = await supabase.from("athletes")
-    .update({ training_plan: plan, training_plans, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) {
-    if (error.message?.includes("training_plans")) {
-      // Column doesn't exist yet — write only the single plan
-      const { error: fallbackErr } = await supabase.from("athletes")
-        .update({ training_plan: plan, updated_at: new Date().toISOString() })
-        .eq("id", athleteId);
-      if (fallbackErr) throw fallbackErr;
-    } else {
-      throw error;
-    }
-  }
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { training_plan: plan, training_plans, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function addImportedMealPlan(athleteId: string, plan: MealPlan): Promise<Athlete[]> {
@@ -1274,11 +1130,11 @@ export async function addImportedMealPlan(athleteId: string, plan: MealPlan): Pr
   const existing = a.mealPlans ?? [];
   const withoutSameId = existing.filter((p) => p.id !== plan.id);
   const meal_plans = [...withoutSameId, plan];
-  const { error } = await supabase.from("athletes")
-    .update({ meal_plans, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { meal_plans, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function addImportedSupplementPlan(athleteId: string, plan: SupplementPlan): Promise<Athlete[]> {
@@ -1287,50 +1143,25 @@ export async function addImportedSupplementPlan(athleteId: string, plan: Supplem
   const existing = a.supplementPlans ?? (a.supplementPlan ? [a.supplementPlan] : []);
   const withoutSameId = existing.filter((p) => p.id !== plan.id);
   const supplement_plans = [...withoutSameId, plan];
-  const { error } = await supabase.from("athletes")
-    .update({ supplement_plan: plan, supplement_plans, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) {
-    if (error.message?.includes("supplement_plans")) {
-      const { error: fallbackErr } = await supabase.from("athletes")
-        .update({ supplement_plan: plan, updated_at: new Date().toISOString() })
-        .eq("id", athleteId);
-      if (fallbackErr) throw fallbackErr;
-    } else {
-      throw error;
-    }
-  }
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { supplement_plan: plan, supplement_plans, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 // ─── Plan entry helpers (write + setActive) ───────────────────────────────────
 
 async function writeTrainingPlans(athleteId: string, plans: TrainingPlan[], activePlan: TrainingPlan): Promise<void> {
-  const { error } = await supabase.from("athletes")
-    .update({ training_plan: activePlan, training_plans: plans, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) {
-    if (error.message?.includes("training_plans")) {
-      const { error: fallbackErr } = await supabase.from("athletes")
-        .update({ training_plan: activePlan, updated_at: new Date().toISOString() })
-        .eq("id", athleteId);
-      if (fallbackErr) throw fallbackErr;
-    } else throw error;
-  }
+  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { training_plan: activePlan, training_plans: plans, updated_at: new Date().toISOString() },
+  }));
 }
 
 async function writeSupplementPlans(athleteId: string, plans: SupplementPlan[], activePlan: SupplementPlan): Promise<void> {
-  const { error } = await supabase.from("athletes")
-    .update({ supplement_plan: activePlan, supplement_plans: plans, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) {
-    if (error.message?.includes("supplement_plans")) {
-      const { error: fallbackErr } = await supabase.from("athletes")
-        .update({ supplement_plan: activePlan, updated_at: new Date().toISOString() })
-        .eq("id", athleteId);
-      if (fallbackErr) throw fallbackErr;
-    } else throw error;
-  }
+  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { supplement_plan: activePlan, supplement_plans: plans, updated_at: new Date().toISOString() },
+  }));
 }
 
 export async function saveTrainingPlanEntry(athleteId: string, plan: TrainingPlan): Promise<Athlete[]> {
@@ -1361,11 +1192,11 @@ export async function setActiveMealPlan(athleteId: string, planId: string): Prom
   const existing = a.mealPlans ?? [];
   if (!existing.some((p) => p.id === planId)) throw new Error("Plan not found");
   const plans = existing.map((p) => ({ ...p, isActive: p.id === planId }));
-  const { error } = await supabase.from("athletes")
-    .update({ meal_plans: plans, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { meal_plans: plans, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function saveSupplementPlanEntry(athleteId: string, plan: SupplementPlan): Promise<Athlete[]> {
@@ -1395,11 +1226,11 @@ export async function toggleMealPlanActive(athleteId: string, planId: string): P
   const a = await getAthlete(athleteId);
   const existing = a.mealPlans ?? [];
   const plans = existing.map((p) => p.id === planId ? { ...p, isActive: !p.isActive } : p);
-  const { error } = await supabase.from("athletes")
-    .update({ meal_plans: plans, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
-  return loadAthletes();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { meal_plans: plans, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function toggleTrainingPlanActive(athleteId: string, planId: string): Promise<Athlete[]> {
@@ -1618,8 +1449,6 @@ export function getLastTrainingLogPerExercise(logs: TrainingLog[]): Map<string, 
 
 // ─── Check-In Done Status (sync / localStorage) ───────────────────────────────
 
-// Value = ISO date (yyyy-mm-dd) when the coach marked it done. Missing key = not done.
-
 export function loadCheckInDone(): Record<string, string> {
   if (typeof window === "undefined") return {};
   try {
@@ -1631,11 +1460,9 @@ export function loadCheckInDone(): Record<string, string> {
       if (typeof v === "string" && v) {
         result[k] = v;
       } else if (v === true) {
-        // Migrate old boolean-true: use the date embedded in the key as completedAt.
         const parts = k.split("_");
         result[k] = parts[parts.length - 1];
       }
-      // false / null / unknown → omit
     }
     return result;
   } catch {
@@ -1662,11 +1489,11 @@ export function setCheckInDone(athleteId: string, date: string, done: boolean): 
 // ─── Athlete Card Status ───────────────────────────────────────────────────────
 
 export type AthleteCardStatus =
-  | "checkin-open"           // today is check-in day, not yet done → orange
-  | "checkin-done-task-open" // done today, open task → yellow
-  | "checkin-done"           // done today, no open tasks → green
-  | "task-open"              // open task, no today check-in → yellow
-  | "neutral";               // nothing pending → blue
+  | "checkin-open"
+  | "checkin-done-task-open"
+  | "checkin-done"
+  | "task-open"
+  | "neutral";
 
 export function getAthleteCardStatus(opts: {
   isCheckInDueToday: boolean;
@@ -1691,7 +1518,7 @@ export interface ActiveSession {
   trainingDayId: string;
   exercises: TrainingExerciseLog[];
   note: string;
-  trainingBewertung?: number; // 1-5
+  trainingBewertung?: number;
   startedAt: string;
   pausedAt: string | null;
   totalPausedMs: number;
@@ -1722,57 +1549,32 @@ export function clearActiveSession(): void {
 // ─── Maintenance Mode ─────────────────────────────────────────────────────────
 
 export async function getMaintenanceMode(): Promise<MaintenanceMode | null> {
-  const { data, error } = await supabase.from("maintenance_mode").select("*").eq("id", 1).maybeSingle();
-  if (error || !data) return null;
-  return {
-    isActive: data.is_active ?? false,
-    startTime: data.start_time ?? "",
-    endTime: data.end_time ?? "",
-    message: data.message ?? undefined,
-  };
+  return api<MaintenanceMode | null>("/api/maintenance");
 }
 
 export async function setMaintenanceMode(m: MaintenanceMode): Promise<void> {
-  const { error } = await supabase.from("maintenance_mode").upsert({
-    id: 1,
-    is_active: m.isActive,
-    start_time: m.startTime,
-    end_time: m.endTime,
-    message: m.message ?? null,
-  });
-  if (error) throw error;
+  await api("/api/maintenance", jsonOpts("POST", m));
 }
 
 // ─── Onboarding Codes ─────────────────────────────────────────────────────────
 
 export async function createOnboardingCode(code: string): Promise<OnboardingCode> {
-  const id = `oc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-  const createdAt = new Date().toISOString();
-  const { error } = await supabase.from("onboarding_codes").insert({ id, code, created_at: createdAt });
-  if (error) throw error;
-  return { id, code, createdAt };
+  return api<OnboardingCode>("/api/onboarding-codes", jsonOpts("POST", { code }));
 }
 
 export async function validateOnboardingCode(code: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("onboarding_codes")
-    .select("id")
-    .ilike("code", code)
-    .maybeSingle();
-  if (error) throw error;
-  return data !== null;
+  const result = await api<{ valid: boolean }>("/api/validate-onboarding-code", jsonOpts("POST", { code }));
+  return result.valid;
 }
 
 export async function markAthleteSignupSeen(athleteId: string): Promise<void> {
-  const { data: row } = await supabase.from("athletes").select("profile").eq("id", athleteId).single();
-  // Remove __ns flag — athlete has acknowledged the new-signup state
+  const a = await getAthlete(athleteId);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { __ns, ...rest } = row?.profile ?? {};
+  const { __ns, ...rest } = (a.profile ?? {}) as Record<string, unknown>;
   const merged = Object.keys(rest).length ? rest : null;
-  const { error } = await supabase.from("athletes")
-    .update({ profile: merged, updated_at: new Date().toISOString() })
-    .eq("id", athleteId);
-  if (error) throw error;
+  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { profile: merged, updated_at: new Date().toISOString() },
+  }));
 }
 
 export async function exportAthleteQuestionnaireData(athleteId: string): Promise<object> {

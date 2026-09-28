@@ -4,7 +4,8 @@
  * 2. Applies all f-plans to Gustav Kaufmann
  */
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseAdmin } from "@/lib/supabase-server";
+const supabase = createSupabaseAdmin();
 
 // Leo's original training plan (restored from import-training-plans)
 const leoTrainingPlan = {

@@ -10,7 +10,7 @@ import {
   addExerciseDBItem,
   reorderTrainingDayExercises,
 } from "@/lib/store";
-import { cn } from "@/lib/utils";
+import { cn, sanitizeHref, getTrackingKey } from "@/lib/utils";
 import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search, MoreVertical, FileText, Pin, Hourglass, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ExternalLink, Info } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
@@ -140,21 +140,29 @@ function RestTimerWidget() {
 
 function getPrevExerciseLog(
   logs: TrainingLog[], trainingDayId: string, currentDate: string,
-  exerciseId: string, exerciseName: string
+  exerciseId: string, exerciseName: string, trackingKey?: string
 ): TrainingExerciseLog | null {
   const sorted = logs
     .filter((l) => l.trainingDayId === trainingDayId && l.date < currentDate)
     .sort((a, b) => b.date.localeCompare(a.date));
   for (const log of sorted) {
+    if (trackingKey) {
+      const ex = log.exercises.find((e) => e.trackingKey === trackingKey);
+      if (ex) return ex;
+    }
     const ex = log.exercises.find((e) => e.exerciseId === exerciseId || e.exerciseName === exerciseName);
     if (ex) return ex;
   }
   return null;
 }
 
-function getPersistentExerciseNote(logs: TrainingLog[], exerciseId: string, exerciseName: string): string | null {
+function getPersistentExerciseNote(logs: TrainingLog[], exerciseId: string, exerciseName: string, trackingKey?: string): string | null {
   const sorted = [...logs].sort((a, b) => b.date.localeCompare(a.date));
   for (const log of sorted) {
+    if (trackingKey) {
+      const ex = log.exercises.find((e) => e.trackingKey === trackingKey && e.note);
+      if (ex) return ex.note!;
+    }
     const ex = log.exercises.find(
       (e) => (e.exerciseId === exerciseId || e.exerciseName === exerciseName) && e.note
     );
@@ -281,10 +289,13 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
     const day = trainingPlan.days.find((d) => d.id === dayId);
     return (day?.exercises ?? []).map((ex) => {
       const isUnilateral = ex.laterality === "unilateral";
-      const persistentNote = getPersistentExerciseNote(existingLogs, ex.id, ex.name);
+      const trackingKey = ex.exerciseDbId ? getTrackingKey(ex.exerciseDbId, ex.variantLabel) : undefined;
+      const persistentNote = getPersistentExerciseNote(existingLogs, ex.id, ex.name, trackingKey);
       return {
         exerciseId: ex.id,
         exerciseName: ex.name,
+        variantLabel: ex.variantLabel,
+        trackingKey,
         laterality: ex.laterality ?? "bilateral",
         sets: Array.from({ length: ex.sets }, (_, i) =>
           isUnilateral
@@ -540,7 +551,7 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
           {session.exercises.map((ex, exIdx) => {
             const planEx = activeDay?.exercises.find((e) => e.id === ex.exerciseId);
             const isUnilateral = ex.laterality === "unilateral";
-            const prevEx = getPrevExerciseLog(existingLogs, session.trainingDayId, session.date, ex.exerciseId, ex.exerciseName);
+            const prevEx = getPrevExerciseLog(existingLogs, session.trainingDayId, session.date, ex.exerciseId, ex.exerciseName, ex.trackingKey);
 
             // Tech-Feedback lookup
             const dbItem = planEx?.exerciseDbId ? dbExercises.find((d) => d.id === planEx.exerciseDbId) : null;
@@ -553,10 +564,18 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                 <div className="px-4 py-3 border-b border-[#1e2d42] flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold text-[#f0f4ff]">{ex.exerciseName}</p>
+                      <p className="text-sm font-semibold text-[#f0f4ff]">
+                        {ex.exerciseName}
+                        {ex.variantLabel ? <span className="font-normal text-[#8fa3c0]"> · {ex.variantLabel}</span> : null}
+                      </p>
                       {isUnilateral && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20 shrink-0">
                           1-seitig
+                        </span>
+                      )}
+                      {planEx?.equipmentType && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e2d42] text-[#5a7090] border border-[#243650] shrink-0">
+                          {planEx.equipmentType}
                         </span>
                       )}
                       {ex.addedByAthlete && (
@@ -574,7 +593,7 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                     )}
                     {techVideo && (
                       <a
-                        href={techVideo.loomUrl}
+                        href={sanitizeHref(techVideo.loomUrl)}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => {/* markVideoFeedbackSeen handled in page */}}

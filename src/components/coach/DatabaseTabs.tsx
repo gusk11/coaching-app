@@ -23,6 +23,7 @@ import { Plus, Pencil, Trash2, X, Check, AlertTriangle, Loader2, Globe, External
 import { motion, AnimatePresence } from "framer-motion";
 import { modalOverlay, modalContent } from "@/lib/motion";
 import type { ExternalFoodResult } from "@/app/api/foods/external-search/route";
+import { sanitizeHref } from "@/lib/utils";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const inputCls =
@@ -756,7 +757,7 @@ function ExerciseDBContent() {
                     </div>
                     <div className="col-span-1 pr-2">
                       {e.executionLink ? (
-                        <a href={e.executionLink} target="_blank" rel="noopener noreferrer" onClick={(ev) => ev.stopPropagation()}
+                        <a href={sanitizeHref(e.executionLink)} target="_blank" rel="noopener noreferrer" onClick={(ev) => ev.stopPropagation()}
                           className="inline-flex items-center gap-1 text-xs font-medium text-[#3b82f6] hover:text-[#60a5fa] transition-colors">
                           <ExternalLink size={11} /> Öffnen
                         </a>
@@ -1015,7 +1016,7 @@ function SupplementDBContent() {
                       <div className="flex items-start gap-1.5">
                         <p className="text-sm text-[#f0f4ff] font-medium leading-snug line-clamp-2">{s.name}</p>
                         {s.link && (
-                          <a href={s.link} target="_blank" rel="noopener noreferrer" title={s.link}
+                          <a href={sanitizeHref(s.link)} target="_blank" rel="noopener noreferrer" title={s.link}
                             onClick={(e) => e.stopPropagation()} className="shrink-0 mt-0.5 p-0.5 rounded hover:bg-[#1e2d42] transition-colors">
                             <ExternalLink size={12} className="text-[#3b82f6]" />
                           </a>

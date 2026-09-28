@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseAdmin } from "@/lib/supabase-server";
+const supabase = createSupabaseAdmin();
 import { testAthlete, TEST_ATHLETE_ID } from "@/data/testAthlete";
 import { Athlete, LegalConsent, AthleteProfile } from "@/types";
 
@@ -47,7 +48,16 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
   };
 }
 
+function prodGuard() {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+  }
+  return null;
+}
+
 export async function POST() {
+  const guard = prodGuard();
+  if (guard) return guard;
   const row = athleteToRow(testAthlete);
   row.updated_at = new Date().toISOString();
 
@@ -63,6 +73,8 @@ export async function POST() {
 }
 
 export async function DELETE() {
+  const guard = prodGuard();
+  if (guard) return guard;
   const { error } = await supabase
     .from("athletes")
     .delete()

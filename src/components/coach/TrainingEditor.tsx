@@ -1,20 +1,31 @@
 "use client";
 import { useState, useEffect, Fragment } from "react";
-import { TrainingPlan, TrainingDay, Exercise, TrainingPlanMode, ExerciseDBItem } from "@/types";
-import { loadExerciseDB } from "@/lib/store";
-import { Trash2, Plus, ChevronDown, ChevronUp, GripVertical, ExternalLink, Database, X, ArrowUp, ArrowDown } from "lucide-react";
+import { TrainingPlan, TrainingDay, Exercise, TrainingPlanMode, ExerciseDBItem, ExerciseVariant } from "@/types";
+import { loadExerciseDB, getAthleteExerciseVariants, addExerciseVariant } from "@/lib/store";
+import { Trash2, Plus, ChevronDown, ChevronUp, GripVertical, ExternalLink, Database, X, ArrowUp, ArrowDown, Check } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { CadenceInput } from "@/components/ui/CadenceInput";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
-import { cn } from "@/lib/utils";
+import { cn, sanitizeHref } from "@/lib/utils";
 
 interface Props {
   plan?: TrainingPlan;
   athleteId: string;
   onSave: (plan: TrainingPlan) => void;
+  /** Called whenever a new variant is persisted, so the parent can sync athlete state. */
+  onVariantsChanged?: (variants: ExerciseVariant[]) => void;
 }
 
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+
+const EQUIPMENT_OPTIONS = [
+  "Maschine",
+  "Kurzhantel",
+  "Langhantel",
+  "Kabelzug",
+  "Körpergewicht",
+  "Smith-Maschine",
+];
 
 type TrackedFields = NonNullable<TrainingPlan["trackedFields"]>;
 
@@ -35,6 +46,7 @@ function exerciseFromDB(item: ExerciseDBItem): Exercise {
     reps: item.isTimeBased ? "20-30 Sek." : "8-12",
     muscleGroup: item.muscleGroup,
     laterality: item.laterality ?? "bilateral",
+    equipmentType: item.equipmentType,
     isTimeBased: item.isTimeBased,
     exerciseDbNote: item.notes,
     videoUrl: item.executionLink,
@@ -141,6 +153,132 @@ function InsertButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+// ─── Variant Selector ─────────────────────────────────────────────────────────
+
+interface VariantSelectorProps {
+  exerciseDbId: string;
+  variants: ExerciseVariant[];
+  selectedLabel?: string;
+  onSelect: (label: string | undefined) => void;
+  onAddVariant: (label: string) => Promise<void>;
+}
+
+function VariantSelector({ variants, selectedLabel, onSelect, onAddVariant }: VariantSelectorProps) {
+  const [open, setOpen] = useState(false);
+  const [addingNew, setAddingNew] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const displayLabel = selectedLabel ?? "Standard";
+
+  async function handleAddNew() {
+    const label = newLabel.trim();
+    if (!label) return;
+    setSaving(true);
+    try {
+      await onAddVariant(label);
+      onSelect(label);
+    } finally {
+      setSaving(false);
+      setNewLabel("");
+      setAddingNew(false);
+      setOpen(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen((v) => !v); setAddingNew(false); }}
+        className={cn(
+          "flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-medium transition-colors",
+          selectedLabel
+            ? "bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#60a5fa]"
+            : "bg-[#0f1624] border-[#1e2d42] text-[#5a7090] hover:text-[#8fa3c0]"
+        )}
+      >
+        <span>{displayLabel}</span>
+        <ChevronDown size={9} className={cn("transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-label="Menü schließen"
+            onClick={() => { setOpen(false); setAddingNew(false); }}
+            className="fixed inset-0 z-40 cursor-default"
+          />
+          <div className="absolute left-0 top-full mt-1 z-50 min-w-[160px] rounded-xl bg-[#1a2436] border border-[#243650] shadow-xl overflow-hidden py-1">
+            <button
+              type="button"
+              onClick={() => { onSelect(undefined); setOpen(false); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#f0f4ff] hover:bg-[#243650] transition-colors text-left"
+            >
+              {!selectedLabel && <Check size={11} className="text-[#3b82f6] shrink-0" />}
+              {!!selectedLabel && <span className="w-[11px] shrink-0" />}
+              Standard
+            </button>
+            {variants.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => { onSelect(v.label); setOpen(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#f0f4ff] hover:bg-[#243650] transition-colors text-left"
+              >
+                {selectedLabel === v.label && <Check size={11} className="text-[#3b82f6] shrink-0" />}
+                {selectedLabel !== v.label && <span className="w-[11px] shrink-0" />}
+                {v.label}
+              </button>
+            ))}
+            <div className="border-t border-[#243650] mt-1 pt-1">
+              {!addingNew ? (
+                <button
+                  type="button"
+                  onClick={() => setAddingNew(true)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#3b82f6] hover:bg-[#243650] transition-colors text-left"
+                >
+                  <Plus size={11} />
+                  Neue Variante
+                </button>
+              ) : (
+                <div className="px-3 py-2 flex flex-col gap-1.5">
+                  <input
+                    autoFocus
+                    value={newLabel}
+                    onChange={(e) => setNewLabel(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleAddNew(); if (e.key === "Escape") { setAddingNew(false); setNewLabel(""); } }}
+                    placeholder="z.B. Gym Mitte"
+                    className="w-full bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1 text-xs text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6]"
+                  />
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => { setAddingNew(false); setNewLabel(""); }}
+                      className="flex-1 py-1 rounded-md text-[10px] text-[#5a7090] hover:text-[#8fa3c0] transition-colors"
+                    >
+                      Abbrechen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddNew}
+                      disabled={!newLabel.trim() || saving}
+                      className="flex-1 py-1 rounded-md bg-[#3b82f6] text-[10px] font-medium text-white hover:bg-[#2563eb] disabled:opacity-50 transition-colors"
+                    >
+                      {saving ? "…" : "Anlegen"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Exercise Row ─────────────────────────────────────────────────────────────
 
 interface ExerciseRowProps {
@@ -154,6 +292,8 @@ interface ExerciseRowProps {
   onDragEnd: () => void;
   isDragOver: boolean;
   isDragging: boolean;
+  exerciseVariantsForEx: ExerciseVariant[];
+  onAddVariant: (label: string) => Promise<void>;
 }
 
 function ExerciseRow({
@@ -167,8 +307,11 @@ function ExerciseRow({
   onDragEnd,
   isDragOver,
   isDragging,
+  exerciseVariantsForEx,
+  onAddVariant,
 }: ExerciseRowProps) {
   const isFromDB = !!exercise.exerciseDbId;
+  const effectiveLaterality = exercise.laterality ?? "bilateral";
 
   return (
     <div
@@ -195,16 +338,24 @@ function ExerciseRow({
       </div>
 
       <div className="flex-1 flex flex-col gap-1.5">
-        {/* Name */}
+        {/* Name / DB display */}
         {isFromDB ? (
-          <div className="bg-[#0a1120] rounded-lg px-2.5 py-2 border border-[#1e2d42] flex flex-col gap-0.5">
+          <div className="bg-[#0a1120] rounded-lg px-2.5 py-2 border border-[#1e2d42] flex flex-col gap-1">
+            {/* Name + variant label */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-medium text-[#f0f4ff]">{exercise.name}</span>
-              <span className="text-[9px] bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20 rounded px-1.5 py-0.5 font-medium leading-none">DB</span>
+              <span className="text-xs font-medium text-[#f0f4ff]">
+                {exercise.name}
+                {exercise.variantLabel && (
+                  <span className="text-[#8fa3c0] font-normal"> · {exercise.variantLabel}</span>
+                )}
+              </span>
               {exercise.muscleGroup && (
                 <span className="text-[9px] bg-[#1e2d42] text-[#8fa3c0] rounded px-1.5 py-0.5 leading-none">{exercise.muscleGroup}</span>
               )}
-              {exercise.laterality === "unilateral" && (
+              {exercise.equipmentType && (
+                <span className="text-[9px] bg-[#0f1624] text-[#5a7090] border border-[#1e2d42] rounded px-1.5 py-0.5 leading-none">{exercise.equipmentType}</span>
+              )}
+              {effectiveLaterality === "unilateral" && (
                 <span className="text-[9px] bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20 rounded px-1.5 py-0.5 font-medium leading-none">Uni</span>
               )}
               {exercise.isTimeBased && (
@@ -216,7 +367,7 @@ function ExerciseRow({
             )}
             {exercise.videoUrl ? (
               <a
-                href={exercise.videoUrl}
+                href={sanitizeHref(exercise.videoUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[10px] text-[#3b82f6] hover:text-[#60a5fa] flex items-center gap-1 w-fit mt-0.5"
@@ -226,6 +377,56 @@ function ExerciseRow({
             ) : (
               <span className="text-[10px] text-[#2a3d54]">Kein Link</span>
             )}
+
+            {/* Variant / Equipment / Laterality controls */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#1e2d42]/60 mt-0.5">
+              <VariantSelector
+                exerciseDbId={exercise.exerciseDbId!}
+                variants={exerciseVariantsForEx}
+                selectedLabel={exercise.variantLabel}
+                onSelect={(label) => onChange({ ...exercise, variantLabel: label })}
+                onAddVariant={onAddVariant}
+              />
+
+              <select
+                value={exercise.equipmentType ?? ""}
+                onChange={(e) => onChange({ ...exercise, equipmentType: e.target.value || undefined })}
+                className="bg-[#0f1624] border border-[#1e2d42] rounded-md px-1.5 py-1 text-[10px] text-[#5a7090] focus:outline-none focus:border-[#3b82f6] hover:text-[#8fa3c0] transition-colors"
+                style={{ colorScheme: "dark" }}
+              >
+                <option value="">Ausrüstung…</option>
+                {EQUIPMENT_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt} className="bg-[#0f1624]">{opt}</option>
+                ))}
+              </select>
+
+              <div className="flex rounded-md overflow-hidden border border-[#1e2d42]">
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...exercise, laterality: "bilateral" })}
+                  className={cn(
+                    "px-2 py-1 text-[10px] font-medium transition-colors",
+                    effectiveLaterality === "bilateral"
+                      ? "bg-[#1e2d42] text-[#f0f4ff]"
+                      : "bg-[#0f1624] text-[#5a7090] hover:text-[#8fa3c0]"
+                  )}
+                >
+                  Beidseitig
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...exercise, laterality: "unilateral" })}
+                  className={cn(
+                    "px-2 py-1 text-[10px] font-medium transition-colors border-l border-[#1e2d42]",
+                    effectiveLaterality === "unilateral"
+                      ? "bg-[#f59e0b]/10 text-[#f59e0b]"
+                      : "bg-[#0f1624] text-[#5a7090] hover:text-[#8fa3c0]"
+                  )}
+                >
+                  Einseitig
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <input
@@ -335,7 +536,7 @@ function ExerciseRow({
 
 // ─── Training Editor ──────────────────────────────────────────────────────────
 
-export function TrainingEditor({ plan, athleteId, onSave }: Props) {
+export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: Props) {
   const initPlan = plan ?? {
     id: `tp-${Date.now()}`,
     athleteId,
@@ -362,6 +563,7 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
   const [days, setDays] = useState<TrainingDay[]>(initPlan.days);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(initPlan.days.map((d) => d.id)));
   const [dbExercises, setDbExercises] = useState<ExerciseDBItem[]>([]);
+  const [exerciseVariants, setExerciseVariants] = useState<ExerciseVariant[]>([]);
   const [pickerOpenDayId, setPickerOpenDayId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ dayId: string; exId: string } | null>(null);
 
@@ -371,7 +573,20 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
 
   useEffect(() => {
     loadExerciseDB().then(setDbExercises);
-  }, []);
+    getAthleteExerciseVariants(athleteId).then(setExerciseVariants);
+  }, [athleteId]);
+
+  async function handleAddVariant(exerciseDbId: string, label: string): Promise<void> {
+    const newVariant: ExerciseVariant = {
+      id: `ev-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      exerciseDbId,
+      label,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = await addExerciseVariant(athleteId, newVariant);
+    setExerciseVariants(updated);
+    onVariantsChanged?.(updated);
+  }
 
   function toggleDay(id: string) {
     setExpandedDays((prev) => {
@@ -772,6 +987,8 @@ export function TrainingEditor({ plan, athleteId, onSave }: Props) {
                         onDragEnd={handleExerciseDragEnd}
                         isDragOver={dragOverTarget?.dayId === day.id && dragOverTarget?.idx === exIdx}
                         isDragging={dragSrc?.dayId === day.id && dragSrc?.idx === exIdx}
+                        exerciseVariantsForEx={exerciseVariants.filter((v) => v.exerciseDbId === ex.exerciseDbId)}
+                        onAddVariant={(label) => handleAddVariant(ex.exerciseDbId!, label)}
                       />
                     </Fragment>
                   ))}

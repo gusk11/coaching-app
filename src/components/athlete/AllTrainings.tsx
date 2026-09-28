@@ -356,7 +356,9 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, onRepeatLog, m
               <div className="border-t border-[#1e2d42] px-4 py-3 flex flex-col gap-4">
                 {log.exercises.map((ex, exIdx) => (
                   <div key={exIdx}>
-                    <p className="text-xs font-semibold text-[#8fa3c0] uppercase tracking-wider mb-1.5">{ex.exerciseName}</p>
+                    <p className="text-xs font-semibold text-[#8fa3c0] uppercase tracking-wider mb-1.5">
+                      {ex.exerciseName}{ex.variantLabel ? ` · ${ex.variantLabel}` : ""}
+                    </p>
                     <div className="flex flex-col gap-1">
                       {ex.sets.map((set, si) => (
                         <div key={si} className="flex items-center gap-2 text-sm">

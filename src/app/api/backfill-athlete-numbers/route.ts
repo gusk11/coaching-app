@@ -5,7 +5,8 @@
  * get the lowest numbers. Athletes that already have a number are skipped.
  */
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseAdmin } from "@/lib/supabase-server";
+const supabase = createSupabaseAdmin();
 
 export async function POST() {
   // Fetch all athletes

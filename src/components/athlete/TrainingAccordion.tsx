@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { TrainingPlan, TrainingDay } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, sanitizeHref } from "@/lib/utils";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import { PlanSwitcher } from "@/components/ui/PlanSwitcher";
 
@@ -60,9 +60,17 @@ function DayCard({ day, isOpen, onToggle, customLabel }: { day: TrainingDay; isO
             <div key={ex.id} className="px-4 py-3 flex items-start justify-between gap-3">
               <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium text-[#f0f4ff]">{ex.name}</span>
+                  <span className="text-sm font-medium text-[#f0f4ff]">
+                    {ex.name}{ex.variantLabel ? <span className="font-normal text-[#8fa3c0]"> · {ex.variantLabel}</span> : null}
+                  </span>
                   {ex.muscleGroup && (
                     <span className="text-[10px] bg-[#1e2d42] text-[#8fa3c0] rounded px-1.5 py-0.5 leading-none">{ex.muscleGroup}</span>
+                  )}
+                  {ex.equipmentType && (
+                    <span className="text-[10px] bg-[#1e2d42] text-[#5a7090] rounded px-1.5 py-0.5 leading-none">{ex.equipmentType}</span>
+                  )}
+                  {ex.laterality === "unilateral" && (
+                    <span className="text-[10px] bg-[#f59e0b]/10 text-[#f59e0b] rounded px-1.5 py-0.5 leading-none border border-[#f59e0b]/20">1-seitig</span>
                   )}
                 </div>
                 {ex.exerciseDbNote && (
@@ -71,7 +79,7 @@ function DayCard({ day, isOpen, onToggle, customLabel }: { day: TrainingDay; isO
                 {ex.note && <p className="text-xs text-[#5a7090]">{ex.note}</p>}
                 {ex.videoUrl && (
                   <a
-                    href={ex.videoUrl}
+                    href={sanitizeHref(ex.videoUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[10px] text-[#3b82f6] hover:text-[#60a5fa] flex items-center gap-1 mt-0.5 w-fit"

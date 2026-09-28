@@ -288,6 +288,10 @@ export interface TrainingExerciseLog {
   sessionNote?: string;
   /** True when the athlete added this exercise themselves during a session (not from the coach's plan). */
   addedByAthlete?: boolean;
+  /** Stable lookup key: exerciseDbId (no variant) or exerciseDbId::normalizedLabel (variant). */
+  trackingKey?: string;
+  /** Athlete-specific variant label, e.g. "Gym Mitte". */
+  variantLabel?: string;
 }
 
 export interface TrainingLog {
@@ -402,12 +406,23 @@ export interface Exercise {
   note?: string;           // individual coach note for this athlete
   videoUrl?: string;       // execution link (mapped from DB's executionLink on import)
   muscleGroup?: string;    // snapshot from ÜbungenDB
-  laterality?: "bilateral" | "unilateral"; // snapshot from ÜbungenDB
+  laterality?: "bilateral" | "unilateral"; // snapshot from ÜbungenDB; can be overridden per-athlete
+  equipmentType?: string;  // snapshot/override: "Maschine"|"Kurzhantel"|"Langhantel"|"Kabelzug"|"Körpergewicht"|"Smith-Maschine"
   isTimeBased?: boolean;   // snapshot from ÜbungenDB
   exerciseDbNote?: string; // snapshot of DB notes
   exerciseDbId?: string;   // reference to ExerciseDBItem (snapshot approach)
   cadence?: { eccentric: number; bottomHold: number; concentric: number; topHold: number };
   customValue?: number;
+  /** Athlete-specific variant label, e.g. "Gym Mitte". Drives the trackingKey in logs. */
+  variantLabel?: string;
+}
+
+/** Athlete-specific exercise variant, e.g. "Preacher Curl at Gym Mitte". */
+export interface ExerciseVariant {
+  id: string;
+  exerciseDbId: string;
+  label: string;
+  createdAt: string;
 }
 
 export interface TrainingDay {
@@ -536,6 +551,9 @@ export interface Athlete {
   weeklyCheckConfig?: WeeklyCheckConfig;
 
   isHidden?: boolean;
+
+  /** Athlete-specific exercise variants, created by the coach. */
+  exerciseVariants?: ExerciseVariant[];
 
   coachNote: string;
   visibleNote: string;

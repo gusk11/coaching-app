@@ -271,8 +271,12 @@ export function AppShell({ children, role, title }: AppShellProps) {
     });
   }, [role, pathname]);
 
-  function handleLogout() {
+  async function handleLogout() {
+    const auth = loadAuth();
     clearAuth();
+    if (auth.role === "coach") {
+      await fetch("/api/coach-logout", { method: "POST" }).catch(() => {});
+    }
     router.push("/login");
   }
 
