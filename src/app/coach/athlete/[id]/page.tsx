@@ -12,6 +12,7 @@ import { MealPlanView } from "@/components/athlete/MealPlanView";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { AthleteProfileEditor } from "@/components/coach/AthleteProfileEditor";
 import { GeneralPlansView } from "@/components/coach/GeneralPlansView";
+import { AthleteDataExport } from "@/components/coach/AthleteDataExport";
 import { CheckInConfigEditor } from "@/components/coach/CheckInConfigEditor";
 import { ProgressAnalytics } from "@/components/coach/ProgressAnalytics";
 import { TrainingProgressView } from "@/components/athlete/TrainingProgressView";
@@ -822,6 +823,9 @@ export default function CoachAthletePage() {
                 Fragebogen als JSON herunterladen
               </button>
             )}
+
+            {/* Athletendaten-Export */}
+            <AthleteDataExport athleteId={athlete.id} athleteName={athlete.name} />
 
             {/* Athlete profile (formerly own tab) */}
             <AthleteProfileEditor

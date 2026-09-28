@@ -7,7 +7,7 @@ import {
   FoodItem, SupplementDBItem, ExerciseDBItem, GoalType,
   DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest, VideoFeedback,
   PlanChangeRequest, TrainingPlan, MealPlan, SupplementPlan, MaintenanceMode,
-  OnboardingCode, ExerciseVariant,
+  OnboardingCode, ExerciseVariant, AthleteDataExport,
 } from "@/types";
 import { TrainingPlanSchema, MealPlanSchema, SupplementPlanSchema } from "@/lib/planSchemas";
 import { getCheckInWeekStart } from "@/lib/utils";
@@ -1575,6 +1575,61 @@ export async function markAthleteSignupSeen(athleteId: string): Promise<void> {
   await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
     row: { profile: merged, updated_at: new Date().toISOString() },
   }));
+}
+
+export async function exportAthleteData(
+  athleteId: string,
+  from: string,
+  to: string
+): Promise<AthleteDataExport> {
+  const [athlete, videoFeedbacks] = await Promise.all([
+    getAthlete(athleteId),
+    loadVideoFeedbacks(athleteId),
+  ]);
+  const inRange = (date: string) => date >= from && date <= to;
+  return {
+    meta: {
+      athleteId: athlete.id,
+      athleteName: athlete.name,
+      from,
+      to,
+      exportedAt: new Date().toISOString(),
+    },
+    dailyCheckIns: (athlete.dailyCheckIns ?? []).filter((c) => inRange(c.date)),
+    weeklyCheckIns: (athlete.weeklyCheckIns ?? []).filter((c) => inRange(c.date)),
+    trainingLogs: (athlete.trainingLogs ?? []).filter((l) => inRange(l.date)),
+    calorieTrackerDays: (athlete.calorieTrackerDays ?? []).filter((d) => inRange(d.date)),
+    weeklyAdjustments: (athlete.weeklyAdjustments ?? []).filter((w) => inRange(w.weekStart)),
+    notes: (athlete.notes ?? []).filter((n) => inRange(n.createdAt.slice(0, 10))),
+    videoFeedbacks: videoFeedbacks.filter((v) => inRange(v.date)),
+    snapshot: {
+      profile: athlete.profile,
+      legalConsent: athlete.legalConsent,
+      startWeight: athlete.startWeight,
+      currentWeight: athlete.currentWeight,
+      targetWeight: athlete.targetWeight,
+      goalType: athlete.goalType,
+      goalText: athlete.goalText,
+      checkInDay: athlete.checkInDay,
+      startDate: athlete.startDate,
+      competitionDate: athlete.competitionDate,
+      zielBeschreibung: athlete.zielBeschreibung,
+      experienceLevel: athlete.experienceLevel,
+      trainingHistory: athlete.trainingHistory,
+      injuries: athlete.injuries,
+      specialNotes: athlete.specialNotes,
+      coachNote: athlete.coachNote,
+      visibleNote: athlete.visibleNote,
+      joinedAt: athlete.joinedAt,
+      trainingPlan: athlete.trainingPlan,
+      trainingPlans: athlete.trainingPlans ?? (athlete.trainingPlan ? [athlete.trainingPlan] : []),
+      mealPlans: athlete.mealPlans ?? [],
+      supplementPlan: athlete.supplementPlan,
+      supplementPlans: athlete.supplementPlans ?? (athlete.supplementPlan ? [athlete.supplementPlan] : []),
+      dailyCheckConfig: athlete.dailyCheckConfig,
+      weeklyCheckConfig: athlete.weeklyCheckConfig,
+    },
+  };
 }
 
 export async function exportAthleteQuestionnaireData(athleteId: string): Promise<object> {

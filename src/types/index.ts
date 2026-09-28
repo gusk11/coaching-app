@@ -711,3 +711,47 @@ export interface OnboardingCode {
   code: string;
   createdAt: string;
 }
+
+export interface AthleteDataExport {
+  meta: {
+    athleteId: string;
+    athleteName: string;
+    from: string;
+    to: string;
+    exportedAt: string;
+  };
+  dailyCheckIns: DailyCheckIn[];
+  weeklyCheckIns: WeeklyCheckIn[];
+  trainingLogs: TrainingLog[];
+  calorieTrackerDays: CalorieTrackerDay[];
+  weeklyAdjustments: WeeklyAdjustment[];
+  notes: Note[];
+  videoFeedbacks: VideoFeedback[];
+  snapshot: {
+    profile: AthleteProfile | undefined;
+    legalConsent: LegalConsent | undefined;
+    startWeight: number;
+    currentWeight: number;
+    targetWeight: number;
+    goalType: GoalType;
+    goalText: string | undefined;
+    checkInDay: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    startDate: string | undefined;
+    competitionDate: string | undefined;
+    zielBeschreibung: string | undefined;
+    experienceLevel: ExperienceLevel | undefined;
+    trainingHistory: string | undefined;
+    injuries: string | undefined;
+    specialNotes: string | undefined;
+    coachNote: string;
+    visibleNote: string;
+    joinedAt: string;
+    trainingPlan: TrainingPlan | undefined;
+    trainingPlans: TrainingPlan[];
+    mealPlans: MealPlan[];
+    supplementPlan: SupplementPlan | undefined;
+    supplementPlans: SupplementPlan[];
+    dailyCheckConfig: DailyCheckConfig | undefined;
+    weeklyCheckConfig: WeeklyCheckConfig | undefined;
+  };
+}
