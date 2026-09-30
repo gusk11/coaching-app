@@ -88,10 +88,21 @@ export function calculateGoalProgressPercent(
   currentWeight: number,
   targetWeight: number
 ): number {
-  const total = Math.abs(targetWeight - startWeight);
-  if (!total) return 100;
-  const done = Math.abs(currentWeight - startWeight);
-  return Math.min(100, Math.round((done / total) * 100));
+  if (currentWeight === targetWeight) return 100;
+
+  if (targetWeight > currentWeight) {
+    // Athlete needs to gain — anchor the floor at the lowest point seen
+    const effectiveStart = Math.min(startWeight, currentWeight);
+    const total = targetWeight - effectiveStart;
+    if (total <= 0) return 100;
+    return Math.round((Math.max(0, currentWeight - effectiveStart) / total) * 100);
+  } else {
+    // Athlete needs to lose — anchor the ceiling at the highest point seen
+    const effectiveStart = Math.max(startWeight, currentWeight);
+    const total = effectiveStart - targetWeight;
+    if (total <= 0) return 100;
+    return Math.min(100, Math.round((Math.max(0, effectiveStart - currentWeight) / total) * 100));
+  }
 }
 
 /**
