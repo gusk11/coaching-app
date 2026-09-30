@@ -9,14 +9,18 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createSupabaseAdmin();
-  // Atomically delete the code and return whether it existed (single-use)
+  // SELECT only — code is kept alive until registration completes (enables resume)
   const { data, error } = await supabase
     .from("onboarding_codes")
-    .delete()
+    .select("id, current_step, draft")
     .ilike("code", code.trim())
-    .select("id")
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ valid: data !== null });
+  if (!data) return NextResponse.json({ valid: false });
+  return NextResponse.json({
+    valid: true,
+    currentStep: data.current_step ?? 0,
+    draft: data.draft ?? null,
+  });
 }

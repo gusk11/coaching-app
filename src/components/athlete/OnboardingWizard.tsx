@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { registerAthlete, getMaintenanceMode, validateOnboardingCode, saveLegalConsent } from "@/lib/store";
+import { registerAthlete, getMaintenanceMode, validateOnboardingCode, saveLegalConsent, saveOnboardingDraft } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight, Check, Play, X } from "lucide-react";
@@ -1075,6 +1075,10 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
   const [introPlaying, setIntroPlaying] = useState(false);
   const [outroPlaying, setOutroPlaying] = useState(false);
   const [completedAthleteId, setCompletedAthleteId] = useState("");
+  const [validatedCode, setValidatedCode] = useState("");
+  const [resumeDraft, setResumeDraft] = useState<Partial<WizardData> | null>(null);
+  const [resumeStep, setResumeStep] = useState(0);
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [legalState, setLegalState] = useState<LegalConsentState>({
     privacyAccepted: false,
     healthDataConsentAccepted: false,
@@ -1168,9 +1172,16 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
     setCodeChecking(true);
     setCodeError("");
     try {
-      const valid = await validateOnboardingCode(trimmed);
-      if (valid) {
-        setPhase("intro");
+      const result = await validateOnboardingCode(trimmed);
+      if (result.valid) {
+        setValidatedCode(trimmed);
+        if (result.currentStep > 0 && result.draft) {
+          setResumeDraft(result.draft as Partial<WizardData>);
+          setResumeStep(result.currentStep);
+          setShowResumePrompt(true);
+        } else {
+          setPhase("intro");
+        }
       } else {
         setCodeError("Dieser Code ist ungültig. Bitte kontaktiere deinen Coach.");
       }
@@ -1185,9 +1196,13 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
     const err = validateStep();
     if (err) { setError(err); return; }
     if (step < STEPS.length) {
-      setStep((s) => s + 1);
+      const nextStep = step + 1;
+      setStep(nextStep);
       setError("");
       scrollToTop();
+      if (validatedCode) {
+        saveOnboardingDraft(validatedCode, nextStep, data as unknown as Record<string, unknown>).catch(() => {});
+      }
     } else {
       handleSubmit();
     }
@@ -1230,6 +1245,7 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
         zipCode: data.zipCode.trim() || undefined,
         city: data.city.trim() || undefined,
         profile: buildProfile(data),
+        code: validatedCode || undefined,
       });
       await saveLegalConsent(athlete.id, {
         privacyAccepted: legalState.privacyAccepted,
@@ -1248,6 +1264,56 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
 
   // ── Code-Gate ────────────────────────────────────────────────────────────────
   if (phase === "code-gate") {
+    // Resume prompt — shown after code validation when a saved draft exists
+    if (showResumePrompt) {
+      return (
+        <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center p-6">
+          <div className="w-full max-w-sm flex flex-col gap-6">
+            <div className="flex flex-col gap-2 text-center">
+              <p className="text-2xl font-bold text-[#f0f4ff]">Willkommen zurück</p>
+              <p className="text-sm text-[#8fa3c0]">
+                Du hast das Onboarding bereits begonnen und bist bei{" "}
+                <span className="text-[#f0f4ff] font-medium">
+                  Schritt {resumeStep} von {STEPS.length}
+                </span>{" "}
+                ({STEPS[resumeStep - 1]}) unterbrochen.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setData((d) => ({ ...d, ...(resumeDraft ?? {}) }));
+                  setStep(resumeStep);
+                  setShowResumePrompt(false);
+                  setPhase("questionnaire");
+                }}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors"
+              >
+                Dort weitermachen
+              </button>
+              <button
+                onClick={() => {
+                  setResumeDraft(null);
+                  setResumeStep(0);
+                  setShowResumePrompt(false);
+                  setPhase("intro");
+                }}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl bg-transparent border border-[#1e2d42] text-[#8fa3c0] font-medium text-sm hover:border-[#3b82f6] hover:text-[#f0f4ff] transition-colors"
+              >
+                Von vorne beginnen
+              </button>
+            </div>
+            <button
+              onClick={onCancel}
+              className="text-xs text-[#4a6080] hover:text-[#8fa3c0] text-center transition-colors"
+            >
+              Zurück zur Anmeldung
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-[#0a0f1a] flex items-center justify-center p-6">
         <div className="w-full max-w-sm flex flex-col gap-6">

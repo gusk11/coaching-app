@@ -92,6 +92,11 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase.from("athletes").insert(row);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Remove the onboarding code now that registration is complete
+  if (body.code && typeof body.code === "string") {
+    await supabase.from("onboarding_codes").delete().ilike("code", body.code.trim());
+  }
+
   const token = await createAthleteSessionToken(id);
   const res = NextResponse.json({ ok: true, athleteId: id });
   res.cookies.set(ATHLETE_SESSION_COOKIE, token, {

@@ -432,6 +432,7 @@ export interface RegistrationData {
   street?: string;
   zipCode?: string;
   city?: string;
+  code?: string;
 }
 
 export async function registerAthlete(data: RegistrationData): Promise<Athlete> {
@@ -454,6 +455,7 @@ export async function registerAthlete(data: RegistrationData): Promise<Athlete> 
     profile: { ...data.profile, personal: { email: data.email.toLowerCase().trim(), birthDate: data.birthDate || undefined } },
     legalConsent: data.legalConsent,
     dailyCheckConfig: { ...DEFAULT_DAILY_CHECK_CONFIG },
+    code: data.code,
   };
   const result = await api<{ ok: boolean; athleteId: string }>("/api/register", jsonOpts("POST", payload));
   // Build a minimal Athlete object for immediate use; full data loaded on next loadAthletes()
@@ -1562,9 +1564,21 @@ export async function createOnboardingCode(code: string): Promise<OnboardingCode
   return api<OnboardingCode>("/api/onboarding-codes", jsonOpts("POST", { code }));
 }
 
-export async function validateOnboardingCode(code: string): Promise<boolean> {
-  const result = await api<{ valid: boolean }>("/api/validate-onboarding-code", jsonOpts("POST", { code }));
-  return result.valid;
+export async function validateOnboardingCode(
+  code: string
+): Promise<{ valid: boolean; currentStep: number; draft: Record<string, unknown> | null }> {
+  return api<{ valid: boolean; currentStep: number; draft: Record<string, unknown> | null }>(
+    "/api/validate-onboarding-code",
+    jsonOpts("POST", { code })
+  );
+}
+
+export async function saveOnboardingDraft(
+  code: string,
+  step: number,
+  draft: Record<string, unknown>
+): Promise<void> {
+  await api("/api/onboarding-draft", jsonOpts("PATCH", { code, step, draft }));
 }
 
 export async function markAthleteSignupSeen(athleteId: string): Promise<void> {

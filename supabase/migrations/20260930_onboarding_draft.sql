@@ -1,0 +1,3 @@
+ALTER TABLE onboarding_codes
+  ADD COLUMN IF NOT EXISTS current_step int NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS draft jsonb DEFAULT NULL;
