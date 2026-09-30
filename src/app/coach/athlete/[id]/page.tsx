@@ -68,6 +68,10 @@ export default function CoachAthletePage() {
   const [editingTargetWeight, setEditingTargetWeight] = useState(false);
   const [editTargetWeightInput, setEditTargetWeightInput] = useState("");
 
+  // Start weight (phase) editing
+  const [editingStartWeight, setEditingStartWeight] = useState(false);
+  const [editStartWeightInput, setEditStartWeightInput] = useState("");
+
   // Trend target editing
   const [editingTrendTarget, setEditingTrendTarget] = useState(false);
   const [editTrendTargetInput, setEditTrendTargetInput] = useState("");
@@ -223,6 +227,20 @@ export default function CoachAthletePage() {
       const updated = await updateAthlete(athlete!.id, { targetWeight: parsed });
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setEditingTargetWeight(false);
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+    }
+  }
+
+  async function saveStartWeight() {
+    const parsed = parseFloat(editStartWeightInput);
+    if (isNaN(parsed) || parsed <= 0) return;
+    const previous = athlete;
+    try {
+      const updated = await updateAthlete(athlete!.id, { startWeight: parsed });
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      setEditingStartWeight(false);
     } catch {
       setAthlete(previous);
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
@@ -553,7 +571,53 @@ export default function CoachAthletePage() {
                   </div>
                 )}
               </div>
-              <StatCard label="Start" value={athlete.startWeight} unit="kg" />
+              {/* Startgewicht Phase – inline editierbar */}
+              <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 flex flex-col gap-1 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-[#5a7090] uppercase tracking-widest">Start</span>
+                  {!editingStartWeight ? (
+                    <Tooltip label="Startgewicht Phase setzen">
+                      <button
+                        onClick={() => { setEditStartWeightInput(String(athlete.startWeight)); setEditingStartWeight(true); }}
+                        aria-label="Startgewicht Phase setzen"
+                        className="text-[#5a7090] hover:text-[#60a5fa] transition-colors"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                    </Tooltip>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Tooltip label="Speichern">
+                        <button onClick={saveStartWeight} aria-label="Speichern" className="text-[#10b981] hover:text-[#34d399] transition-colors"><Check size={12} /></button>
+                      </Tooltip>
+                      <Tooltip label="Abbrechen">
+                        <button onClick={() => setEditingStartWeight(false)} aria-label="Abbrechen" className="text-[#5a7090] hover:text-[#f0f4ff] transition-colors"><X size={12} /></button>
+                      </Tooltip>
+                    </div>
+                  )}
+                </div>
+                {!editingStartWeight ? (
+                  <div className="flex items-baseline gap-1 mt-1 text-[#f0f4ff]">
+                    <span className="text-2xl font-bold leading-none">{athlete.startWeight}</span>
+                    <span className="text-sm font-semibold text-[#8fa3c0]">kg</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 mt-2">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={editStartWeightInput}
+                      onChange={(e) => setEditStartWeightInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveStartWeight(); if (e.key === "Escape") setEditingStartWeight(false); }}
+                      placeholder="z. B. 71.1"
+                      className="w-full bg-[#0f1624] border border-[#3b82f6]/40 rounded-lg px-2 py-1 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
+                      autoFocus
+                    />
+                    <span className="text-sm text-[#8fa3c0] shrink-0">kg</span>
+                  </div>
+                )}
+              </div>
               <StatCard
                 label="Abstand Ziel"
                 value={dist > 0 ? `+${dist}` : dist}
