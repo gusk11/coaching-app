@@ -239,6 +239,20 @@ export function getTrackingKey(exerciseDbId: string | undefined, variantLabel?: 
   return `${exerciseDbId}::${label.toLowerCase()}`;
 }
 
+export function buildTrackingKey(exercise: {
+  exerciseDbId?: string;
+  equipmentType?: string;
+  laterality?: string;
+  variantLabel?: string;
+}): string | undefined {
+  if (!exercise.exerciseDbId) return undefined;
+  const parts = [exercise.exerciseDbId];
+  if (exercise.equipmentType) parts.push(exercise.equipmentType);
+  if (exercise.laterality) parts.push(exercise.laterality);
+  if (exercise.variantLabel?.trim()) parts.push(exercise.variantLabel.trim().toLowerCase());
+  return parts.join("::");
+}
+
 export function getGoalLabel(goal: string, customText?: string): string {
   if (goal === "custom") return customText?.trim() || "Individuell";
   const map: Record<string, string> = {

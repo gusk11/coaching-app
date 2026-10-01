@@ -319,16 +319,25 @@ export interface SupplementDBItem {
   updatedAt?: string;
 }
 
+export type MuscleGroup =
+  | "Brust"
+  | "Rücken"
+  | "Beine"
+  | "Schultern"
+  | "Bizeps"
+  | "Trizeps"
+  | "Bauch"
+  | "Gluteus"
+  | "Waden"
+  | "Compound"
+  | "Sonstiges";
+
 export interface ExerciseDBItem {
   id: string;
   name: string;
   muscleGroup: string;
-  equipmentType?: string;   // "Langhantel" | "Kurzhantel" | "Kabelzug" | "Maschine" | "Körpergewicht"
-  laterality?: "bilateral" | "unilateral";
   isTimeBased?: boolean;
   notes?: string;
-  executionLink?: string;
-  currentTechFeedbackVideoId?: string;
   createdAt?: string;
   updatedAt?: string;
 }

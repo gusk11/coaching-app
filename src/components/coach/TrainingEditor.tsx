@@ -9,6 +9,7 @@ import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 import { DraftRestoreBanner } from "@/components/ui/DraftRestoreBanner";
 import { useDraft } from "@/lib/useDraft";
 import { cn, sanitizeHref } from "@/lib/utils";
+import { showToast } from "@/components/ui/Toast";
 
 interface Props {
   plan?: TrainingPlan;
@@ -47,11 +48,8 @@ function exerciseFromDB(item: ExerciseDBItem): Exercise {
     sets: 3,
     reps: item.isTimeBased ? "20-30 Sek." : "8-12",
     muscleGroup: item.muscleGroup,
-    laterality: item.laterality ?? "bilateral",
-    equipmentType: item.equipmentType,
     isTimeBased: item.isTimeBased,
     exerciseDbNote: item.notes,
-    videoUrl: item.executionLink,
     exerciseDbId: item.id,
   };
 }
@@ -125,7 +123,6 @@ function ExerciseDBPicker({ exercises, onSelect, onClose }: DBPickerProps) {
               <span className="text-xs font-medium text-[#f0f4ff] block">{item.name}</span>
               <span className="text-[10px] text-[#5a7090]">
                 {item.muscleGroup}
-                {item.equipmentType && <span className="text-[#3a5070]"> · {item.equipmentType}</span>}
                 {item.isTimeBased && <span className="text-[#a78bfa]"> · Zeitübung</span>}
               </span>
             </button>
@@ -367,18 +364,26 @@ function ExerciseRow({
             {exercise.exerciseDbNote && (
               <p className="text-[10px] text-[#5a7090] italic">{exercise.exerciseDbNote}</p>
             )}
-            {exercise.videoUrl ? (
-              <a
-                href={sanitizeHref(exercise.videoUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[10px] text-[#3b82f6] hover:text-[#60a5fa] flex items-center gap-1 w-fit mt-0.5"
-              >
-                <ExternalLink size={9} /> Ausführung öffnen
-              </a>
-            ) : (
-              <span className="text-[10px] text-[#2a3d54]">Kein Link</span>
-            )}
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <input
+                type="text"
+                value={exercise.videoUrl ?? ""}
+                onChange={(e) => onChange({ ...exercise, videoUrl: e.target.value || undefined })}
+                placeholder="Video-URL (optional)"
+                className="flex-1 bg-[#0a1120] border border-[#1e2d42] rounded px-2 py-1 text-[10px] text-[#8fa3c0] focus:outline-none focus:border-[#3b82f6] placeholder:text-[#2a3d54] transition-colors"
+              />
+              {exercise.videoUrl && (
+                <a
+                  href={sanitizeHref(exercise.videoUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#3b82f6] hover:text-[#60a5fa] flex-shrink-0"
+                  title="Öffnen"
+                >
+                  <ExternalLink size={10} />
+                </a>
+              )}
+            </div>
 
             {/* Variant / Equipment / Laterality controls */}
             <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#1e2d42]/60 mt-0.5">
@@ -725,6 +730,14 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
   }
 
   function handleSave() {
+    const incomplete = days.flatMap((d) => d.exercises).filter(
+      (e) => e.exerciseDbId && (!e.equipmentType || !e.laterality)
+    );
+    if (incomplete.length > 0) {
+      const names = incomplete.map((e) => e.name).join(", ");
+      showToast(`Ausrüstung und Ausführungsseite fehlen bei: ${names}`, "error");
+      return;
+    }
     clearDraft();
     onSave({ ...initPlan, title, coachNote, days, mode, schritteProTag, cardioMinuten, cardioFrequenz, cardioIntensity, trackedFields });
   }

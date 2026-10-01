@@ -4,24 +4,6 @@ const supabase = createSupabaseAdmin();
 
 const NOW = "2026-06-04T00:00:00.000Z";
 
-// ─── New exercises ─────────────────────────────────────────────────────────────
-
-const newExercises = [
-  { id: "ex-jm-press", name: "JM Press", muscle_group: "Trizeps", equipment: "Smith-Maschine", notes: "An der Multipresse; Stange im untersten Punkt auf Schulterhöhe." },
-  { id: "ex-leg-raises", name: "Leg Raises", muscle_group: "Bauch", equipment: "Körpergewicht", notes: "Hüfte einrollen und Richtung Brustbein bringen." },
-  { id: "ex-beinstrecker-unilateral", name: "Beinstrecker unilateral", muscle_group: "Quadrizeps", equipment: "Maschine", notes: "Kniegelenk auf Drehgelenk ausrichten. Kontrollierte Exzentrik." },
-  { id: "ex-seitheben-brustgestuetzt", name: "Kurzhantel Seitheben brustgestützt", muscle_group: "Schultern", equipment: "Kurzhantel", notes: "Stehend an Bank angelehnt." },
-  { id: "ex-lateral-arounds", name: "Lateral Arounds", muscle_group: "Schultern", equipment: "Kabelzug", notes: "Umlenkrolle auf Handhöhe; Position leicht vor dem Kabelturm, cuffed." },
-  { id: "ex-t-bar-rudern", name: "T-Bar Rudern brustgestützt", muscle_group: "Rücken", equipment: "Maschine", notes: "Schulterblätter vollständig lösen und kontrahieren; Brust ganze Zeit stolz lassen." },
-  { id: "ex-single-arm-cable-pushdown", name: "Single Arm Cable Pushdown", muscle_group: "Trizeps", equipment: "Kabelzug", notes: "Ellbogen fixiert, vollständige Streckung am Ende." },
-  { id: "ex-beinbeuger-sitzend", name: "Beinbeuger sitzend", muscle_group: "Beine", equipment: "Maschine", notes: "Aktiv in Polster reinziehen und Bauch anspannen." },
-  { id: "ex-peak-contraction-curls", name: "Peak Contraction Curls", muscle_group: "Bizeps", equipment: "Kabelzug", notes: "Maximale Kontraktion am Ende der Bewegung halten." },
-  { id: "ex-single-arm-incline-cable-curls", name: "Single Arm Incline Cable Curls", muscle_group: "Bizeps", equipment: "Kabelzug", notes: "Ellbogen hinter dem Körper für maximalen Stretch." },
-  { id: "ex-rudermaschine-eng-unilateral", name: "Rudermaschine eng unilateral", muscle_group: "Rücken", equipment: "Maschine", notes: "Stack loaded; unilateral ausführen." },
-  { id: "ex-rudermaschine-breit", name: "Rudermaschine breit", muscle_group: "Rücken", equipment: "Maschine", notes: "Schulterblätter vollständig lösen und kontrahieren." },
-  { id: "ex-crunch-maschine", name: "Crunch Machine", muscle_group: "Bauch", equipment: "Maschine", notes: "Brustbein zum Schambein ziehen." },
-];
-
 // ─── New custom foods ──────────────────────────────────────────────────────────
 
 const newCustomFoods = [
@@ -224,12 +206,15 @@ function buildMealPlans(athleteId: string) {
   return [trainingDayPlan, restDayPlan];
 }
 
-// ─── Training Plan ─────────────────────────────────────────────────────────────
+// Training plan is now imported via POST body with name-based resolution.
+// See route handler below.
 
-function buildTrainingPlan(athleteId: string) {
+function _oldTrainingPlanDead(_a: string) {
+  // This function is intentionally dead — kept only to avoid a massive diff.
+  // The route handler resolves training plans from POST body.plan instead.
   return {
     id: "tp-f-001",
-    athleteId,
+    _a,
     title: "Trainings Programming",
     mode: "weekday",
     schritteProTag: 17000,
@@ -359,41 +344,42 @@ function buildSupplementPlan(athleteId: string) {
 }
 
 // ─── Route handler ─────────────────────────────────────────────────────────────
+//
+// POST body:
+//   ?athlete=<namePrefix>  (query param to identify athlete)
+//   Body (optional): { "plan": { ...same format as /api/import-training-plans... } }
+//
+// Steps: foods → supplements → meal plans + supplement plan.
+// If body.plan is provided, also resolves exercise names and imports training plan.
 
 export async function POST(request: NextRequest) {
   const namePrefix = request.nextUrl.searchParams.get("athlete")?.toLowerCase().trim() ?? "";
+  const body = await request.json().catch(() => ({}));
   const now = new Date().toISOString();
   const results: Record<string, unknown> = {};
 
-  // 1. Upsert exercises
-  const { error: exErr } = await supabase
-    .from("exercise_db")
-    .upsert(newExercises.map((e) => ({ ...e, created_at: NOW, updated_at: now })), { onConflict: "id" });
-  if (exErr) return NextResponse.json({ ok: false, step: "exercises", error: exErr.message }, { status: 500 });
-  results.exercises_upserted = newExercises.length;
-
-  // 2. Upsert custom foods
+  // 1. Upsert custom foods
   const { error: foodErr } = await supabase
     .from("custom_foods")
     .upsert(newCustomFoods.map((f) => ({ ...f, created_at: NOW, updated_at: now })), { onConflict: "id" });
   if (foodErr) return NextResponse.json({ ok: false, step: "foods", error: foodErr.message }, { status: 500 });
   results.foods_upserted = newCustomFoods.length;
 
-  // 3. Upsert supplements
+  // 2. Upsert supplements
   const { error: suppErr } = await supabase
     .from("supplement_db")
     .upsert(newSupplements.map((s) => ({ ...s, created_at: NOW, updated_at: now })), { onConflict: "id" });
   if (suppErr) return NextResponse.json({ ok: false, step: "supplements", error: suppErr.message }, { status: 500 });
   results.supplements_upserted = newSupplements.length;
 
-  // 4. Find athlete
+  // 3. Find athlete
   const { data: athletes, error: athErr } = await supabase
     .from("athletes")
     .select("id, name, meal_plans");
   if (athErr) return NextResponse.json({ ok: false, step: "fetch_athletes", error: athErr.message }, { status: 500 });
 
   const TEST_IDS = ["test-athlete-001"];
-  let athlete = namePrefix
+  const athlete = namePrefix
     ? athletes?.find((a: { id: string; name: string }) => a.name.toLowerCase().trim().startsWith(namePrefix))
     : athletes?.find((a: { id: string; name: string }) => !TEST_IDS.includes(a.id));
 
@@ -401,27 +387,95 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, step: "find_athlete", error: `No athlete found (prefix="${namePrefix}"). Pass ?athlete=name to target a specific athlete.` }, { status: 404 });
   }
 
-  // 5. Build and upsert plans
+  // 4. Build meal plans + supplement plan
   const mealPlans = buildMealPlans(athlete.id);
-  const trainingPlan = buildTrainingPlan(athlete.id);
   const supplementPlan = buildSupplementPlan(athlete.id);
 
-  // Merge new meal plans (keep existing ones that don't share IDs)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const existingMealPlans: any[] = athlete.meal_plans ?? [];
   const newIds = new Set(mealPlans.map((p) => p.id));
   const merged = [...existingMealPlans.filter((p: { id: string }) => !newIds.has(p.id)), ...mealPlans];
 
+  // 5. Optionally resolve and import training plan
+  let resolvedTrainingPlan: unknown = undefined;
+  if (body.plan) {
+    const { data: dbRows } = await supabase.from("exercise_db").select("*");
+    const exerciseDb: Array<{ id: string; name: string; muscle_group: string; is_time_based: boolean; notes: string | null }> = dbRows ?? [];
+
+    function resolveExercise(name: string) {
+      return exerciseDb.find((e) => e.name === name) ??
+             exerciseDb.find((e) => e.name.toLowerCase() === name.toLowerCase()) ??
+             null;
+    }
+
+    const unknownExercises: string[] = [];
+    for (const day of body.plan.days ?? []) {
+      for (const ex of day.exercises ?? []) {
+        if (!resolveExercise(ex.name) && !unknownExercises.includes(ex.name)) {
+          unknownExercises.push(ex.name);
+        }
+      }
+    }
+    if (unknownExercises.length > 0) {
+      return NextResponse.json({ ok: false, step: "training_plan", error: "Unbekannte Übungen", unknownExercises }, { status: 400 });
+    }
+
+    resolvedTrainingPlan = {
+      id: `tp-import-${Date.now()}`,
+      athleteId: athlete.id,
+      title: body.plan.title ?? "Importierter Trainingsplan",
+      mode: body.plan.mode ?? "weekday",
+      coachNote: body.plan.coachNote ?? "",
+      createdAt: now,
+      days: (body.plan.days ?? []).map((day: Record<string, unknown>, dIdx: number) => ({
+        id: `day-import-${dIdx}-${Date.now()}`,
+        dayName: day.dayName,
+        label: day.label ?? "",
+        note: day.note ?? "",
+        cardioNote: day.cardioNote ?? "",
+        exercises: ((day.exercises as Record<string, unknown>[]) ?? []).map((ex: Record<string, unknown>, eIdx: number) => {
+          const dbItem = resolveExercise(ex.name as string)!;
+          return {
+            id: `ex-import-${dIdx}-${eIdx}-${Date.now()}`,
+            name: ex.name,
+            sets: ex.sets ?? 3,
+            reps: ex.reps ?? "8-12",
+            rir: ex.rir ?? undefined,
+            rpe: ex.rpe ?? undefined,
+            note: ex.note ?? undefined,
+            videoUrl: ex.videoUrl ?? undefined,
+            variantLabel: ex.variantLabel ?? undefined,
+            equipmentType: ex.equipmentType ?? undefined,
+            laterality: ex.laterality ?? "bilateral",
+            muscleGroup: dbItem.muscle_group,
+            isTimeBased: dbItem.is_time_based,
+            exerciseDbNote: dbItem.notes ?? undefined,
+            exerciseDbId: dbItem.id,
+          };
+        }),
+      })),
+    };
+  }
+
+  const athleteUpdate: Record<string, unknown> = {
+    meal_plans: merged,
+    supplement_plan: supplementPlan,
+    updated_at: now,
+  };
+  if (resolvedTrainingPlan !== undefined) {
+    athleteUpdate.training_plan = resolvedTrainingPlan;
+  }
+
   const { error: updateErr } = await supabase
     .from("athletes")
-    .update({ meal_plans: merged, training_plan: trainingPlan, supplement_plan: supplementPlan, updated_at: now })
+    .update(athleteUpdate)
     .eq("id", athlete.id);
 
   if (updateErr) return NextResponse.json({ ok: false, step: "update_athlete", error: updateErr.message }, { status: 500 });
 
   results.athlete = { id: athlete.id, name: athlete.name };
   results.meal_plans_added = mealPlans.map((p) => p.title);
-  results.training_plan = trainingPlan.title;
+  if (resolvedTrainingPlan) results.training_plan = (resolvedTrainingPlan as { title: string }).title;
   results.supplement_plan = supplementPlan.id;
 
   return NextResponse.json({ ok: true, ...results });

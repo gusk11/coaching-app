@@ -10,7 +10,7 @@ import {
   addExerciseDBItem,
   reorderTrainingDayExercises,
 } from "@/lib/store";
-import { cn, sanitizeHref, getTrackingKey } from "@/lib/utils";
+import { cn, sanitizeHref, buildTrackingKey } from "@/lib/utils";
 import { Plus, Trash2, Play, Pause, RotateCcw, Timer, X, Search, MoreVertical, FileText, Pin, Hourglass, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ExternalLink, Info } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
@@ -217,6 +217,9 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
   const [newExName, setNewExName] = useState("");
   const [newExMuscleGroup, setNewExMuscleGroup] = useState("");
   const [isCreatingEx, setIsCreatingEx] = useState(false);
+  const [pendingDbItem, setPendingDbItem] = useState<ExerciseDBItem | null>(null);
+  const [pendingEquipment, setPendingEquipment] = useState("");
+  const [pendingLaterality, setPendingLaterality] = useState<"bilateral" | "unilateral">("bilateral");
 
   const [noteMenuOpenId, setNoteMenuOpenId] = useState<string | null>(null);
   const [editingNote, setEditingNote] = useState<{ id: string; type: "note" | "sessionNote" } | null>(null);
@@ -296,7 +299,7 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
     const day = trainingPlan.days.find((d) => d.id === dayId);
     return (day?.exercises ?? []).map((ex) => {
       const isUnilateral = ex.laterality === "unilateral";
-      const trackingKey = ex.exerciseDbId ? getTrackingKey(ex.exerciseDbId, ex.variantLabel) : undefined;
+      const trackingKey = buildTrackingKey(ex);
       const persistentNote = getPersistentExerciseNote(existingLogs, ex.id, ex.name, trackingKey);
       return {
         exerciseId: ex.id,
@@ -435,16 +438,17 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
     }
   }
 
-  function addExerciseFromDB(item: ExerciseDBItem) {
+  function addExerciseFromDB(item: ExerciseDBItem, equipment: string, laterality: "bilateral" | "unilateral") {
     const exerciseId = `ex-adhoc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const isUnilateral = (item.laterality ?? "bilateral") === "unilateral";
+    const isUnilateral = laterality === "unilateral";
     const persistentNote = getPersistentExerciseNote(existingLogs, exerciseId, item.name);
     updateExercises((prev) => [
       ...prev,
       {
         exerciseId,
         exerciseName: item.name,
-        laterality: item.laterality ?? "bilateral",
+        laterality,
+        trackingKey: buildTrackingKey({ exerciseDbId: item.id, equipmentType: equipment || undefined, laterality }),
         sets: [isUnilateral
           ? { setNumber: 1, weight: null, reps: null, rir: null, weightLeft: null, repsLeft: null, weightRight: null, repsRight: null }
           : { setNumber: 1, weight: null, reps: null, rir: null }
@@ -453,15 +457,22 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
         addedByAthlete: true,
       },
     ]);
+    setPendingDbItem(null); setPendingEquipment(""); setPendingLaterality("bilateral");
     setShowAddModal(false); setAddSearch("");
+  }
+
+  function confirmAddFromDB() {
+    if (!pendingDbItem) return;
+    addExerciseFromDB(pendingDbItem, pendingEquipment, pendingLaterality);
   }
 
   async function handleCreateAndAdd() {
     const name = newExName.trim();
-    if (!name) return;
+    const muscleGroup = newExMuscleGroup.trim();
+    if (!name || !muscleGroup) return;
     setIsCreatingEx(true);
     try {
-      const updatedItems = await addExerciseDBItem({ name, muscleGroup: newExMuscleGroup.trim() || "Sonstige" });
+      const updatedItems = await addExerciseDBItem({ name, muscleGroup });
       setDbExercises(updatedItems);
     } catch { /* ignore DB error — still add to session */ } finally { setIsCreatingEx(false); }
     const exerciseId = `ex-adhoc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -480,12 +491,12 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
 
   function closeAddModal() {
     setShowAddModal(false); setShowCreateForm(false); setAddSearch(""); setNewExName(""); setNewExMuscleGroup("");
+    setPendingDbItem(null); setPendingEquipment(""); setPendingLaterality("bilateral");
   }
 
   const filteredDbExercises = dbExercises.filter(
     (e) => addSearch === "" || e.name.toLowerCase().includes(addSearch.toLowerCase()) ||
-      e.muscleGroup.toLowerCase().includes(addSearch.toLowerCase()) ||
-      (e.equipmentType ?? "").toLowerCase().includes(addSearch.toLowerCase())
+      e.muscleGroup.toLowerCase().includes(addSearch.toLowerCase())
   );
 
   if (!trainingPlan.days.length) {
@@ -561,9 +572,9 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
             const prevEx = getPrevExerciseLog(existingLogs, session.trainingDayId, session.date, ex.exerciseId, ex.exerciseName, ex.trackingKey);
 
             // Tech-Feedback lookup
-            const dbItem = planEx?.exerciseDbId ? dbExercises.find((d) => d.id === planEx.exerciseDbId) : null;
-            const techVideoId = dbItem?.currentTechFeedbackVideoId;
-            const techVideo = techVideoId ? videoFeedbacks.find((v) => v.id === techVideoId) : null;
+            const techVideo = planEx?.exerciseDbId
+              ? videoFeedbacks.find((v) => v.linkedExerciseIds?.includes(planEx.exerciseDbId!))
+              : null;
 
             return (
               <div key={ex.exerciseId} className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">
@@ -1043,14 +1054,56 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
             <div className="bg-[#141d2e] border border-[#1e2d42] rounded-2xl p-4 max-w-sm w-full flex flex-col gap-3 max-h-[80vh]">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-[#f0f4ff]">{showCreateForm ? "Neue Übung" : "Übung hinzufügen"}</h3>
+                <h3 className="text-base font-semibold text-[#f0f4ff]">
+                  {pendingDbItem ? pendingDbItem.name : showCreateForm ? "Neue Übung" : "Übung hinzufügen"}
+                </h3>
                 <button type="button" onClick={closeAddModal} aria-label="Schließen"
                   className="p-1.5 rounded-lg text-[#5a7090] hover:bg-[#1e2d42] hover:text-[#f0f4ff] transition-colors">
                   <X size={14} />
                 </button>
               </div>
 
-              {!showCreateForm ? (
+              {pendingDbItem ? (
+                <>
+                  <button type="button" onClick={() => { setPendingDbItem(null); setPendingEquipment(""); setPendingLaterality("bilateral"); }}
+                    className="text-xs text-[#5a7090] hover:text-[#f0f4ff] transition-colors self-start">
+                    ← Zurück zur Auswahl
+                  </button>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-[#5a7090]">Ausrüstung *</label>
+                      <select value={pendingEquipment} onChange={(e) => setPendingEquipment(e.target.value)}
+                        className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6]"
+                        style={{ colorScheme: "dark" }}>
+                        <option value="">— auswählen —</option>
+                        {["Maschine", "Kurzhantel", "Langhantel", "Kabelzug", "Smith-Maschine", "Körpergewicht"].map((eq) => (
+                          <option key={eq} value={eq}>{eq}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-[#5a7090]">Ausführungsseite *</label>
+                      <div className="flex gap-2">
+                        {(["bilateral", "unilateral"] as const).map((lat) => (
+                          <button key={lat} type="button" onClick={() => setPendingLaterality(lat)}
+                            className={cn(
+                              "flex-1 py-2 rounded-lg text-xs font-medium transition-colors border",
+                              pendingLaterality === lat
+                                ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]"
+                                : "bg-[#0f1624] border-[#1e2d42] text-[#5a7090] hover:text-[#8fa3c0]"
+                            )}>
+                            {lat === "bilateral" ? "Beidseitig" : "Einseitig"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button type="button" disabled={!pendingEquipment} onClick={confirmAddFromDB}
+                      className="w-full py-2.5 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                      Hinzufügen
+                    </button>
+                  </div>
+                </>
+              ) : !showCreateForm ? (
                 <>
                   <div className="relative">
                     <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5a7090] pointer-events-none" />
@@ -1065,13 +1118,10 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                       <p className="text-xs text-[#5a7090] text-center py-4">Keine Übungen gefunden.</p>
                     ) : (
                       filteredDbExercises.map((item) => (
-                        <button key={item.id} type="button" onClick={() => addExerciseFromDB(item)}
+                        <button key={item.id} type="button" onClick={() => setPendingDbItem(item)}
                           className="text-left px-3 py-2.5 rounded-xl hover:bg-[#1e2d42] transition-colors">
                           <span className="text-sm font-medium text-[#f0f4ff] block">{item.name}</span>
-                          <span className="text-xs text-[#5a7090]">
-                            {item.muscleGroup}
-                            {item.equipmentType && <span className="text-[#3a5070]"> · {item.equipmentType}</span>}
-                          </span>
+                          <span className="text-xs text-[#5a7090]">{item.muscleGroup}</span>
                         </button>
                       ))
                     )}
@@ -1098,12 +1148,17 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                         className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6]" />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs text-[#5a7090]">Muskelgruppe</label>
-                      <input value={newExMuscleGroup} onChange={(e) => setNewExMuscleGroup(e.target.value)}
-                        placeholder="z.B. Brust"
-                        className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6]" />
+                      <label className="text-xs text-[#5a7090]">Muskelgruppe *</label>
+                      <select value={newExMuscleGroup} onChange={(e) => setNewExMuscleGroup(e.target.value)}
+                        className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6]"
+                        style={{ colorScheme: "dark" }}>
+                        <option value="">— auswählen —</option>
+                        {["Brust","Rücken","Beine","Schultern","Bizeps","Trizeps","Bauch","Gluteus","Waden","Compound","Sonstiges"].map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
                     </div>
-                    <button type="button" disabled={!newExName.trim() || isCreatingEx} onClick={handleCreateAndAdd}
+                    <button type="button" disabled={!newExName.trim() || !newExMuscleGroup || isCreatingEx} onClick={handleCreateAndAdd}
                       className="w-full py-2.5 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                       {isCreatingEx ? "Wird gespeichert…" : "Übung erstellen & hinzufügen"}
                     </button>

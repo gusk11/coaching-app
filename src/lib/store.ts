@@ -209,12 +209,8 @@ function rowToExercise(row: any): ExerciseDBItem {
     id: row.id,
     name: row.name,
     muscleGroup: row.muscle_group ?? "",
-    equipmentType: row.equipment ?? undefined,
-    laterality: (row.laterality === "unilateral" ? "unilateral" : "bilateral") as "bilateral" | "unilateral",
     isTimeBased: row.is_time_based ?? false,
     notes: row.notes ?? undefined,
-    executionLink: row.execution_link ?? undefined,
-    currentTechFeedbackVideoId: row.current_tech_feedback_video_id ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };
@@ -1051,13 +1047,6 @@ export async function linkVideoFeedbackToExercises(
   videoFeedbackId: string,
   exerciseIds: string[]
 ): Promise<void> {
-  // Update exercise_db entries
-  for (const exerciseId of exerciseIds) {
-    await api(`/api/databases/exercises/${encodeURIComponent(exerciseId)}`, jsonOpts("PATCH", {
-      currentTechFeedbackVideoId: videoFeedbackId,
-    }));
-  }
-  // Update video feedback linked_exercise_ids
   await api(`/api/video-feedbacks/${videoFeedbackId}`, jsonOpts("PATCH", {
     linkedExerciseIds: exerciseIds,
   }));
@@ -1271,7 +1260,7 @@ export function getExportContextText(
   data: { exercises: ExerciseDBItem[]; foods: FoodItem[]; supplements: SupplementDBItem[] }
 ): string {
   const exerciseSummary = data.exercises.map((e) =>
-    `${e.id} | ${e.name} | ${e.muscleGroup}${e.equipmentType ? ` | ${e.equipmentType}` : ""}${e.laterality ? ` | ${e.laterality}` : ""}`
+    `${e.id} | ${e.name} | ${e.muscleGroup}${e.isTimeBased ? " | zeitbasiert" : ""}`
   ).join("\n");
 
   const foodSummary = data.foods.map((f) =>
@@ -1322,7 +1311,7 @@ export function getExportContextText(
     }, null, 2),
     "",
     `=== EXERCISE DATABASE (${data.exercises.length} entries) ===`,
-    "Format: id | name | muscleGroup | equipmentType | laterality",
+    "Format: id | name | muscleGroup [| zeitbasiert]",
     exerciseSummary,
     "",
     `=== FOOD DATABASE (${data.foods.length} entries) ===`,

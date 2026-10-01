@@ -483,11 +483,10 @@ function FoodDBContent() {
 // EXERCISE DATABASE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const MUSCLE_GROUPS = ["Brust", "Rücken", "Beine", "Schultern", "Bizeps", "Trizeps", "Bauch", "Gluteus", "Waden", "Sonstiges"] as const;
-const EQUIPMENT_OPTIONS = ["Langhantel", "Kurzhantel", "Kabelzug", "Maschine", "Körpergewicht", "Sonstiges"] as const;
+const MUSCLE_GROUPS = ["Brust", "Rücken", "Beine", "Schultern", "Bizeps", "Trizeps", "Bauch", "Gluteus", "Waden", "Compound", "Sonstiges"] as const;
 
 function emptyExerciseForm(): Partial<ExerciseDBItem> {
-  return { name: "", muscleGroup: "", equipmentType: "", laterality: "bilateral", isTimeBased: false, notes: "", executionLink: "" };
+  return { name: "", muscleGroup: "", isTimeBased: false, notes: "" };
 }
 
 function ExerciseForm({ initial, onSave, onClose }: {
@@ -496,7 +495,7 @@ function ExerciseForm({ initial, onSave, onClose }: {
   onClose: () => void;
 }) {
   const [form, setForm] = useState<Partial<ExerciseDBItem>>(initial ?? emptyExerciseForm());
-  const [errors, setErrors] = useState<{ name?: string; muscleGroup?: string; executionLink?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; muscleGroup?: string }>({});
 
   function set(field: keyof ExerciseDBItem, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -507,9 +506,6 @@ function ExerciseForm({ initial, onSave, onClose }: {
     const errs: typeof errors = {};
     if (!form.name?.trim()) errs.name = "Übungsname darf nicht leer sein.";
     if (!form.muscleGroup?.trim()) errs.muscleGroup = "Muskelgruppe darf nicht leer sein.";
-    if (form.executionLink?.trim()) {
-      try { new URL(form.executionLink.trim()); } catch { errs.executionLink = "Bitte eine gültige URL eingeben (z.B. https://…)"; }
-    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -518,12 +514,10 @@ function ExerciseForm({ initial, onSave, onClose }: {
     e.preventDefault();
     if (!validate()) return;
     onSave({
-      name: form.name?.trim() ?? "", muscleGroup: form.muscleGroup?.trim() ?? "",
-      equipmentType: form.equipmentType?.trim() || undefined,
-      laterality: form.laterality ?? "bilateral",
+      name: form.name?.trim() ?? "",
+      muscleGroup: form.muscleGroup?.trim() ?? "",
       isTimeBased: form.isTimeBased ?? false,
       notes: form.notes?.trim() || undefined,
-      executionLink: form.executionLink?.trim() || undefined,
     });
   }
 
@@ -556,24 +550,6 @@ function ExerciseForm({ initial, onSave, onClose }: {
             {errors.muscleGroup && <p className="text-xs text-[#ef4444] mt-1">{errors.muscleGroup}</p>}
           </div>
           <div>
-            <label className={labelCls}>Equipment</label>
-            <select value={form.equipmentType ?? ""} onChange={(e) => set("equipmentType", e.target.value)} className={inputCls}>
-              <option value="">— auswählen —</option>
-              {EQUIPMENT_OPTIONS.map((eq) => <option key={eq} value={eq}>{eq}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>Ausführung</label>
-            <div className="flex gap-2">
-              {(["bilateral", "unilateral"] as const).map((lat) => (
-                <button key={lat} type="button" onClick={() => setForm((prev) => ({ ...prev, laterality: lat }))}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${(form.laterality ?? "bilateral") === lat ? "bg-[#3b82f6]/10 border-[#3b82f6]/40 text-[#60a5fa]" : "bg-[#0f1624] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/30"}`}>
-                  {lat === "bilateral" ? "Bilateral (beidseitig)" : "Unilateral (einseitig)"}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
             <label className={labelCls}>Zeitübung</label>
             <div className="flex gap-2">
               {([false, true] as const).map((val) => (
@@ -589,13 +565,6 @@ function ExerciseForm({ initial, onSave, onClose }: {
             <textarea value={form.notes ?? ""} onChange={(e) => set("notes", e.target.value)}
               rows={4} placeholder="z.B. Auf stabile Schulterblattposition achten. Langsame exzentrische Phase."
               className={`${inputCls} resize-none`} />
-          </div>
-          <div>
-            <label className={labelCls}>Link zur Übungsausführung (optional)</label>
-            <input type="text" value={form.executionLink ?? ""} onChange={(e) => set("executionLink", e.target.value)}
-              placeholder="https://…  z.B. YouTube-Link oder Technikbeschreibung"
-              className={errors.executionLink ? errorInputCls : inputCls} />
-            {errors.executionLink && <p className="text-xs text-[#ef4444] mt-1">{errors.executionLink}</p>}
           </div>
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
@@ -664,9 +633,12 @@ function ExerciseDBContent() {
       }
       setEditing(null);
       showToast("Übung gespeichert.", "success");
-    } catch {
+    } catch (err) {
       setItems(prevItems);
-      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
+      const msg = err instanceof Error ? err.message : "";
+      let parsed = "";
+      try { parsed = JSON.parse(msg)?.error ?? ""; } catch { parsed = msg; }
+      showToast(parsed || "Fehler beim Speichern. Bitte erneut versuchen.", "error");
     }
   }
 
@@ -709,14 +681,11 @@ function ExerciseDBContent() {
 
       <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">
         <div className="overflow-x-auto">
-          <div className="min-w-[560px]">
+          <div className="min-w-[400px]">
             <div className="grid grid-cols-12 px-4 py-2 text-xs text-[#5a7090] uppercase tracking-widest border-b border-[#1e2d42] bg-[#0f1624]">
-              <span className="col-span-3">Übungsname</span>
-              <span className="col-span-2">Muskelgruppe</span>
-              <span className="col-span-2">Ausrüstung</span>
-              <span className="col-span-1">Ausführung</span>
-              <span className="col-span-2">Anmerkungen</span>
-              <span className="col-span-1">Link</span>
+              <span className="col-span-4">Übungsname</span>
+              <span className="col-span-3">Muskelgruppe</span>
+              <span className="col-span-4">Anmerkungen</span>
               <span className="col-span-1 text-right">Aktionen</span>
             </div>
             <div className="divide-y divide-[#1e2d42]">
@@ -727,41 +696,21 @@ function ExerciseDBContent() {
               ) : (
                 filtered.map((e) => (
                   <div key={e.id} className="grid grid-cols-12 px-4 py-3 items-start hover:bg-[#192236] transition-colors">
-                    <div className="col-span-3 pr-3">
+                    <div className="col-span-4 pr-3">
                       <p className="text-sm text-[#f0f4ff] font-medium leading-snug line-clamp-2">{e.name}</p>
                       {e.isTimeBased && (
                         <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#10b981]/10 text-[#34d399] border border-[#10b981]/20 mt-0.5">Zeitübung</span>
                       )}
                     </div>
-                    <div className="col-span-2 pr-3">
+                    <div className="col-span-3 pr-3">
                       <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#3b82f6]/10 text-[#60a5fa] border border-[#3b82f6]/20">
                         {e.muscleGroup}
                       </span>
                     </div>
-                    <div className="col-span-2 pr-3">
-                      {e.equipmentType ? (
-                        <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#1e3a5f]/40 text-[#7cb3e0] border border-[#1e3a5f]/60">{e.equipmentType}</span>
-                      ) : <span className="text-xs text-[#5a7090] italic">—</span>}
-                    </div>
-                    <div className="col-span-1 pr-2">
-                      {(e.laterality ?? "bilateral") === "unilateral" ? (
-                        <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20 whitespace-nowrap">1-seitig</span>
-                      ) : (
-                        <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#1e2d42] text-[#5a7090] whitespace-nowrap">2-seitig</span>
-                      )}
-                    </div>
-                    <div className="col-span-2 pr-3">
+                    <div className="col-span-4 pr-3">
                       <p className="text-sm text-[#8fa3c0] line-clamp-2 leading-snug">
                         {e.notes || <span className="text-[#5a7090] italic">—</span>}
                       </p>
-                    </div>
-                    <div className="col-span-1 pr-2">
-                      {e.executionLink ? (
-                        <a href={sanitizeHref(e.executionLink)} target="_blank" rel="noopener noreferrer" onClick={(ev) => ev.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-[#3b82f6] hover:text-[#60a5fa] transition-colors">
-                          <ExternalLink size={11} /> Öffnen
-                        </a>
-                      ) : <span className="text-xs text-[#5a7090] italic">—</span>}
                     </div>
                     <div className="col-span-1 flex items-center justify-end gap-1">
                       <button onClick={() => setEditing(e)} title="Bearbeiten" className="p-1.5 rounded hover:bg-[#1e2d42] transition-colors">

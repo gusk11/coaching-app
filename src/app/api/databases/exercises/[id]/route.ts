@@ -15,17 +15,17 @@ export async function PATCH(
   const row: Record<string, unknown> = {};
   if ("name" in body) row.name = body.name;
   if ("muscleGroup" in body) row.muscle_group = body.muscleGroup ?? null;
-  if ("equipmentType" in body) row.equipment = body.equipmentType ?? null;
-  if ("laterality" in body) row.laterality = body.laterality ?? "bilateral";
   if ("isTimeBased" in body) row.is_time_based = body.isTimeBased ?? false;
   if ("notes" in body) row.notes = body.notes ?? null;
-  if ("executionLink" in body) row.execution_link = body.executionLink ?? null;
-  if ("currentTechFeedbackVideoId" in body)
-    row.current_tech_feedback_video_id = body.currentTechFeedbackVideoId ?? null;
   row.updated_at = new Date().toISOString();
 
   const { error } = await supabase.from("exercise_db").update(row).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    if (error.code === "23505") {
+      return NextResponse.json({ error: `Eine Übung mit diesem Namen existiert bereits.` }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   const { data } = await supabase.from("exercise_db").select("*").order("name");
   return NextResponse.json(data ?? []);
