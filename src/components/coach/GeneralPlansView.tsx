@@ -355,7 +355,7 @@ export function GeneralPlansView({
 
           {editingTraining ? (
             <TrainingEditor
-              plan={athlete.trainingPlan}
+              plan={trainingPlans.find((p) => p.isActive !== false) ?? trainingPlans[0]}
               athleteId={athlete.id}
               onSave={handleSaveTrainingPlan}
             />

@@ -77,7 +77,8 @@ interface DBPickerProps {
 
 function ExerciseDBPicker({ exercises, onSelect, onClose }: DBPickerProps) {
   const [search, setSearch] = useState("");
-  const filtered = exercises.filter((e) =>
+  const safeExercises = Array.isArray(exercises) ? exercises : [];
+  const filtered = safeExercises.filter((e) =>
     e.name.toLowerCase().includes(search.toLowerCase()) ||
     e.muscleGroup.toLowerCase().includes(search.toLowerCase()) ||
     (e.notes ?? "").toLowerCase().includes(search.toLowerCase())
@@ -104,7 +105,7 @@ function ExerciseDBPicker({ exercises, onSelect, onClose }: DBPickerProps) {
           </button>
         </Tooltip>
       </div>
-      {exercises.length === 0 ? (
+      {safeExercises.length === 0 ? (
         <p className="text-xs text-[#5a7090] text-center py-3 leading-relaxed">
           Noch keine Übungen in der ÜbungenDB vorhanden.{" "}
           <span className="text-[#3b82f6]">Bitte zuerst Übungen in der Übungsdatenbank anlegen.</span>
@@ -567,8 +568,9 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
   const [trackedFields, setTrackedFields] = useState<TrackedFields>(
     initPlan.trackedFields ?? { weight: true, reps: true, rir: true, cadence: false, custom: { label: "", enabled: false } }
   );
-  const [days, setDays] = useState<TrainingDay[]>(initPlan.days);
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(initPlan.days.map((d) => d.id)));
+  const safeDays = Array.isArray(initPlan.days) ? initPlan.days : [];
+  const [days, setDays] = useState<TrainingDay[]>(safeDays);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(safeDays.map((d) => d.id)));
   const [dbExercises, setDbExercises] = useState<ExerciseDBItem[]>([]);
   const [exerciseVariants, setExerciseVariants] = useState<ExerciseVariant[]>([]);
   const [pickerOpenDayId, setPickerOpenDayId] = useState<string | null>(null);
@@ -730,7 +732,7 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
   }
 
   function handleSave() {
-    const incomplete = days.flatMap((d) => d.exercises).filter(
+    const incomplete = (days ?? []).flatMap((d) => d.exercises ?? []).filter(
       (e) => e.exerciseDbId && (!e.equipmentType || !e.laterality)
     );
     if (incomplete.length > 0) {
@@ -936,7 +938,7 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
         </div>
 
         {/* Training days */}
-        {days.map((day, idx) => {
+        {(days ?? []).map((day, idx) => {
           const expanded = expandedDays.has(day.id);
           return (
             <div key={day.id} className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">
@@ -1015,7 +1017,7 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
               {expanded && (
                 <div className="p-4 flex flex-col gap-1">
                   {/* Exercises with insert buttons between them */}
-                  {day.exercises.map((ex, exIdx) => (
+                  {(day.exercises ?? []).map((ex, exIdx) => (
                     <Fragment key={ex.id}>
                       {exIdx > 0 && (
                         <InsertButton onClick={() => addExerciseAt(day.id, exIdx)} />
@@ -1031,7 +1033,7 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
                         onDragEnd={handleExerciseDragEnd}
                         isDragOver={dragOverTarget?.dayId === day.id && dragOverTarget?.idx === exIdx}
                         isDragging={dragSrc?.dayId === day.id && dragSrc?.idx === exIdx}
-                        exerciseVariantsForEx={exerciseVariants.filter((v) => v.exerciseDbId === ex.exerciseDbId)}
+                        exerciseVariantsForEx={(exerciseVariants ?? []).filter((v) => v.exerciseDbId === ex.exerciseDbId)}
                         onAddVariant={(label) => handleAddVariant(ex.exerciseDbId!, label)}
                       />
                     </Fragment>

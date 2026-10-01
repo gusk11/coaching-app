@@ -19,7 +19,8 @@ const dayColors: Record<string, string> = {
 };
 
 function DayCard({ day, isOpen, onToggle, customLabel }: { day: TrainingDay; isOpen: boolean; onToggle: () => void; customLabel?: string }) {
-  const isRest = !day.exercises.length;
+  const safeExercises = Array.isArray(day.exercises) ? day.exercises : [];
+  const isRest = !safeExercises.length;
   const color = dayColors[day.label] ?? "text-[#8fa3c0]";
 
   return (
@@ -39,7 +40,7 @@ function DayCard({ day, isOpen, onToggle, customLabel }: { day: TrainingDay; isO
           </div>
           {!isRest && (
             <span className="text-xs text-[#5a7090] bg-[#1e2d42] px-2 py-0.5 rounded-full">
-              {day.exercises.length} Übungen
+              {safeExercises.length} Übungen
             </span>
           )}
         </div>
@@ -56,7 +57,7 @@ function DayCard({ day, isOpen, onToggle, customLabel }: { day: TrainingDay; isO
           {day.note && (
             <p className="px-4 py-2 text-xs text-[#8fa3c0] italic">{day.note}</p>
           )}
-          {day.exercises.map((ex) => (
+          {safeExercises.map((ex) => (
             <div key={ex.id} className="px-4 py-3 flex items-start justify-between gap-3">
               <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -117,7 +118,7 @@ function DayCard({ day, isOpen, onToggle, customLabel }: { day: TrainingDay; isO
               </div>
             </div>
           ))}
-          {day.note && day.exercises.length === 0 && (
+          {day.note && safeExercises.length === 0 && (
             <p className="px-4 py-3 text-sm text-[#8fa3c0]">{day.note}</p>
           )}
         </div>
@@ -153,7 +154,7 @@ export function TrainingAccordion({ plan, plans, onSetActive }: { plan?: Trainin
         plans={allPlans.map((p, i) => ({ id: p.id, title: p.title, isActive: i === activeIdx }))}
         onSelect={handlePlanSelect}
       />
-      {activePlan.days.map((day) => {
+      {(activePlan.days ?? []).map((day) => {
         const isToday = day.dayName === todayName;
         return (
           <div key={day.id} className={cn(isToday && "ring-1 ring-[#3b82f6]/30 rounded-2xl")}>

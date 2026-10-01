@@ -407,7 +407,7 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
       prev.map((ex, i) =>
         i !== exIdx ? ex : {
           ...ex,
-          sets: ex.sets.filter((_, j) => j !== setIdx).map((s, j) => ({ ...s, setNumber: j + 1 })),
+          sets: (Array.isArray(ex.sets) ? ex.sets : []).filter((_, j) => j !== setIdx).map((s, j) => ({ ...s, setNumber: j + 1 })),
         }
       )
     );
