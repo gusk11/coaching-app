@@ -1055,14 +1055,6 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
                     >
                       <Database size={12} /> Aus ÜbungenDB
                     </button>
-                    <span className="text-[#2a3d54] text-xs select-none">·</span>
-                    <button
-                      type="button"
-                      onClick={() => addExercise(day.id)}
-                      className="flex items-center gap-1.5 text-xs text-[#5a7090] hover:text-[#8fa3c0] transition-colors py-1"
-                    >
-                      <Plus size={12} /> Manuell hinzufügen
-                    </button>
                   </div>
 
                   {/* Per-day cardio */}
