@@ -13,6 +13,7 @@ import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { AthleteProfileEditor } from "@/components/coach/AthleteProfileEditor";
 import { GeneralPlansView } from "@/components/coach/GeneralPlansView";
 import { AthleteDataExport } from "@/components/coach/AthleteDataExport";
+import { AthleteExportPanel } from "@/components/coach/AthleteExportPanel";
 import { CheckInConfigEditor } from "@/components/coach/CheckInConfigEditor";
 import { ProgressAnalytics } from "@/components/coach/ProgressAnalytics";
 import { TrainingProgressView } from "@/components/athlete/TrainingProgressView";
@@ -1358,6 +1359,13 @@ export default function CoachAthletePage() {
                 mode="coach"
               />
             </div>
+
+            <AthleteExportPanel
+              athleteId={athlete.id}
+              athleteName={athlete.name}
+              dailyCheckIns={athlete.dailyCheckIns ?? []}
+              weeklyCheckIns={athlete.weeklyCheckIns ?? []}
+            />
           </motion.div>
         )}
 

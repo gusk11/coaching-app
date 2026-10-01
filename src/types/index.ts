@@ -755,3 +755,46 @@ export interface AthleteDataExport {
     weeklyCheckConfig: WeeklyCheckConfig | undefined;
   };
 }
+
+// ── Klientencheck export (flat, field-selectable) ─────────────────────────────
+
+export type ExportFieldGroup =
+  | "weight"
+  | "sleep"
+  | "steps"
+  | "vitals"
+  | "wellbeing"
+  | "nutrition"
+  | "training"
+  | "notes"
+  | "weeklyRatings"
+  | "coachNotes"
+  | "photos";
+
+export interface AthleteExportOptions {
+  athleteId: string;
+  from: string;
+  to: string;
+  fields: ExportFieldGroup[];
+}
+
+export interface AthleteExportJson {
+  schemaVersion: 1;
+  exportedAt: string;
+  athlete: { id: string; name: string };
+  range: { from: string; to: string };
+  selectedFields: ExportFieldGroup[];
+  data: {
+    weight?: Array<{ date: string; weight: number }>;
+    sleep?: Array<{ date: string; sleepHours: number; sleepQuality: number; sleepScore?: number }>;
+    steps?: Array<{ date: string; steps: number }>;
+    vitals?: Array<{ date: string; restingHeartRate?: number; hrv?: number; spO2?: number; bloodPressureSystolic?: number; bloodPressureDiastolic?: number }>;
+    wellbeing?: Array<{ date: string; energyLevel: number; stressLevel: number; mood: number; appetite: number; digestion: number }>;
+    nutrition?: Array<{ date: string; nutritionStatus?: string; calories?: number; protein?: number; carbs?: number; fat?: number; fiber?: number; salt?: number }>;
+    training?: Array<{ date: string; training: boolean; trainingQuality?: number; cardio: boolean; cardioDuration?: number; caffeine?: number }>;
+    notes?: Array<{ date: string; note: string }>;
+    weeklyRatings?: Array<{ date: string; weekStart: string; overallWeekRating: number; weekSatisfaction: number; selfSatisfaction: number; nutritionAdherence: number; trainingRating: number; recoveryRating?: number; sleepAvg?: number; stressAvg: number; energyAvg: number; hungerCravings?: string; specialEvents?: string; freeNote?: string }>;
+    coachNotes?: Array<{ date: string; coachNote: string }>;
+    photos?: Array<{ date: string; fileName: string; uploadedAt: string; url?: string }>;
+  };
+}

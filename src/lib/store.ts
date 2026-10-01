@@ -7,7 +7,7 @@ import {
   FoodItem, SupplementDBItem, ExerciseDBItem, GoalType,
   DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest, VideoFeedback,
   PlanChangeRequest, TrainingPlan, MealPlan, SupplementPlan, MaintenanceMode,
-  OnboardingCode, ExerciseVariant, AthleteDataExport,
+  OnboardingCode, ExerciseVariant, AthleteDataExport, AthleteExportOptions, AthleteExportJson,
 } from "@/types";
 import { TrainingPlanSchema, MealPlanSchema, SupplementPlanSchema } from "@/lib/planSchemas";
 import { getCheckInWeekStart } from "@/lib/utils";
@@ -1643,6 +1643,146 @@ export async function exportAthleteData(
       dailyCheckConfig: athlete.dailyCheckConfig,
       weeklyCheckConfig: athlete.weeklyCheckConfig,
     },
+  };
+}
+
+export async function buildAthleteExport(options: AthleteExportOptions): Promise<AthleteExportJson> {
+  const { athleteId, from, to, fields } = options;
+  const athlete = await getAthlete(athleteId);
+  const inRange = (date: string) => date >= from && date <= to;
+
+  const daily = (athlete.dailyCheckIns ?? [])
+    .filter((c) => inRange(c.date))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const weekly = (athlete.weeklyCheckIns ?? [])
+    .filter((c) => inRange(c.date))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const data: AthleteExportJson["data"] = {};
+
+  if (fields.includes("weight")) {
+    data.weight = daily
+      .filter((c) => c.weight > 0)
+      .map((c) => ({ date: c.date, weight: c.weight }));
+  }
+
+  if (fields.includes("sleep")) {
+    data.sleep = daily
+      .filter((c) => c.sleepHours > 0)
+      .map((c) => ({
+        date: c.date,
+        sleepHours: c.sleepHours,
+        sleepQuality: c.sleepQuality,
+        ...(c.sleepScore != null ? { sleepScore: c.sleepScore } : {}),
+      }));
+  }
+
+  if (fields.includes("steps")) {
+    data.steps = daily
+      .filter((c) => c.steps > 0)
+      .map((c) => ({ date: c.date, steps: c.steps }));
+  }
+
+  if (fields.includes("vitals")) {
+    data.vitals = daily
+      .filter((c) => c.restingHeartRate != null || c.hrv != null || c.spO2 != null || c.bloodPressure != null)
+      .map((c) => ({
+        date: c.date,
+        ...(c.restingHeartRate != null ? { restingHeartRate: c.restingHeartRate } : {}),
+        ...(c.hrv != null ? { hrv: c.hrv } : {}),
+        ...(c.spO2 != null ? { spO2: c.spO2 } : {}),
+        ...(c.bloodPressure != null ? { bloodPressureSystolic: c.bloodPressure.systolic, bloodPressureDiastolic: c.bloodPressure.diastolic } : {}),
+      }));
+  }
+
+  if (fields.includes("wellbeing")) {
+    data.wellbeing = daily.map((c) => ({
+      date: c.date,
+      energyLevel: c.energyLevel,
+      stressLevel: c.stressLevel,
+      mood: c.mood,
+      appetite: c.appetite,
+      digestion: c.digestion,
+    }));
+  }
+
+  if (fields.includes("nutrition")) {
+    data.nutrition = daily
+      .filter((c) => c.nutritionStatus != null || c.calories != null)
+      .map((c) => ({
+        date: c.date,
+        ...(c.nutritionStatus != null ? { nutritionStatus: c.nutritionStatus } : {}),
+        ...(c.calories != null ? { calories: c.calories } : {}),
+        ...(c.protein != null ? { protein: c.protein } : {}),
+        ...(c.carbs != null ? { carbs: c.carbs } : {}),
+        ...(c.fat != null ? { fat: c.fat } : {}),
+        ...(c.fiber != null ? { fiber: c.fiber } : {}),
+        ...(c.salt != null ? { salt: c.salt } : {}),
+      }));
+  }
+
+  if (fields.includes("training")) {
+    data.training = daily
+      .filter((c) => c.training || c.cardio)
+      .map((c) => ({
+        date: c.date,
+        training: c.training,
+        cardio: c.cardio,
+        ...(c.training && c.trainingQuality ? { trainingQuality: c.trainingQuality } : {}),
+        ...(c.cardio && c.cardioDuration ? { cardioDuration: c.cardioDuration } : {}),
+        ...(c.caffeine ? { caffeine: c.caffeine } : {}),
+      }));
+  }
+
+  if (fields.includes("notes")) {
+    data.notes = daily
+      .filter((c) => c.note?.trim())
+      .map((c) => ({ date: c.date, note: c.note }));
+  }
+
+  if (fields.includes("weeklyRatings")) {
+    data.weeklyRatings = weekly.map((c) => ({
+      date: c.date,
+      weekStart: c.weekStart,
+      overallWeekRating: c.overallWeekRating,
+      weekSatisfaction: c.weekSatisfaction,
+      selfSatisfaction: c.selfSatisfaction,
+      nutritionAdherence: c.nutritionAdherence,
+      trainingRating: c.trainingRating,
+      stressAvg: c.stressAvg,
+      energyAvg: c.energyAvg,
+      ...(c.recoveryRating != null ? { recoveryRating: c.recoveryRating } : {}),
+      ...(c.sleepAvg != null ? { sleepAvg: c.sleepAvg } : {}),
+      ...(c.hungerCravings?.trim() ? { hungerCravings: c.hungerCravings } : {}),
+      ...(c.specialEvents?.trim() ? { specialEvents: c.specialEvents } : {}),
+      ...(c.freeNote?.trim() ? { freeNote: c.freeNote } : {}),
+    }));
+  }
+
+  if (fields.includes("coachNotes")) {
+    data.coachNotes = weekly
+      .filter((c) => c.coachNote?.trim())
+      .map((c) => ({ date: c.date, coachNote: c.coachNote }));
+  }
+
+  if (fields.includes("photos")) {
+    data.photos = weekly.flatMap((c) =>
+      (c.progressImages ?? []).map((img) => ({
+        date: c.date,
+        fileName: img.fileName,
+        uploadedAt: img.uploadedAt,
+        ...(img.url && !img.url.startsWith("data:") ? { url: img.url } : {}),
+      }))
+    );
+  }
+
+  return {
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    athlete: { id: athlete.id, name: athlete.name },
+    range: { from, to },
+    selectedFields: fields,
+    data,
   };
 }
 
