@@ -1,8 +1,10 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useAutosave } from "@/lib/useAutosave";
+import { SaveStatusIndicator } from "@/components/ui/SaveStatusIndicator";
 import { CalorieTrackerDay, CalorieTrackerEntry, CalorieTrackerMeal, FoodItem, MealPlan } from "@/types";
 import { getAllFoodItems } from "@/lib/store";
-import { Plus, Trash2, Search, ChevronDown, ChevronUp, CheckCircle2, X, Check, Globe, Loader2 } from "lucide-react";
+import { Plus, Trash2, Search, ChevronDown, ChevronUp, X, Check, Globe, Loader2 } from "lucide-react";
 import type { ExternalFoodResult } from "@/app/api/foods/external-search/route";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
@@ -502,11 +504,21 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
   const [foodSearchMealId, setFoodSearchMealId] = useState<string | null>(null);
   const [freeEntryMealId, setFreeEntryMealId] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   const [allFoods, setAllFoods] = useState<FoodItem[]>([]);
   useEffect(() => { getAllFoodItems().then(setAllFoods); }, []);
   const dayTotals = useMemo(() => sumEntries(meals.flatMap((m) => m.entries)), [meals]);
+
+  const saveFn = useCallback(
+    async (m: CalorieTrackerMeal[]) => { await onSave({ date, meals: m }); },
+    [onSave, date]
+  );
+  const { status: saveStatus } = useAutosave({
+    value: meals,
+    save: saveFn,
+    debounceMs: 1500,
+    isValid: meals.length > 0,
+  });
 
   function addMeal() {
     const id = uid();
@@ -569,12 +581,6 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
         m.id === mealId ? { ...m, entries: m.entries.filter((e) => e.id !== entryId) } : m
       )
     );
-  }
-
-  function handleSave() {
-    onSave({ date, meals });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
   }
 
   return (
@@ -704,7 +710,7 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
         })}
 
         {/* Action bar */}
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={addMeal}
@@ -721,18 +727,8 @@ export function CalorieTracker({ initialDay, mealPlan, date, athleteId, onSave }
               ↓ Aus Ernährungsplan übernehmen
             </button>
           )}
+          <SaveStatusIndicator status={saveStatus} className="ml-auto" />
         </div>
-
-        {/* Save */}
-        {meals.length > 0 && (
-          <button
-            type="button"
-            onClick={handleSave}
-            className="w-full py-3 rounded-xl bg-[#3b82f6] text-white font-semibold text-sm hover:bg-[#2563eb] transition-colors flex items-center justify-center gap-2"
-          >
-            {saved ? <><CheckCircle2 size={16} /> Gespeichert!</> : "Tag speichern"}
-          </button>
-        )}
       </div>
     </>
   );

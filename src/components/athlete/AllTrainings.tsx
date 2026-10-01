@@ -1,5 +1,7 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useAutosave } from "@/lib/useAutosave";
+import { SaveStatusIndicator } from "@/components/ui/SaveStatusIndicator";
 import { TrainingLog } from "@/types";
 import { Athlete } from "@/types";
 import { ChevronDown, Plus, RotateCcw, Trash2, X } from "lucide-react";
@@ -124,6 +126,24 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, onRepeatLog, m
   const [editState, setEditState] = useState<EditState | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
+  const editSaveFn = useCallback(
+    async (state: EditState | null) => {
+      if (!state) return;
+      const original = trainingLogs.find((l) => l.id === state.logId);
+      if (!original) return;
+      const updated = editStateToLog(state, original);
+      const athletes = await updateTrainingLog(athleteId, updated);
+      onUpdate(athletes);
+    },
+    [trainingLogs, athleteId, onUpdate]
+  );
+  const { status: editSaveStatus, flush: flushEdit } = useAutosave({
+    value: editState,
+    save: editSaveFn,
+    debounceMs: 1500,
+    isValid: editState !== null,
+  });
+
   function toggleOpen(id: string) {
     setOpenIds((prev) => {
       const next = new Set(prev);
@@ -156,21 +176,9 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, onRepeatLog, m
     setOpenIds((prev) => new Set([...prev, log.id]));
   }
 
-  function cancelEdit() { setEditState(null); }
-
-  async function saveEdit() {
-    if (!editState) return;
-    const original = trainingLogs.find((l) => l.id === editState.logId);
-    if (!original) return;
-    const updated = editStateToLog(editState, original);
-    try {
-      const athletes = await updateTrainingLog(athleteId, updated);
-      onUpdate(athletes);
-      setEditState(null);
-      showToast("Training gespeichert.", "success");
-    } catch {
-      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
-    }
+  async function cancelEdit() {
+    await flushEdit();
+    setEditState(null);
   }
 
   // ── Edit state mutators ────────────────────────────────────────────────────
@@ -534,18 +542,13 @@ export function AllTrainings({ trainingLogs, athleteId, onUpdate, onRepeatLog, m
                 </button>
 
                 {/* Actions */}
-                <div className="flex gap-2 pt-1">
+                <div className="flex items-center gap-2 pt-1">
+                  <SaveStatusIndicator status={editSaveStatus} />
                   <button
                     onClick={cancelEdit}
-                    className="flex-1 py-2.5 rounded-xl border border-[#1e2d42] text-sm text-[#5a7090] hover:text-[#8fa3c0] transition-colors"
+                    className="ml-auto py-2.5 px-5 rounded-xl border border-[#1e2d42] text-sm text-[#5a7090] hover:text-[#8fa3c0] transition-colors"
                   >
-                    Abbrechen
-                  </button>
-                  <button
-                    onClick={saveEdit}
-                    className="flex-1 py-2.5 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-sm font-medium text-white transition-colors"
-                  >
-                    Speichern
+                    Schließen
                   </button>
                 </div>
               </div>

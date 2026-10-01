@@ -1,14 +1,14 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useAutosave } from "@/lib/useAutosave";
+import { SaveStatusIndicator } from "@/components/ui/SaveStatusIndicator";
 import {
   Athlete, DailyCheckConfig,
   ExperienceLevel, GoalType, LegalConsent, TrackingDevice,
 } from "@/types";
 import { cn, getGoalLabel } from "@/lib/utils";
-import { Pencil, Check, X } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import { ProfileDisplaySections, ProfileEditSections } from "@/components/athlete/ProfileSections";
-import { showToast } from "@/components/ui/Toast";
-import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
 
 const GOAL_OPTIONS: { value: GoalType; label: string }[] = [
   { value: "cut", label: "Diät / Abnehmen" },
@@ -205,7 +205,6 @@ interface Props {
 
 export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: Props) {
   const [editing, setEditing] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   // Shared fields
   const [competitionDate, setCompetitionDate] = useState(athlete.competitionDate ?? "");
@@ -281,23 +280,20 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
     return { ...common, specialNotes: specialNotes.trim() || undefined, zielBeschreibung: zielBeschreibung.trim() || undefined, checkInDay };
   }
 
-  function handleSave() {
-    try {
-      onSave(buildUpdates());
-      if (mode === "athlete") {
-        setEditing(false);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
-      }
-    } catch {
-      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
-    }
-  }
+  const saveFn = useCallback(async (updates: Partial<Athlete>) => {
+    onSave(updates);
+  }, [onSave]);
+
+  const { status: saveStatus } = useAutosave({
+    value: buildUpdates(),
+    save: saveFn,
+    debounceMs: 1500,
+    isValid: mode === "coach" || editing,
+  });
 
   function handleCancel() {
     resetToAthlete(athlete);
     setEditing(false);
-    setSaved(false);
   }
 
   // ── ATHLETE MODE ─────────────────────────────────────────────────────────────
@@ -315,32 +311,22 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
           <h2 className="text-base font-semibold text-[#f0f4ff]">Meine Stammdaten</h2>
           {!editing ? (
             <button
-              onClick={() => { resetToAthlete(athlete); setEditing(true); setSaved(false); }}
+              onClick={() => { resetToAthlete(athlete); setEditing(true); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#1e2d42] bg-[#141d2e] text-xs font-medium text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa] transition-all"
             >
               <Pencil size={13} /> Bearbeiten
             </button>
           ) : (
-            <div className="flex gap-2">
-              <button onClick={handleSave}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3b82f6] text-xs font-medium text-white hover:bg-[#2563eb] transition-all"
-              >
-                <Check size={13} /> Speichern
-              </button>
+            <div className="flex items-center gap-2">
+              <SaveStatusIndicator status={saveStatus} />
               <button onClick={handleCancel}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#1e2d42] bg-[#141d2e] text-xs font-medium text-[#8fa3c0] hover:text-[#f0f4ff] transition-all"
               >
-                <X size={13} /> Abbrechen
+                <X size={13} /> Schließen
               </button>
             </div>
           )}
         </div>
-
-        {saved && (
-          <div className="px-4 py-3 rounded-xl bg-[#10b981]/10 border border-[#10b981]/20 text-sm text-[#10b981]">
-            Stammdaten wurden gespeichert.
-          </div>
-        )}
 
         {/* Profil */}
         <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-4">
@@ -477,7 +463,6 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
         {/* Rechtliches */}
         {!editing && <LegalSection consent={athlete.legalConsent} />}
 
-        {editing && <FloatingSaveButton onClick={handleSave} label="Speichern" />}
       </div>
     );
   }
@@ -535,7 +520,7 @@ export function AthleteStammdatenForm({ athlete, mode, onSave, onSaveProfile }: 
       {/* Rechtliches */}
       <LegalSection consent={athlete.legalConsent} coachMode />
 
-      <FloatingSaveButton onClick={handleSave} label="Profil speichern" />
+      <SaveStatusIndicator status={saveStatus} />
     </div>
   );
 }

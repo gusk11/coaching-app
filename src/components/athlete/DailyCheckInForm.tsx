@@ -4,30 +4,9 @@ import { DailyCheckIn, MealPlan, NutritionStatusType, DailyCheckConfig, DEFAULT_
 import { SliderInput } from "@/components/ui/SliderInput";
 import { NumberSliderInput } from "@/components/ui/NumberSliderInput";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
+import { DraftRestoreBanner } from "@/components/ui/DraftRestoreBanner";
+import { useDraft } from "@/lib/useDraft";
 import { cn, normalizeNutritionStatus, todayISO } from "@/lib/utils";
-
-type CheckInDraft = {
-  weight?: number; weightInput?: string; measurementTime?: string;
-  appetite?: number; digestion?: number; caffeine?: number; steps?: number;
-  cardio?: boolean; cardioDuration?: number; training?: boolean; trainingQuality?: number;
-  sleepHours?: number; sleepQuality?: number; sleepScore?: number;
-  restingHeartRate?: number; hrv?: number; spO2?: number; bpSystolic?: number; bpDiastolic?: number;
-  energyLevel?: number; stressLevel?: number; mood?: number; note?: string;
-  nutritionStatus?: NutritionStatusType; selectedMealPlanId?: string; noExactNutritionReason?: string;
-  macroKcal?: number; macroProtein?: number; macroFat?: number; macroCarbs?: number;
-  macroFiber?: number; macroSalt?: number; macroTrackingAccuracy?: number;
-  freemealKcal?: number;
-  freemealProtein?: number;
-  freemealCarbs?: number;
-  freemealFat?: number;
-  customValues?: Record<string, string | number | boolean>;
-};
-
-function readDraft(key: string): CheckInDraft | null {
-  if (typeof window === "undefined") return null;
-  try { const raw = sessionStorage.getItem(key); return raw ? (JSON.parse(raw) as CheckInDraft) : null; }
-  catch { return null; }
-}
 
 interface DailyCheckInFormProps {
   athleteId: string;
@@ -49,67 +28,129 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
   const cfg: DailyCheckConfig = { ...DEFAULT_DAILY_CHECK_CONFIG, ...checkConfig };
   const init = existingToday;
 
-  const draftKey = `daily-checkin-draft-${athleteId}-${date ?? todayISO()}`;
-  const [draft] = useState<CheckInDraft | null>(() => !init ? readDraft(draftKey) : null);
-
-  const [weight, setWeight] = useState(draft?.weight ?? init?.weight ?? 80);
+  const [weight, setWeight] = useState(init?.weight ?? 80);
   const [weightInput, setWeightInput] = useState(
-    draft?.weightInput ?? (init?.weight != null ? String(init.weight).replace(".", ",") : "80")
+    init?.weight != null ? String(init.weight).replace(".", ",") : "80"
   );
-  const [measurementTime, setMeasurementTime] = useState(draft?.measurementTime ?? init?.measurementTime ?? "07:00");
-  const [appetite, setAppetite] = useState<1|2|3|4|5>((draft?.appetite ?? init?.appetite ?? 3) as 1|2|3|4|5);
-  const [digestion, setDigestion] = useState<1|2|3|4|5>((draft?.digestion ?? init?.digestion ?? 3) as 1|2|3|4|5);
-  const [caffeine, setCaffeine] = useState(draft?.caffeine ?? init?.caffeine ?? 200);
-  const [steps, setSteps] = useState(draft?.steps ?? init?.steps ?? 8000);
-  const [cardio, setCardio] = useState(draft?.cardio ?? init?.cardio ?? false);
-  const [cardioDuration, setCardioDuration] = useState(draft?.cardioDuration ?? init?.cardioDuration ?? 30);
-  const [training, setTraining] = useState(draft?.training ?? init?.training ?? false);
-  const [trainingQuality, setTrainingQuality] = useState<1|2|3|4|5>((draft?.trainingQuality ?? init?.trainingQuality ?? 3) as 1|2|3|4|5);
-  const [sleepHours, setSleepHours] = useState(draft?.sleepHours ?? init?.sleepHours ?? 7);
+  const [measurementTime, setMeasurementTime] = useState(init?.measurementTime ?? "07:00");
+  const [appetite, setAppetite] = useState<1|2|3|4|5>((init?.appetite ?? 3) as 1|2|3|4|5);
+  const [digestion, setDigestion] = useState<1|2|3|4|5>((init?.digestion ?? 3) as 1|2|3|4|5);
+  const [caffeine, setCaffeine] = useState(init?.caffeine ?? 200);
+  const [steps, setSteps] = useState(init?.steps ?? 8000);
+  const [cardio, setCardio] = useState(init?.cardio ?? false);
+  const [cardioDuration, setCardioDuration] = useState(init?.cardioDuration ?? 30);
+  const [training, setTraining] = useState(init?.training ?? false);
+  const [trainingQuality, setTrainingQuality] = useState<1|2|3|4|5>((init?.trainingQuality ?? 3) as 1|2|3|4|5);
+  const [sleepHours, setSleepHours] = useState(init?.sleepHours ?? 7);
   const [sleepQuality, setSleepQuality] = useState<1|2|3|4|5>(
-    (draft?.sleepQuality ?? (init?.sleepQuality && init.sleepQuality <= 5 ? init.sleepQuality : 3) ?? 3) as 1|2|3|4|5
+    (init?.sleepQuality && init.sleepQuality <= 5 ? init.sleepQuality : 3) as 1|2|3|4|5
   );
-  const [sleepScore, setSleepScore] = useState(draft?.sleepScore ?? init?.sleepScore ?? 75);
-  const [restingHeartRate, setRestingHeartRate] = useState(draft?.restingHeartRate ?? init?.restingHeartRate ?? 55);
-  const [hrv, setHrv] = useState(draft?.hrv ?? init?.hrv ?? 50);
-  const [spO2, setSpO2] = useState(draft?.spO2 ?? init?.spO2 ?? 98);
-  const [bpSystolic, setBpSystolic] = useState(draft?.bpSystolic ?? init?.bloodPressure?.systolic ?? 120);
-  const [bpDiastolic, setBpDiastolic] = useState(draft?.bpDiastolic ?? init?.bloodPressure?.diastolic ?? 80);
-  const [energyLevel, setEnergyLevel] = useState<1|2|3|4|5>((draft?.energyLevel ?? init?.energyLevel ?? 3) as 1|2|3|4|5);
-  const [stressLevel, setStressLevel] = useState<1|2|3|4|5>((draft?.stressLevel ?? init?.stressLevel ?? 3) as 1|2|3|4|5);
-  const [mood, setMood] = useState<1|2|3|4|5>((draft?.mood ?? init?.mood ?? 3) as 1|2|3|4|5);
-  const [note, setNote] = useState(draft?.note ?? init?.note ?? "");
+  const [sleepScore, setSleepScore] = useState(init?.sleepScore ?? 75);
+  const [restingHeartRate, setRestingHeartRate] = useState(init?.restingHeartRate ?? 55);
+  const [hrv, setHrv] = useState(init?.hrv ?? 50);
+  const [spO2, setSpO2] = useState(init?.spO2 ?? 98);
+  const [bpSystolic, setBpSystolic] = useState(init?.bloodPressure?.systolic ?? 120);
+  const [bpDiastolic, setBpDiastolic] = useState(init?.bloodPressure?.diastolic ?? 80);
+  const [energyLevel, setEnergyLevel] = useState<1|2|3|4|5>((init?.energyLevel ?? 3) as 1|2|3|4|5);
+  const [stressLevel, setStressLevel] = useState<1|2|3|4|5>((init?.stressLevel ?? 3) as 1|2|3|4|5);
+  const [mood, setMood] = useState<1|2|3|4|5>((init?.mood ?? 3) as 1|2|3|4|5);
+  const [note, setNote] = useState(init?.note ?? "");
 
   const [nutritionStatus, setNutritionStatus] = useState<NutritionStatusType>(
-    () => draft?.nutritionStatus ?? (init ? normalizeNutritionStatus(init) : "meal_plan_followed")
+    () => init ? normalizeNutritionStatus(init) : "meal_plan_followed"
   );
   const [selectedMealPlanId, setSelectedMealPlanId] = useState<string>(
-    draft?.selectedMealPlanId ?? init?.selectedMealPlanId ?? mealPlans?.[0]?.id ?? ""
+    init?.selectedMealPlanId ?? mealPlans?.[0]?.id ?? ""
   );
   const [noExactNutritionReason, setNoExactNutritionReason] = useState(
-    draft?.noExactNutritionReason ?? init?.noExactNutritionReason ?? init?.deviationReason ?? ""
+    init?.noExactNutritionReason ?? init?.deviationReason ?? ""
   );
 
-  const [macroKcal, setMacroKcal] = useState(draft?.macroKcal ?? init?.calories ?? 0);
-  const [macroProtein, setMacroProtein] = useState(draft?.macroProtein ?? init?.protein ?? 0);
-  const [macroFat, setMacroFat] = useState(draft?.macroFat ?? init?.fat ?? 0);
-  const [macroCarbs, setMacroCarbs] = useState(draft?.macroCarbs ?? init?.carbs ?? 0);
-  const [macroFiber, setMacroFiber] = useState(draft?.macroFiber ?? init?.fiber ?? 0);
-  const [macroSalt, setMacroSalt] = useState(draft?.macroSalt ?? init?.salt ?? 0);
+  const [macroKcal, setMacroKcal] = useState(init?.calories ?? 0);
+  const [macroProtein, setMacroProtein] = useState(init?.protein ?? 0);
+  const [macroFat, setMacroFat] = useState(init?.fat ?? 0);
+  const [macroCarbs, setMacroCarbs] = useState(init?.carbs ?? 0);
+  const [macroFiber, setMacroFiber] = useState(init?.fiber ?? 0);
+  const [macroSalt, setMacroSalt] = useState(init?.salt ?? 0);
   const [macroTrackingAccuracy, setMacroTrackingAccuracy] = useState<1|2|3|4|5>(
-    (draft?.macroTrackingAccuracy ?? init?.macroTrackingAccuracy ?? 3) as 1|2|3|4|5
+    (init?.macroTrackingAccuracy ?? 3) as 1|2|3|4|5
   );
-  const [freemealKcal, setFreemealKcal] = useState(draft?.freemealKcal ?? init?.freemealKcal ?? 0);
-  const [freemealProtein, setFreemealProtein] = useState(draft?.freemealProtein ?? init?.freemealProtein ?? 0);
-  const [freemealCarbs, setFreemealCarbs] = useState(draft?.freemealCarbs ?? init?.freemealCarbs ?? 0);
-  const [freemealFat, setFreemealFat] = useState(draft?.freemealFat ?? init?.freemealFat ?? 0);
+  const [freemealKcal, setFreemealKcal] = useState(init?.freemealKcal ?? 0);
+  const [freemealProtein, setFreemealProtein] = useState(init?.freemealProtein ?? 0);
+  const [freemealCarbs, setFreemealCarbs] = useState(init?.freemealCarbs ?? 0);
+  const [freemealFat, setFreemealFat] = useState(init?.freemealFat ?? 0);
 
-  const [submitted, setSubmitted] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   const [customValues, setCustomValues] = useState<Record<string, string | number | boolean>>(
-    () => draft?.customValues ?? init?.customFieldValues ?? {}
+    () => init?.customFieldValues ?? {}
   );
+
+  const draftKey = `draft:v1:${athleteId}:daily-checkin:${date ?? todayISO()}`;
+
+  const draftState = {
+    weight, weightInput, measurementTime,
+    appetite, digestion, caffeine, steps,
+    cardio, cardioDuration, training, trainingQuality,
+    sleepHours, sleepQuality, sleepScore,
+    restingHeartRate, hrv, spO2, bpSystolic, bpDiastolic,
+    energyLevel, stressLevel, mood, note,
+    nutritionStatus, selectedMealPlanId, noExactNutritionReason,
+    macroKcal, macroProtein, macroFat, macroCarbs,
+    macroFiber, macroSalt, macroTrackingAccuracy,
+    freemealKcal, freemealProtein, freemealCarbs, freemealFat,
+    customValues,
+  };
+
+  const { hasDraft, draftMeta, restoreDraft, discardDraft, clearDraft } = useDraft(
+    draftKey,
+    draftState,
+    { enabled: !init }
+  );
+
+  function handleRestore() {
+    const d = restoreDraft();
+    if (!d) return;
+    if (d.weight !== undefined) setWeight(d.weight);
+    if (d.weightInput !== undefined) setWeightInput(d.weightInput);
+    if (d.measurementTime !== undefined) setMeasurementTime(d.measurementTime);
+    if (d.appetite !== undefined) setAppetite(d.appetite as 1|2|3|4|5);
+    if (d.digestion !== undefined) setDigestion(d.digestion as 1|2|3|4|5);
+    if (d.caffeine !== undefined) setCaffeine(d.caffeine);
+    if (d.steps !== undefined) setSteps(d.steps);
+    if (d.cardio !== undefined) setCardio(d.cardio);
+    if (d.cardioDuration !== undefined) setCardioDuration(d.cardioDuration);
+    if (d.training !== undefined) setTraining(d.training);
+    if (d.trainingQuality !== undefined) setTrainingQuality(d.trainingQuality as 1|2|3|4|5);
+    if (d.sleepHours !== undefined) setSleepHours(d.sleepHours);
+    if (d.sleepQuality !== undefined) setSleepQuality(d.sleepQuality as 1|2|3|4|5);
+    if (d.sleepScore !== undefined) setSleepScore(d.sleepScore);
+    if (d.restingHeartRate !== undefined) setRestingHeartRate(d.restingHeartRate);
+    if (d.hrv !== undefined) setHrv(d.hrv);
+    if (d.spO2 !== undefined) setSpO2(d.spO2);
+    if (d.bpSystolic !== undefined) setBpSystolic(d.bpSystolic);
+    if (d.bpDiastolic !== undefined) setBpDiastolic(d.bpDiastolic);
+    if (d.energyLevel !== undefined) setEnergyLevel(d.energyLevel as 1|2|3|4|5);
+    if (d.stressLevel !== undefined) setStressLevel(d.stressLevel as 1|2|3|4|5);
+    if (d.mood !== undefined) setMood(d.mood as 1|2|3|4|5);
+    if (d.note !== undefined) setNote(d.note);
+    if (d.nutritionStatus !== undefined) setNutritionStatus(d.nutritionStatus);
+    if (d.selectedMealPlanId !== undefined) setSelectedMealPlanId(d.selectedMealPlanId);
+    if (d.noExactNutritionReason !== undefined) setNoExactNutritionReason(d.noExactNutritionReason);
+    if (d.macroKcal !== undefined) setMacroKcal(d.macroKcal);
+    if (d.macroProtein !== undefined) setMacroProtein(d.macroProtein);
+    if (d.macroFat !== undefined) setMacroFat(d.macroFat);
+    if (d.macroCarbs !== undefined) setMacroCarbs(d.macroCarbs);
+    if (d.macroFiber !== undefined) setMacroFiber(d.macroFiber);
+    if (d.macroSalt !== undefined) setMacroSalt(d.macroSalt);
+    if (d.macroTrackingAccuracy !== undefined) setMacroTrackingAccuracy(d.macroTrackingAccuracy as 1|2|3|4|5);
+    if (d.freemealKcal !== undefined) setFreemealKcal(d.freemealKcal);
+    if (d.freemealProtein !== undefined) setFreemealProtein(d.freemealProtein);
+    if (d.freemealCarbs !== undefined) setFreemealCarbs(d.freemealCarbs);
+    if (d.freemealFat !== undefined) setFreemealFat(d.freemealFat);
+    if (d.customValues !== undefined) setCustomValues(d.customValues);
+    discardDraft();
+  }
 
   function setCustomValue(id: string, value: string | number | boolean) {
     setCustomValues((prev) => ({ ...prev, [id]: value }));
@@ -166,15 +207,21 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
       freemealFat: cfg.nutritionCompliance && nutritionStatus === "plan_followed_freemeal" ? freemealFat : undefined,
       customFieldValues: Object.keys(customValues).length > 0 ? customValues : undefined,
     });
-    try { sessionStorage.removeItem(draftKey); } catch {}
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+    clearDraft();
   }
 
   const inputCls = "bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors";
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-6">
+      {hasDraft && draftMeta && (
+        <DraftRestoreBanner
+          draftMeta={draftMeta}
+          onRestore={handleRestore}
+          onDiscard={discardDraft}
+        />
+      )}
+
       {/* Weight + Time */}
       {cfg.bodyweight && (
         <div className="grid grid-cols-2 gap-4">

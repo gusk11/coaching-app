@@ -3,6 +3,8 @@ import { useState, useRef } from "react";
 import { WeeklyCheckIn, Athlete, DEFAULT_WEEKLY_CHECK_CONFIG } from "@/types";
 import { SliderInput } from "@/components/ui/SliderInput";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
+import { DraftRestoreBanner } from "@/components/ui/DraftRestoreBanner";
+import { useDraft } from "@/lib/useDraft";
 import { analyzeWeek, todayISO, getCheckInWeekStart } from "@/lib/utils";
 import { StatCard } from "@/components/ui/StatCard";
 
@@ -33,6 +35,35 @@ export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, we
   const [submitted, setSubmitted] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
+  const draftKey = `draft:v1:${athlete.id}:weekly-checkin:${weekStartOverride ?? weekStart}`;
+  const draftState = {
+    overallWeekRating, weekSatisfaction, selfSatisfaction,
+    nutritionAdherence, hungerCravings,
+    trainingRating, stressAvg, energyAvg,
+    specialEvents, freeNote,
+  };
+  const { hasDraft, draftMeta, restoreDraft, discardDraft, clearDraft } = useDraft(
+    draftKey,
+    draftState,
+    { enabled: !isEdit }
+  );
+
+  function handleRestore() {
+    const d = restoreDraft();
+    if (!d) return;
+    if (d.overallWeekRating !== undefined) setOverallWeekRating(d.overallWeekRating as 1|2|3|4|5);
+    if (d.weekSatisfaction !== undefined) setWeekSatisfaction(d.weekSatisfaction as 1|2|3|4|5);
+    if (d.selfSatisfaction !== undefined) setSelfSatisfaction(d.selfSatisfaction as 1|2|3|4|5);
+    if (d.nutritionAdherence !== undefined) setNutritionAdherence(d.nutritionAdherence as 1|2|3|4|5);
+    if (d.hungerCravings !== undefined) setHungerCravings(d.hungerCravings);
+    if (d.trainingRating !== undefined) setTrainingRating(d.trainingRating as 1|2|3|4|5);
+    if (d.stressAvg !== undefined) setStressAvg(d.stressAvg);
+    if (d.energyAvg !== undefined) setEnergyAvg(d.energyAvg);
+    if (d.specialEvents !== undefined) setSpecialEvents(d.specialEvents);
+    if (d.freeNote !== undefined) setFreeNote(d.freeNote);
+    discardDraft();
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     onSubmit({
@@ -45,6 +76,7 @@ export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, we
       ...(initialValues?.recoveryRating != null ? { recoveryRating: initialValues.recoveryRating } : {}),
       ...(initialValues?.sleepAvg != null ? { sleepAvg: initialValues.sleepAvg } : {}),
     });
+    clearDraft();
     setSubmitted(true);
   }
 
@@ -60,6 +92,14 @@ export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, we
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-6">
+      {hasDraft && draftMeta && (
+        <DraftRestoreBanner
+          draftMeta={draftMeta}
+          onRestore={handleRestore}
+          onDiscard={discardDraft}
+        />
+      )}
+
       {/* Auto-Analyse */}
       <div className="p-4 rounded-2xl bg-[#0f1624] border border-[#1e2d42]">
         <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-3">Automatische Wochenanalyse</p>

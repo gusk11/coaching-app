@@ -6,6 +6,8 @@ import { Trash2, Plus, ChevronDown, ChevronUp, GripVertical, ExternalLink, Datab
 import { Tooltip } from "@/components/ui/Tooltip";
 import { CadenceInput } from "@/components/ui/CadenceInput";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
+import { DraftRestoreBanner } from "@/components/ui/DraftRestoreBanner";
+import { useDraft } from "@/lib/useDraft";
 import { cn, sanitizeHref } from "@/lib/utils";
 
 interface Props {
@@ -571,6 +573,27 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
   const [dragSrc, setDragSrc] = useState<{ dayId: string; idx: number } | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<{ dayId: string; idx: number } | null>(null);
 
+  const draftState = { title, coachNote, mode, schritteProTag, cardioMinuten, cardioFrequenz, cardioIntensity, trackedFields, days };
+  const { hasDraft, draftMeta, restoreDraft, discardDraft, clearDraft } = useDraft(
+    `draft:v1:${athleteId}:training-editor:${initPlan.id}`,
+    draftState
+  );
+
+  function handleRestoreDraft() {
+    const d = restoreDraft();
+    if (!d) return;
+    if (d.title !== undefined) setTitle(d.title);
+    if (d.coachNote !== undefined) setCoachNote(d.coachNote);
+    if (d.mode !== undefined) setMode(d.mode);
+    if (d.schritteProTag !== undefined) setSchritteProTag(d.schritteProTag);
+    if (d.cardioMinuten !== undefined) setCardioMinuten(d.cardioMinuten);
+    if (d.cardioFrequenz !== undefined) setCardioFrequenz(d.cardioFrequenz);
+    if (d.cardioIntensity !== undefined) setCardioIntensity(d.cardioIntensity);
+    if (d.trackedFields !== undefined) setTrackedFields(d.trackedFields);
+    if (d.days !== undefined) setDays(d.days);
+    discardDraft();
+  }
+
   useEffect(() => {
     loadExerciseDB().then(setDbExercises);
     getAthleteExerciseVariants(athleteId).then(setExerciseVariants);
@@ -702,11 +725,19 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
   }
 
   function handleSave() {
+    clearDraft();
     onSave({ ...initPlan, title, coachNote, days, mode, schritteProTag, cardioMinuten, cardioFrequenz, cardioIntensity, trackedFields });
   }
 
   return (
     <>
+      {hasDraft && draftMeta && (
+        <DraftRestoreBanner
+          draftMeta={draftMeta}
+          onRestore={handleRestoreDraft}
+          onDiscard={discardDraft}
+        />
+      )}
       <div className="flex flex-col gap-4">
         {/* Meta */}
         <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-3">

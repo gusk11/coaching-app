@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { registerAthlete, getMaintenanceMode, validateOnboardingCode, saveLegalConsent, saveOnboardingDraft } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
+import { DraftRestoreBanner } from "@/components/ui/DraftRestoreBanner";
+import { useDraft } from "@/lib/useDraft";
 import { ArrowLeft, ArrowRight, Check, Play, X } from "lucide-react";
 import { AthleteProfile } from "@/types";
 import { LegalConsentStep, LegalConsentState } from "@/components/athlete/LegalConsentStep";
@@ -1135,6 +1137,18 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
   const headerProgress = Math.round((globalStep / TOTAL_STEPS) * 100);
   const headerStepName = phase === "intro" ? "Willkommen" : STEPS[step - 1];
 
+  const { hasDraft, draftMeta, restoreDraft, discardDraft, clearDraft } = useDraft(
+    `draft:v1:onboarding:${validatedCode}:wizard`,
+    data,
+    { enabled: phase === "questionnaire" && !!validatedCode }
+  );
+
+  function handleRestoreDraft() {
+    const d = restoreDraft();
+    if (d) setData({ ...DEFAULT, ...d });
+    discardDraft();
+  }
+
   function update(patch: Partial<WizardData>) {
     setData((prev) => ({ ...prev, ...patch }));
     setError("");
@@ -1254,6 +1268,7 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
         signedAt: now,
         documentVersion: LEGAL_DOCUMENT_VERSION,
       });
+      clearDraft();
       setCompletedAthleteId(athlete.id);
       setPhase("complete");
     } catch (e: unknown) {
@@ -1493,7 +1508,14 @@ export function OnboardingWizard({ onComplete, onCancel, initialData }: Props) {
 
       {/* Content — overflow-y-auto = Mausrad-Scroll funktioniert hier */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-lg mx-auto pb-2">
+        <div className="max-w-lg mx-auto pb-2 flex flex-col gap-4">
+          {hasDraft && draftMeta && step === 1 && (
+            <DraftRestoreBanner
+              draftMeta={draftMeta}
+              onRestore={handleRestoreDraft}
+              onDiscard={discardDraft}
+            />
+          )}
           {stepContent[step - 1]}
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
 import { clearAuth, loadAuth, loadAthletes, loadLoginHelpRequests } from "@/lib/store";
+import { cleanupOldDrafts, clearUserDrafts } from "@/lib/useDraft";
 import { useRouter, usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 import {
@@ -203,6 +204,9 @@ export function AppShell({ children, role, title }: AppShellProps) {
   const pathname = usePathname();
   const nav = role === "athlete" ? athleteNav : coachNav;
   const [hasPendingCheckins, setHasPendingCheckins] = useState(false);
+
+  // Clean up stale drafts once on mount
+  useEffect(() => { cleanupOldDrafts(); }, []);
   const [hasPendingIntroVideo, setHasPendingIntroVideo] = useState(false);
   const [openLoginHelpCount, setOpenLoginHelpCount] = useState(0);
   const [unseenToolIntros, setUnseenToolIntros] = useState<Set<string>>(new Set());
@@ -273,6 +277,7 @@ export function AppShell({ children, role, title }: AppShellProps) {
 
   async function handleLogout() {
     const auth = loadAuth();
+    if (auth.athleteId) clearUserDrafts(auth.athleteId);
     clearAuth();
     if (auth.role === "coach") {
       await fetch("/api/coach-logout", { method: "POST" }).catch(() => {});

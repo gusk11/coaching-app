@@ -256,6 +256,13 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, elapsedSeconds]);
 
+  useEffect(() => {
+    if (!session) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [session]);
+
   const triggerAutoSave = useCallback((sess: ActiveSession) => {
     setSaveStatus("saving");
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);

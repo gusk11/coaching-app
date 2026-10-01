@@ -4,6 +4,8 @@ import { SupplementPlan, Supplement, SupplementDBItem } from "@/types";
 import { Trash2, Plus, Database, Search, X, ExternalLink } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
+import { DraftRestoreBanner } from "@/components/ui/DraftRestoreBanner";
+import { useDraft } from "@/lib/useDraft";
 import { loadSupplementDB } from "@/lib/store";
 import { sanitizeHref } from "@/lib/utils";
 
@@ -96,12 +98,35 @@ export function SupplementEditor({ plan, athleteId, onSave }: Props) {
     setSupplements((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
   }
 
+  const draftState = { coachNote, supplements };
+  const { hasDraft, draftMeta, restoreDraft, discardDraft, clearDraft } = useDraft(
+    `draft:v1:${athleteId}:supplement-editor:${initPlan.id}`,
+    draftState
+  );
+
+  function handleRestoreDraft() {
+    const d = restoreDraft();
+    if (!d) return;
+    if (d.coachNote !== undefined) setCoachNote(d.coachNote);
+    if (d.supplements !== undefined) setSupplements(d.supplements);
+    discardDraft();
+  }
+
   function handleSave() {
+    clearDraft();
     onSave({ ...initPlan, coachNote, supplements });
   }
 
   return (
     <div className="flex flex-col gap-4">
+      {hasDraft && draftMeta && (
+        <DraftRestoreBanner
+          draftMeta={draftMeta}
+          onRestore={handleRestoreDraft}
+          onDiscard={discardDraft}
+        />
+      )}
+
       {/* Coach note */}
       <div className="p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
         <label className="text-xs font-medium text-[#8fa3c0] block mb-1.5">Coach-Notiz zum Plan</label>

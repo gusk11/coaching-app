@@ -6,6 +6,8 @@ import { copyMeal, getMealClipboard } from "@/lib/planClipboard";
 import { Trash2, Plus, ChevronDown, ChevronUp, Pencil, ArrowLeft, ArrowUp, ArrowDown, Search, X, Copy, ClipboardPaste } from "lucide-react";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
+import { DraftRestoreBanner } from "@/components/ui/DraftRestoreBanner";
+import { useDraft } from "@/lib/useDraft";
 import { cn, calculateMealMacros, calculateDayMacros, roundMacro, roundSalt } from "@/lib/utils";
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -263,6 +265,32 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
   const [amountErrors, setAmountErrors] = useState<Record<string, boolean>>({});
   const [saveError, setSaveError] = useState("");
 
+  const draftState = { title, coachNote, planType, macroInputs, meals };
+  const { hasDraft, draftMeta, restoreDraft, discardDraft, clearDraft } = useDraft(
+    `draft:v1:${plan.athleteId}:meal-editor:${plan.id}`,
+    draftState
+  );
+
+  function handleRestoreDraft() {
+    const d = restoreDraft();
+    if (!d) return;
+    if (d.title !== undefined) setTitle(d.title);
+    if (d.coachNote !== undefined) setCoachNote(d.coachNote);
+    if (d.planType !== undefined) setPlanType(d.planType);
+    if (d.macroInputs !== undefined) setMacroInputs(d.macroInputs);
+    if (d.meals !== undefined) {
+      setMeals(d.meals);
+      const m: Record<string, string> = {};
+      d.meals.forEach((meal) => {
+        meal.entries.forEach((entry) => {
+          m[`${meal.id}:${entry.foodItemId}`] = String(entry.amountG);
+        });
+      });
+      setEntryAmountInputs(m);
+    }
+    discardDraft();
+  }
+
   function updateMacroTarget(field: keyof MacroTargets, value: string) {
     setMacroInputs((prev) => ({ ...prev, [field]: value }));
   }
@@ -404,6 +432,7 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
       fat: parseFloat(macroInputs.fat) || 0,
       fiber: parseFloat(macroInputs.fiber) || 0,
     };
+    clearDraft();
     onSave({
       ...plan,
       title,
@@ -437,6 +466,14 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
         className="flex items-center gap-1.5 text-xs text-[#8fa3c0] hover:text-[#60a5fa] transition-colors self-start">
         <ArrowLeft size={13} /> Zurück zur Planübersicht
       </button>
+
+      {hasDraft && draftMeta && (
+        <DraftRestoreBanner
+          draftMeta={draftMeta}
+          onRestore={handleRestoreDraft}
+          onDiscard={discardDraft}
+        />
+      )}
 
       {/* Plan meta */}
       <div className="grid grid-cols-1 gap-3 p-4 rounded-2xl bg-[#141d2e] border border-[#1e2d42]">
