@@ -64,7 +64,7 @@ function rowToAthlete(row: any): Athlete {
     zipCode: row.zip_code ?? undefined,
     city: row.city ?? undefined,
     isHidden: row.is_hidden ?? undefined,
-    exerciseVariants: row.exercise_variants ?? [],
+    exerciseVariants: Array.isArray(row.exercise_variants) ? row.exercise_variants : [],
     dailyCheckConfig: row.daily_check_config ?? { ...DEFAULT_DAILY_CHECK_CONFIG },
     coachNote: row.coach_note ?? "",
     visibleNote: row.visible_note ?? "",

@@ -568,7 +568,10 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
   const [trackedFields, setTrackedFields] = useState<TrackedFields>(
     initPlan.trackedFields ?? { weight: true, reps: true, rir: true, cadence: false, custom: { label: "", enabled: false } }
   );
-  const safeDays = Array.isArray(initPlan.days) ? initPlan.days : [];
+  const safeDays = Array.isArray(initPlan.days) ? (initPlan.days as TrainingDay[]).map((d) => ({
+    ...d,
+    exercises: Array.isArray(d.exercises) ? d.exercises : [],
+  })) : [];
   const [days, setDays] = useState<TrainingDay[]>(safeDays);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(safeDays.map((d) => d.id)));
   const [dbExercises, setDbExercises] = useState<ExerciseDBItem[]>([]);
@@ -597,7 +600,15 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
     if (d.cardioFrequenz !== undefined) setCardioFrequenz(d.cardioFrequenz);
     if (d.cardioIntensity !== undefined) setCardioIntensity(d.cardioIntensity);
     if (d.trackedFields !== undefined) setTrackedFields(d.trackedFields);
-    if (d.days !== undefined) setDays(d.days);
+    if (d.days !== undefined) {
+      const sanitized = Array.isArray(d.days)
+        ? (d.days as TrainingDay[]).map((day) => ({
+            ...day,
+            exercises: Array.isArray(day.exercises) ? day.exercises : [],
+          }))
+        : [];
+      setDays(sanitized);
+    }
     discardDraft();
   }
 
@@ -977,7 +988,7 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
                     className="bg-transparent text-xs text-[#60a5fa] focus:outline-none border-b border-transparent focus:border-[#3b82f6] transition-colors w-20"
                   />
                   <span className="text-xs text-[#5a7090] ml-auto shrink-0">
-                    {day.exercises.length} Übungen
+                    {Array.isArray(day.exercises) ? day.exercises.length : 0} Übungen
                   </span>
                 </button>
                 <Tooltip label="Nach oben">
@@ -1017,7 +1028,7 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
               {expanded && (
                 <div className="p-4 flex flex-col gap-1">
                   {/* Exercises with insert buttons between them */}
-                  {(day.exercises ?? []).map((ex, exIdx) => (
+                  {(Array.isArray(day.exercises) ? day.exercises : []).map((ex, exIdx) => (
                     <Fragment key={ex.id}>
                       {exIdx > 0 && (
                         <InsertButton onClick={() => addExerciseAt(day.id, exIdx)} />
@@ -1033,7 +1044,7 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
                         onDragEnd={handleExerciseDragEnd}
                         isDragOver={dragOverTarget?.dayId === day.id && dragOverTarget?.idx === exIdx}
                         isDragging={dragSrc?.dayId === day.id && dragSrc?.idx === exIdx}
-                        exerciseVariantsForEx={(exerciseVariants ?? []).filter((v) => v.exerciseDbId === ex.exerciseDbId)}
+                        exerciseVariantsForEx={(Array.isArray(exerciseVariants) ? exerciseVariants : []).filter((v) => v.exerciseDbId === ex.exerciseDbId)}
                         onAddVariant={(label) => handleAddVariant(ex.exerciseDbId!, label)}
                       />
                     </Fragment>
