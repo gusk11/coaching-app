@@ -1350,6 +1350,13 @@ export default function CoachAthletePage() {
           <motion.div key="Fortschritt" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
             <ProgressAnalytics checkIns={athlete.dailyCheckIns} />
 
+            <AthleteExportPanel
+              athleteId={athlete.id}
+              athleteName={athlete.name}
+              dailyCheckIns={athlete.dailyCheckIns ?? []}
+              weeklyCheckIns={athlete.weeklyCheckIns ?? []}
+            />
+
             {/* Trainingsfortschritt */}
             <div className="flex flex-col gap-3">
               <p className="text-sm font-semibold text-[#f0f4ff]">Trainingsfortschritt</p>
@@ -1359,13 +1366,6 @@ export default function CoachAthletePage() {
                 mode="coach"
               />
             </div>
-
-            <AthleteExportPanel
-              athleteId={athlete.id}
-              athleteName={athlete.name}
-              dailyCheckIns={athlete.dailyCheckIns ?? []}
-              weeklyCheckIns={athlete.weeklyCheckIns ?? []}
-            />
           </motion.div>
         )}
 
