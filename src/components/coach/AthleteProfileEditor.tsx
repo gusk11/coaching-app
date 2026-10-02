@@ -87,7 +87,7 @@ function PlanUploadButton({
   );
 }
 
-const SHOW_CLAUDE_PLAN_IMPORT = false;
+const SHOW_CLAUDE_PLAN_IMPORT = true;
 
 export function AthleteProfileEditor({ athlete, onSave, onSaveProfile, onPlansImported }: Props) {
   const [copyingContext, setCopyingContext] = useState(false);

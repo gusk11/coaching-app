@@ -10,7 +10,7 @@ import { SupplementList } from "@/components/athlete/SupplementList";
 import { showToast } from "@/components/ui/Toast";
 import { cn, resolveAthleteWeight } from "@/lib/utils";
 import { copyMealPlan, copyTrainingPlan, copySupplementPlan } from "@/lib/planClipboard";
-import { Upload, Loader2, Pencil, X, Check, Copy, ClipboardPaste } from "lucide-react";
+import { Upload, Loader2, Pencil, X, Check, Copy, ClipboardPaste, Trash2, Download } from "lucide-react";
 
 type PlanSubTab = "Ernährung" | "Training" | "Supplements";
 
@@ -92,6 +92,7 @@ interface Props {
   onSaveMealPlan: (plan: MealPlan) => Promise<void>;
   onDeleteMealPlan: (planId: string) => Promise<void>;
   onSaveTrainingPlan: (plan: TrainingPlan) => Promise<void>;
+  onDeleteTrainingPlan: (planId: string) => Promise<void>;
   onSaveSupplementPlan: (plan: SupplementPlan) => Promise<void>;
   onToggleMealPlanActive: (planId: string) => Promise<void>;
   onToggleTrainingPlanActive: (planId: string) => Promise<void>;
@@ -104,11 +105,15 @@ function PlanToggleRow({
   isActive,
   onToggle,
   onCopy,
+  onDelete,
+  onExport,
 }: {
   title: string;
   isActive: boolean;
   onToggle: () => void;
   onCopy: () => void;
+  onDelete?: () => void;
+  onExport?: () => void;
 }) {
   return (
     <div
@@ -137,6 +142,24 @@ function PlanToggleRow({
         >
           <Copy size={12} />
         </button>
+        {onExport && (
+          <button
+            onClick={onExport}
+            title="Als JSON exportieren"
+            className="p-1.5 rounded-lg text-[#5a7090] hover:text-[#60a5fa] hover:bg-[#1e2d42] transition-colors"
+          >
+            <Download size={12} />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            onClick={onDelete}
+            title="Löschen"
+            className="p-1.5 rounded-lg text-[#5a7090] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
         <button
           onClick={onToggle}
           title={isActive ? "Deaktivieren" : "Aktivieren"}
@@ -159,6 +182,7 @@ export function GeneralPlansView({
   onSaveMealPlan,
   onDeleteMealPlan,
   onSaveTrainingPlan,
+  onDeleteTrainingPlan,
   onSaveSupplementPlan,
   onToggleMealPlanActive,
   onToggleTrainingPlanActive,
@@ -172,6 +196,7 @@ export function GeneralPlansView({
   const [clipboardMeal, setClipboardMeal] = useState<MealPlan | null>(null);
   const [clipboardTraining, setClipboardTraining] = useState<TrainingPlan | null>(null);
   const [clipboardSupplement, setClipboardSupplement] = useState<SupplementPlan | null>(null);
+  const [deleteConfirmTrainingId, setDeleteConfirmTrainingId] = useState<string | null>(null);
 
   const mealPlans = athlete.mealPlans ?? [];
   const trainingPlans = athlete.trainingPlans?.length
@@ -220,6 +245,21 @@ export function GeneralPlansView({
   async function handlePasteSupplementPlan() {
     if (!clipboardSupplement) return;
     await onSaveSupplementPlan({ ...clipboardSupplement, id: crypto.randomUUID(), athleteId: athlete.id });
+  }
+
+  function handleExportTrainingPlan(plan: TrainingPlan) {
+    const blob = new Blob([JSON.stringify(plan, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `trainingsplan_${plan.title.replace(/\s+/g, "_")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleDeleteTrainingPlan(planId: string) {
+    await onDeleteTrainingPlan(planId);
+    setDeleteConfirmTrainingId(null);
   }
 
   async function handleSaveTrainingPlan(plan: TrainingPlan) {
@@ -369,6 +409,8 @@ export function GeneralPlansView({
                     isActive={plan.isActive !== false}
                     onToggle={() => onToggleTrainingPlanActive(plan.id)}
                     onCopy={() => handleCopyTrainingPlan(plan)}
+                    onExport={() => handleExportTrainingPlan(plan)}
+                    onDelete={() => setDeleteConfirmTrainingId(plan.id)}
                   />
                 ))}
               </div>
@@ -401,6 +443,37 @@ export function GeneralPlansView({
           )}
         </div>
       )}
+
+      {/* Delete training plan confirmation */}
+      {deleteConfirmTrainingId && (() => {
+        const plan = trainingPlans.find((p) => p.id === deleteConfirmTrainingId);
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[#141d2e] border border-[#1e2d42] rounded-2xl p-6 max-w-sm w-full shadow-xl">
+              <h3 className="text-sm font-semibold text-[#f0f4ff] mb-1.5">Trainingsplan löschen</h3>
+              <p className="text-xs text-[#8fa3c0] mb-5">
+                „{plan?.title}" unwiderruflich löschen?
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmTrainingId(null)}
+                  className="px-4 py-2 text-xs rounded-lg border border-[#1e2d42] text-[#8fa3c0] hover:bg-[#1e2d42] transition-colors"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTrainingPlan(deleteConfirmTrainingId)}
+                  className="px-4 py-2 text-xs rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] hover:bg-[#ef4444]/20 transition-colors font-medium"
+                >
+                  Löschen
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Supplements ── */}
       {subTab === "Supplements" && (

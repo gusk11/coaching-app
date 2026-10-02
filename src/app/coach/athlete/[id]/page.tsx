@@ -305,6 +305,20 @@ export default function CoachAthletePage() {
     }
   }
 
+  async function deleteTrainingPlan(planId: string) {
+    const previous = athlete;
+    const optimisticPlans = (athlete!.trainingPlans ?? []).filter((p) => p.id !== planId);
+    setAthlete((prev) => prev ? { ...prev, trainingPlans: optimisticPlans } : prev);
+    try {
+      const updated = await updateAthlete(athlete!.id, { trainingPlans: optimisticPlans });
+      setAthlete(updated.find((a) => a.id === athlete!.id)!);
+      showToast("Trainingsplan gelöscht.", "success");
+    } catch {
+      setAthlete(previous);
+      showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");
+    }
+  }
+
   async function saveSupplementPlan(plan: SupplementPlan) {
     const previous = athlete;
     try {
@@ -1377,6 +1391,7 @@ export default function CoachAthletePage() {
               onSaveMealPlan={saveMealPlan}
               onDeleteMealPlan={deleteMealPlan}
               onSaveTrainingPlan={saveTrainingPlan}
+              onDeleteTrainingPlan={deleteTrainingPlan}
               onSaveSupplementPlan={saveSupplementPlan}
               onToggleMealPlanActive={handleToggleMealPlanActive}
               onToggleTrainingPlanActive={handleToggleTrainingPlanActive}
