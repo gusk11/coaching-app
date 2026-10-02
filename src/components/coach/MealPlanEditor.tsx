@@ -42,6 +42,7 @@ function isStückFood(food: FoodItem): boolean {
 }
 
 function defaultDisplayAmount(food: FoodItem): string {
+  if (isStückFood(food)) return "1";
   return String(food.defaultAmount ?? 100);
 }
 
@@ -80,7 +81,8 @@ function AddFoodRow({ onAdd }: { onAdd: (entry: MealEntry) => void }) {
     }
     if (mode === "db") {
       if (!selectedFood) return;
-      onAdd({ foodItemId: selectedFood.id, foodItem: selectedFood, amountG: parsedAmount });
+      const internalAmountG = isStückFood(selectedFood) ? parsedAmount * 100 : parsedAmount;
+      onAdd({ foodItemId: selectedFood.id, foodItem: selectedFood, amountG: internalAmountG });
       setSelectedFood(null);
       setFoodSearch("");
     } else {
@@ -257,7 +259,7 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
     const m: Record<string, string> = {};
     plan.meals.forEach((meal) => {
       meal.entries.forEach((entry) => {
-        m[`${meal.id}:${entry.foodItemId}`] = String(entry.amountG);
+        m[`${meal.id}:${entry.foodItemId}`] = String(isStückFood(entry.foodItem) ? entry.amountG / 100 : entry.amountG);
       });
     });
     return m;
@@ -283,7 +285,7 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
       const m: Record<string, string> = {};
       d.meals.forEach((meal) => {
         meal.entries.forEach((entry) => {
-          m[`${meal.id}:${entry.foodItemId}`] = String(entry.amountG);
+          m[`${meal.id}:${entry.foodItemId}`] = String(isStückFood(entry.foodItem) ? entry.amountG / 100 : entry.amountG);
         });
       });
       setEntryAmountInputs(m);
@@ -329,7 +331,7 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
     setExpandedMeals((prev) => new Set([...prev, m.id]));
     setEntryAmountInputs((prev) => {
       const next = { ...prev };
-      m.entries.forEach((e) => { next[getAmountKey(m.id, e.foodItemId)] = String(e.amountG); });
+      m.entries.forEach((e) => { next[getAmountKey(m.id, e.foodItemId)] = String(isStückFood(e.foodItem) ? e.amountG / 100 : e.amountG); });
       return next;
     });
   }
@@ -372,7 +374,7 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
 
   function addEntry(mealId: string, entry: MealEntry) {
     setMeals((prev) => prev.map((m) => (m.id === mealId ? { ...m, entries: [...m.entries, entry] } : m)));
-    setEntryAmountInputs((prev) => ({ ...prev, [getAmountKey(mealId, entry.foodItemId)]: String(entry.amountG) }));
+    setEntryAmountInputs((prev) => ({ ...prev, [getAmountKey(mealId, entry.foodItemId)]: String(isStückFood(entry.foodItem) ? entry.amountG / 100 : entry.amountG) }));
   }
 
   function updateEntryAmount(mealId: string, foodItemId: string, amount: number) {
@@ -383,14 +385,14 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
     ));
   }
 
-  function handleAmountChange(mealId: string, foodItemId: string, value: string) {
+  function handleAmountChange(mealId: string, foodItemId: string, value: string, isStück: boolean = false) {
     const key = getAmountKey(mealId, foodItemId);
     setEntryAmountInputs((prev) => ({ ...prev, [key]: value }));
     setSaveError("");
     const n = parseFloat(value);
     if (!isNaN(n) && n > 0) {
       setAmountErrors((prev) => ({ ...prev, [key]: false }));
-      updateEntryAmount(mealId, foodItemId, n);
+      updateEntryAmount(mealId, foodItemId, isStück ? n * 100 : n);
     } else {
       setAmountErrors((prev) => ({ ...prev, [key]: value !== "" }));
     }
@@ -675,12 +677,12 @@ function SinglePlanEditor({ plan, onSave, onCancel, athleteWeight }: SinglePlanE
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className="flex flex-col items-end">
-                          <input type="number" min={0} step={10} value={amountStr}
-                            onChange={(e) => handleAmountChange(meal.id, entry.foodItemId, e.target.value)}
+                          <input type="number" min={0} step={isStückFood(entry.foodItem) ? 1 : 10} value={amountStr}
+                            onChange={(e) => handleAmountChange(meal.id, entry.foodItemId, e.target.value, isStückFood(entry.foodItem))}
                             className={`bg-[#0f1624] border rounded-lg px-2 py-1 text-[#f0f4ff] text-xs w-16 focus:outline-none text-right transition-colors ${hasAmountError ? "border-[#ef4444] focus:border-[#ef4444]" : "border-[#1e2d42] focus:border-[#3b82f6]"}`} />
                           {hasAmountError && <span className="text-[10px] text-[#ef4444]">{">"} 0</span>}
                         </div>
-                        <span className="text-xs text-[#5a7090]">g</span>
+                        <span className="text-xs text-[#5a7090]">{isStückFood(entry.foodItem) ? "Stück" : "g"}</span>
                         <Tooltip label="Eintrag entfernen">
                           <button type="button" onClick={() => deleteEntry(meal.id, entry.foodItemId)} aria-label="Eintrag entfernen"
                             className="p-1 rounded-lg hover:bg-[#ef4444]/10 transition-colors">

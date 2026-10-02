@@ -104,7 +104,11 @@ function SinglePlanView({ plan, athleteWeight }: { plan: MealPlan; athleteWeight
                   <div key={entry.foodItemId} className="px-4 py-3">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-[#f0f4ff]">{entry.foodItem.name}</span>
-                      <span className="text-sm font-medium text-[#8fa3c0]">{Math.round(entry.amountG)}g</span>
+                      <span className="text-sm font-medium text-[#8fa3c0]">
+                        {entry.foodItem.servingLabel?.includes("Stück")
+                          ? `${entry.amountG / 100 % 1 === 0 ? entry.amountG / 100 : (entry.amountG / 100).toFixed(1)} Stück`
+                          : `${Math.round(entry.amountG)}g`}
+                      </span>
                     </div>
                     <div className="flex flex-wrap gap-3 text-xs text-[#5a7090]">
                       <span>{Math.round(entryMacros.kcal)} kcal</span>
