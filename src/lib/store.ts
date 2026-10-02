@@ -330,7 +330,9 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   if ("calorieTrackerDays" in updates) row.calorie_tracker_days = updates.calorieTrackerDays ?? [];
   if ("mealPlans" in updates) row.meal_plans = updates.mealPlans ?? [];
   if ("trainingPlan" in updates) row.training_plan = updates.trainingPlan ?? null;
+  if ("trainingPlans" in updates) row.training_plans = updates.trainingPlans ?? [];
   if ("supplementPlan" in updates) row.supplement_plan = updates.supplementPlan ?? null;
+  if ("supplementPlans" in updates) row.supplement_plans = updates.supplementPlans ?? [];
   if ("notes" in updates) row.notes = updates.notes ?? [];
   if ("joinedAt" in updates) row.joined_at = updates.joinedAt ?? null;
   if ("weeklyTrendTargetPercent" in updates) row.weekly_trend_target_percent = updates.weeklyTrendTargetPercent ?? null;

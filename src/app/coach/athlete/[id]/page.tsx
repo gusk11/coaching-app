@@ -308,9 +308,11 @@ export default function CoachAthletePage() {
   async function deleteTrainingPlan(planId: string) {
     const previous = athlete;
     const optimisticPlans = (athlete!.trainingPlans ?? []).filter((p) => p.id !== planId);
-    setAthlete((prev) => prev ? { ...prev, trainingPlans: optimisticPlans } : prev);
+    const activeWasDeleted = athlete!.trainingPlan?.id === planId;
+    const newActivePlan = activeWasDeleted ? (optimisticPlans.find((p) => p.isActive) ?? optimisticPlans[0] ?? null) : athlete!.trainingPlan;
+    setAthlete((prev) => prev ? { ...prev, trainingPlans: optimisticPlans, trainingPlan: newActivePlan ?? undefined } : prev);
     try {
-      const updated = await updateAthlete(athlete!.id, { trainingPlans: optimisticPlans });
+      const updated = await updateAthlete(athlete!.id, { trainingPlans: optimisticPlans, trainingPlan: newActivePlan ?? undefined });
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       showToast("Trainingsplan gelöscht.", "success");
     } catch {
