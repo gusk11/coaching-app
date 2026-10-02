@@ -68,13 +68,21 @@ export function useDraft<T>(
 ) {
   const { debounceMs = 800, enabled = true, baseUpdatedAt } = options ?? {};
 
-  // Captured exactly once at mount — the restorable snapshot
-  const [mountDraft] = useState<StoredDraft<T> | null>(() => readStored<T>(key));
-  const [hasDraft, setHasDraft] = useState(() => !!readStored(key));
-  const [draftMeta, setDraftMeta] = useState<DraftMeta | null>(() => {
-    const d = readStored<T>(key);
-    return d ? { savedAt: d.savedAt, baseUpdatedAt: d.baseUpdatedAt } : null;
-  });
+  // Start false on both server and client to avoid hydration mismatch.
+  // Populated in useEffect after mount (client-only).
+  const mountDraftRef = useRef<StoredDraft<T> | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
+  const [draftMeta, setDraftMeta] = useState<DraftMeta | null>(null);
+
+  useEffect(() => {
+    const stored = readStored<T>(key);
+    mountDraftRef.current = stored;
+    if (stored) {
+      setHasDraft(true);
+      setDraftMeta({ savedAt: stored.savedAt, baseUpdatedAt: stored.baseUpdatedAt });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
@@ -136,7 +144,7 @@ export function useDraft<T>(
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
 
-  const restoreDraft = useCallback((): T | null => mountDraft?.data ?? null, [mountDraft]);
+  const restoreDraft = useCallback((): T | null => mountDraftRef.current?.data ?? null, []);
 
   const discardDraft = useCallback(() => {
     try { localStorage.removeItem(key); } catch { /* ignore */ }

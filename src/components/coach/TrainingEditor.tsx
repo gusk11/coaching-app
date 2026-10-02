@@ -38,6 +38,7 @@ function emptyExercise(): Exercise {
     name: "",
     sets: 3,
     reps: "8-12",
+    laterality: "bilateral",
   };
 }
 
@@ -51,6 +52,8 @@ function exerciseFromDB(item: ExerciseDBItem): Exercise {
     isTimeBased: item.isTimeBased,
     exerciseDbNote: item.notes,
     exerciseDbId: item.id,
+    laterality: item.laterality ?? "bilateral",
+    equipmentType: item.equipmentType,
   };
 }
 
@@ -294,6 +297,7 @@ interface ExerciseRowProps {
   isDragging: boolean;
   exerciseVariantsForEx: ExerciseVariant[];
   onAddVariant: (label: string) => Promise<void>;
+  hasError?: boolean;
 }
 
 function ExerciseRow({
@@ -309,18 +313,21 @@ function ExerciseRow({
   isDragging,
   exerciseVariantsForEx,
   onAddVariant,
+  hasError,
 }: ExerciseRowProps) {
   const isFromDB = !!exercise.exerciseDbId;
   const effectiveLaterality = exercise.laterality ?? "bilateral";
 
   return (
     <div
+      data-exercise-id={exercise.id}
       onDragOver={(e) => { e.preventDefault(); onDragOver(); }}
       onDrop={onDrop}
       className={cn(
         "flex items-start gap-2 py-2 rounded-lg transition-all",
         isDragging && "opacity-40",
-        isDragOver && "ring-1 ring-[#3b82f6]/50 bg-[#3b82f6]/5"
+        isDragOver && "ring-1 ring-[#3b82f6]/50 bg-[#3b82f6]/5",
+        hasError && "ring-1 ring-[#ef4444]/60 bg-[#ef4444]/5 rounded-lg"
       )}
     >
       {/* Drag handle */}
@@ -402,7 +409,7 @@ function ExerciseRow({
                 className="bg-[#0f1624] border border-[#1e2d42] rounded-md px-1.5 py-1 text-[10px] text-[#5a7090] focus:outline-none focus:border-[#3b82f6] hover:text-[#8fa3c0] transition-colors"
                 style={{ colorScheme: "dark" }}
               >
-                <option value="">Ausrüstung…</option>
+                <option value="">Geräteart wählen</option>
                 {EQUIPMENT_OPTIONS.map((opt) => (
                   <option key={opt} value={opt} className="bg-[#0f1624]">{opt}</option>
                 ))}
@@ -570,9 +577,13 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
   );
   const safeDays = Array.isArray(initPlan.days) ? (initPlan.days as TrainingDay[]).map((d) => ({
     ...d,
-    exercises: Array.isArray(d.exercises) ? d.exercises : [],
+    exercises: Array.isArray(d.exercises) ? d.exercises.map((e) => ({
+      ...e,
+      laterality: e.laterality ?? ("bilateral" as const),
+    })) : [],
   })) : [];
   const [days, setDays] = useState<TrainingDay[]>(safeDays);
+  const [errorExIds, setErrorExIds] = useState<Set<string>>(new Set());
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(safeDays.map((d) => d.id)));
   const [dbExercises, setDbExercises] = useState<ExerciseDBItem[]>([]);
   const [exerciseVariants, setExerciseVariants] = useState<ExerciseVariant[]>([]);
@@ -604,7 +615,10 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
       const sanitized = Array.isArray(d.days)
         ? (d.days as TrainingDay[]).map((day) => ({
             ...day,
-            exercises: Array.isArray(day.exercises) ? day.exercises : [],
+            exercises: Array.isArray(day.exercises) ? day.exercises.map((e) => ({
+              ...e,
+              laterality: e.laterality ?? ("bilateral" as const),
+            })) : [],
           }))
         : [];
       setDays(sanitized);
@@ -732,6 +746,13 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
           : d
       )
     );
+    if (updated.equipmentType && errorExIds.has(exId)) {
+      setErrorExIds((prev) => {
+        const next = new Set(prev);
+        next.delete(exId);
+        return next;
+      });
+    }
   }
 
   function deleteExercise(dayId: string, exId: string) {
@@ -744,13 +765,29 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
 
   function handleSave() {
     const incomplete = (days ?? []).flatMap((d) => d.exercises ?? []).filter(
-      (e) => e.exerciseDbId && (!e.equipmentType || !e.laterality)
+      (e) => e.exerciseDbId && !e.equipmentType
     );
     if (incomplete.length > 0) {
       const names = incomplete.map((e) => e.name).join(", ");
-      showToast(`Ausrüstung und Ausführungsseite fehlen bei: ${names}`, "error");
+      showToast(`Geräteart fehlt bei: ${names}`, "error");
+
+      const errorIds = new Set(incomplete.map((e) => e.id));
+      setErrorExIds(errorIds);
+
+      const errorDayIds = new Set(
+        (days ?? [])
+          .filter((d) => d.exercises.some((e) => errorIds.has(e.id)))
+          .map((d) => d.id)
+      );
+      setExpandedDays((prev) => new Set([...prev, ...errorDayIds]));
+
+      const firstId = incomplete[0].id;
+      setTimeout(() => {
+        document.querySelector(`[data-exercise-id="${firstId}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
       return;
     }
+    setErrorExIds(new Set());
     clearDraft();
     onSave({ ...initPlan, title, coachNote, days, mode, schritteProTag, cardioMinuten, cardioFrequenz, cardioIntensity, trackedFields });
   }
@@ -1046,6 +1083,7 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
                         isDragging={dragSrc?.dayId === day.id && dragSrc?.idx === exIdx}
                         exerciseVariantsForEx={(Array.isArray(exerciseVariants) ? exerciseVariants : []).filter((v) => v.exerciseDbId === ex.exerciseDbId)}
                         onAddVariant={(label) => handleAddVariant(ex.exerciseDbId!, label)}
+                        hasError={errorExIds.has(ex.id)}
                       />
                     </Fragment>
                   ))}

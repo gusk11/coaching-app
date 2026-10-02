@@ -337,6 +337,8 @@ export interface ExerciseDBItem {
   name: string;
   muscleGroup: string;
   isTimeBased?: boolean;
+  laterality?: "bilateral" | "unilateral";
+  equipmentType?: string;
   notes?: string;
   createdAt?: string;
   updatedAt?: string;

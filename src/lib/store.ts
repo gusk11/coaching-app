@@ -210,6 +210,8 @@ function rowToExercise(row: any): ExerciseDBItem {
     name: row.name,
     muscleGroup: row.muscle_group ?? "",
     isTimeBased: row.is_time_based ?? false,
+    laterality: row.laterality ?? undefined,
+    equipmentType: row.equipment_type ?? undefined,
     notes: row.notes ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
