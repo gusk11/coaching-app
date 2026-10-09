@@ -13,6 +13,7 @@ import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { AthleteProfileEditor } from "@/components/coach/AthleteProfileEditor";
 import { GeneralPlansView } from "@/components/coach/GeneralPlansView";
 import { SeasonPlanEditor } from "@/components/coach/SeasonPlanEditor";
+import { activePhase, phaseTypeLabel, ratePct } from "@/lib/seasonUtils";
 import { AthleteDataExport } from "@/components/coach/AthleteDataExport";
 import { AthleteExportPanel } from "@/components/coach/AthleteExportPanel";
 import { CheckInConfigEditor } from "@/components/coach/CheckInConfigEditor";
@@ -110,8 +111,19 @@ export default function CoachAthletePage() {
   }, [router, id]);
 
   const analysis = useMemo(() => athlete ? analyzeWeek(athlete) : null, [athlete]);
-  const dist = useMemo(() => athlete ? calculateDistanceToGoal(athlete.currentWeight, athlete.targetWeight) : 0, [athlete]);
-  const progress = useMemo(() => athlete ? calculateGoalProgressPercent(athlete.startWeight, athlete.currentWeight, athlete.targetWeight) : 0, [athlete]);
+  const currentPhase = useMemo(
+    () => athlete?.seasonPlan ? activePhase(athlete.seasonPlan) : undefined,
+    [athlete]
+  );
+  const planDriven = !!currentPhase;
+  const effectiveTargetWeight = currentPhase?.targetWeight ?? athlete?.targetWeight ?? 0;
+  const effectiveStartWeight = currentPhase?.startWeight ?? athlete?.startWeight ?? 0;
+  const effectiveTrendTargetPct = useMemo(() => {
+    if (currentPhase) return ratePct(currentPhase.targetRatePerWeek, currentPhase.startWeight);
+    return athlete?.weeklyTrendTargetPercent ?? null;
+  }, [currentPhase, athlete?.weeklyTrendTargetPercent]);
+  const dist = useMemo(() => athlete ? calculateDistanceToGoal(athlete.currentWeight, effectiveTargetWeight) : 0, [athlete, effectiveTargetWeight]);
+  const progress = useMemo(() => athlete ? calculateGoalProgressPercent(effectiveStartWeight, athlete.currentWeight, effectiveTargetWeight) : 0, [athlete, effectiveStartWeight, effectiveTargetWeight]);
   const trendColor = useMemo(() => athlete && analysis ? getTrendColor(analysis.trend, athlete.goalType) : "text-[#8fa3c0]", [analysis, athlete]);
   const trendPercent = useMemo(() => {
     if (!analysis || !athlete) return null;
@@ -542,11 +554,15 @@ export default function CoachAthletePage() {
             <div className="grid grid-cols-2 gap-3">
               <StatCard label="Aktuell" value={athlete.currentWeight} unit="kg" accent />
 
-              {/* Zielgewicht – inline editierbar */}
+              {/* Zielgewicht – inline editierbar (gesperrt wenn Jahresplan aktiv) */}
               <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 flex flex-col gap-1 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-[#5a7090] uppercase tracking-widest">Ziel</span>
-                  {!editingTargetWeight ? (
+                  {planDriven ? (
+                    <Tooltip label={`Aus aktueller Phase "${currentPhase!.name}" (${phaseTypeLabel(currentPhase!.type)})`}>
+                      <span className="text-[10px] text-[#60a5fa] font-medium">Phase</span>
+                    </Tooltip>
+                  ) : !editingTargetWeight ? (
                     <Tooltip label="Zielgewicht bearbeiten">
                       <button
                         onClick={() => { setEditTargetWeightInput(String(athlete.targetWeight)); setEditingTargetWeight(true); }}
@@ -567,9 +583,9 @@ export default function CoachAthletePage() {
                     </div>
                   )}
                 </div>
-                {!editingTargetWeight ? (
+                {!editingTargetWeight || planDriven ? (
                   <div className="flex items-baseline gap-1 mt-1 text-[#f0f4ff]">
-                    <span className="text-2xl font-bold leading-none">{athlete.targetWeight}</span>
+                    <span className="text-2xl font-bold leading-none">{effectiveTargetWeight}</span>
                     <span className="text-sm font-semibold text-[#8fa3c0]">kg</span>
                   </div>
                 ) : (
@@ -589,11 +605,15 @@ export default function CoachAthletePage() {
                   </div>
                 )}
               </div>
-              {/* Startgewicht Phase – inline editierbar */}
+              {/* Startgewicht Phase – inline editierbar (gesperrt wenn Jahresplan aktiv) */}
               <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 flex flex-col gap-1 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-[#5a7090] uppercase tracking-widest">Start</span>
-                  {!editingStartWeight ? (
+                  {planDriven ? (
+                    <Tooltip label={`Aus aktueller Phase "${currentPhase!.name}" (${phaseTypeLabel(currentPhase!.type)})`}>
+                      <span className="text-[10px] text-[#60a5fa] font-medium">Phase</span>
+                    </Tooltip>
+                  ) : !editingStartWeight ? (
                     <Tooltip label="Startgewicht Phase setzen">
                       <button
                         onClick={() => { setEditStartWeightInput(String(athlete.startWeight)); setEditingStartWeight(true); }}
@@ -614,9 +634,9 @@ export default function CoachAthletePage() {
                     </div>
                   )}
                 </div>
-                {!editingStartWeight ? (
+                {!editingStartWeight || planDriven ? (
                   <div className="flex items-baseline gap-1 mt-1 text-[#f0f4ff]">
-                    <span className="text-2xl font-bold leading-none">{athlete.startWeight}</span>
+                    <span className="text-2xl font-bold leading-none">{effectiveStartWeight}</span>
                     <span className="text-sm font-semibold text-[#8fa3c0]">kg</span>
                   </div>
                 ) : (
@@ -660,11 +680,15 @@ export default function CoachAthletePage() {
                 </div>
               </div>
 
-              {/* Wochentrendziel — bearbeitbares Prozentziel */}
+              {/* Wochentrendziel — bearbeitbares Prozentziel (gesperrt wenn Jahresplan aktiv) */}
               <div className="rounded-2xl bg-[#141d2e] border border-[#1e2d42] p-4 flex flex-col gap-1 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-[#5a7090] uppercase tracking-widest">Wochentrendziel</span>
-                  {!editingTrendTarget ? (
+                  {planDriven ? (
+                    <Tooltip label={`Aus aktueller Phase "${currentPhase!.name}" (${phaseTypeLabel(currentPhase!.type)})`}>
+                      <span className="text-[10px] text-[#60a5fa] font-medium">Phase</span>
+                    </Tooltip>
+                  ) : !editingTrendTarget ? (
                     <Tooltip label="Wochentrendziel bearbeiten">
                       <button
                         onClick={() => {
@@ -692,11 +716,11 @@ export default function CoachAthletePage() {
                     </div>
                   )}
                 </div>
-                {!editingTrendTarget ? (
+                {!editingTrendTarget || planDriven ? (
                   <div className="flex items-baseline gap-1 mt-1 text-[#f0f4ff]">
                     <span className="text-2xl font-bold leading-none">
-                      {athlete.weeklyTrendTargetPercent != null
-                        ? `${athlete.weeklyTrendTargetPercent > 0 ? "+" : ""}${athlete.weeklyTrendTargetPercent.toFixed(2)} %`
+                      {effectiveTrendTargetPct != null
+                        ? `${effectiveTrendTargetPct > 0 ? "+" : ""}${effectiveTrendTargetPct.toFixed(2)} %`
                         : "– %"}
                     </span>
                   </div>

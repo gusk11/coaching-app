@@ -3,8 +3,8 @@ import { useMemo, useState } from "react";
 import { Athlete } from "@/types";
 import { SeasonChart, SeasonChartRange } from "@/components/charts/SeasonChart";
 import {
-  activePhase, actualRate, addDays, ampelColor, formatPct, formatRate, formatSignedKg,
-  phaseStatus, phaseTypeColor, phaseTypeLabel, todayISO,
+  activePhase, actualRate, addDays, ampelColor, formatDeviationPct, formatPct, formatRate, formatSignedKg,
+  phaseStatus, phaseTypeColor, phaseTypeLabel, ratePct, todayISO,
 } from "@/lib/seasonUtils";
 import { CalendarDays } from "lucide-react";
 
@@ -81,12 +81,21 @@ export function SeasonPlanView({ athlete }: Props) {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <KpiBox label="Zielgewicht" value={`${current.targetWeight.toFixed(1)} kg`} />
-            <KpiBox label="Soll-Rate" value={formatRate(current.targetRatePerWeek)} />
-            <KpiBox label="Ist-Rate" value={formatRate(ist.kgPerWeek)} sub={formatPct(ist.percentPerWeek)} />
+            <KpiBox
+              label="Soll-Rate"
+              value={formatRate(current.targetRatePerWeek)}
+              sub={formatPct(ratePct(current.targetRatePerWeek, current.startWeight))}
+            />
+            <KpiBox
+              label="Ist-Rate"
+              value={formatRate(ist.kgPerWeek)}
+              sub={formatPct(ist.percentPerWeek)}
+            />
             {showStatus && status && (
               <KpiBox
                 label="Abweichung"
                 value={formatSignedKg(status.deviationKg)}
+                sub={formatDeviationPct(status.deviationKg, status.targetToday)}
                 accent={ampelColor(status.ampel)}
               />
             )}
@@ -109,7 +118,7 @@ function KpiBox({ label, value, sub, accent }: { label: string; value: string; s
     <div className="p-3 rounded-xl bg-[#0f1624] border border-[#1e2d42] flex flex-col gap-1">
       <p className="text-xs text-[#5a7090]">{label}</p>
       <p className="text-sm font-bold" style={{ color: accent ?? "#f0f4ff" }}>{value}</p>
-      {sub && <p className="text-[11px] text-[#8fa3c0]">{sub}</p>}
+      {sub && sub !== "–" && <p className="text-[11px] text-[#8fa3c0]">({sub})</p>}
     </div>
   );
 }

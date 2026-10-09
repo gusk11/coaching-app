@@ -3,7 +3,7 @@ import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { DailyCheckIn, SeasonPlan } from "@/types";
 import {
   addDays, buildTargetCurve, daysBetween, parseISO, phaseTypeColor,
-  phaseTypeLabel, recomputePhase, toISO, todayISO, weightTrend7,
+  recomputePhase, toISO, todayISO, weightTrend7,
 } from "@/lib/seasonUtils";
 import { dynamicTightWeight } from "@/lib/chartUtils";
 
@@ -45,6 +45,7 @@ export function SeasonChart({
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 600, h: height });
+  const [hover, setHover] = useState<{ iso: string; px: number } | null>(null);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -224,6 +225,47 @@ export function SeasonChart({
   const today = todayISO();
   const todayX = (today >= startIso && today <= endIso) ? xFromIso(today) : null;
 
+  // Lookup maps for hover tooltip
+  const trendMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of trend) m.set(p.date, p.value);
+    return m;
+  }, [trend]);
+  const curveMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of curve) m.set(p.date, p.target);
+    return m;
+  }, [curve]);
+  const rawMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of rawPoints) m.set(p.date, p.value);
+    return m;
+  }, [rawPoints]);
+
+  const hoverValues = useMemo(() => {
+    if (!hover) return null;
+    return {
+      iso: hover.iso,
+      trend: trendMap.get(hover.iso) ?? null,
+      target: curveMap.get(hover.iso) ?? null,
+      raw: rawMap.get(hover.iso) ?? null,
+    };
+  }, [hover, trendMap, curveMap, rawMap]);
+
+  const updateHoverFromEvent = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const x = clientX - rect.left - MARGIN.left;
+    const y = clientY - rect.top - MARGIN.top;
+    if (x < 0 || x > innerW || y < 0 || y > innerH) {
+      setHover(null);
+      return;
+    }
+    const iso = xToIso(x);
+    setHover({ iso, px: xFromIso(iso) });
+  }, [innerW, innerH, xToIso, xFromIso]);
+
   // Lines
   const targetPath = useMemo(() => pointsToPath(curve.map((p) => [xFromIso(p.date), yFromKg(p.target)])), [curve, xFromIso, yFromKg]);
   const trendPath = useMemo(() => pointsToPath(trend.map((p) => [xFromIso(p.date), yFromKg(p.value)])), [trend, xFromIso, yFromKg]);
@@ -262,7 +304,8 @@ export function SeasonChart({
           width={size.w}
           height={size.h}
           className="block"
-          onPointerMove={onPointerMove}
+          onPointerMove={(e) => { onPointerMove(e); if (!drag) updateHoverFromEvent(e.clientX, e.clientY); }}
+          onPointerLeave={() => setHover(null)}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         >
@@ -287,9 +330,6 @@ export function SeasonChart({
                   {i === phases.length - 1 && (
                     <line x1={x2} x2={x2} y1={0} y2={innerH} stroke={color} strokeOpacity={0.3} strokeDasharray="2 3" />
                   )}
-                  <text x={x1 + 6} y={12} fill={color} fontSize={10} opacity={0.9}>
-                    {p.name} · {phaseTypeLabel(p.type)}
-                  </text>
                 </g>
               );
             })}
@@ -364,6 +404,27 @@ export function SeasonChart({
               );
             })}
 
+            {/* Hover marker */}
+            {hover && !drag && (
+              <g pointerEvents="none">
+                <line
+                  x1={hover.px}
+                  x2={hover.px}
+                  y1={0}
+                  y2={innerH}
+                  stroke="#f0f4ff"
+                  strokeOpacity={0.4}
+                  strokeWidth={1}
+                />
+                {hoverValues?.trend != null && (
+                  <circle cx={hover.px} cy={yFromKg(hoverValues.trend)} r={5} fill="#3b82f6" stroke="#0f1624" strokeWidth={2} />
+                )}
+                {hoverValues?.target != null && (
+                  <circle cx={hover.px} cy={yFromKg(hoverValues.target)} r={4} fill="#60a5fa" stroke="#0f1624" strokeWidth={2} />
+                )}
+              </g>
+            )}
+
             {/* Axes labels */}
             {yTicks.map((v) => (
               <text key={`ty-${v}`} x={-6} y={yFromKg(v) + 3} fill="#5a7090" fontSize={10} textAnchor="end">
@@ -377,6 +438,37 @@ export function SeasonChart({
             ))}
           </g>
         </svg>
+
+        {hover && hoverValues && !drag && (hoverValues.trend != null || hoverValues.target != null || hoverValues.raw != null) && (() => {
+          const flip = hover.px + MARGIN.left > size.w * 0.6;
+          const leftPx = MARGIN.left + hover.px + (flip ? -12 : 12);
+          const transform = flip ? "translate(-100%, 0)" : "translate(0, 0)";
+          return (
+            <div
+              className="absolute pointer-events-none z-10"
+              style={{ left: leftPx, top: MARGIN.top + 4, transform }}
+            >
+              <div className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-sm shadow-xl whitespace-nowrap">
+                <p className="text-[#8fa3c0] text-xs mb-1">{formatTooltipDate(hover.iso)}</p>
+                {hoverValues.trend != null && (
+                  <p className="font-bold" style={{ color: "#3b82f6" }}>
+                    Ist (7-Tage): {hoverValues.trend.toFixed(1)} kg
+                  </p>
+                )}
+                {hoverValues.target != null && (
+                  <p className="font-bold" style={{ color: "#60a5fa" }}>
+                    Soll: {hoverValues.target.toFixed(1)} kg
+                  </p>
+                )}
+                {hoverValues.raw != null && (
+                  <p className="text-[11px] text-[#8fa3c0]">
+                    Einzelwert: {hoverValues.raw.toFixed(1)} kg
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="flex items-center gap-4 flex-wrap text-[11px] text-[#8fa3c0]">
@@ -421,4 +513,10 @@ function midpoint(aIso: string, bIso: string): string {
 function formatTick(iso: string): string {
   const d = parseISO(iso);
   return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.`;
+}
+
+const MONTHS_DE = ["Jan.", "Feb.", "März", "Apr.", "Mai", "Juni", "Juli", "Aug.", "Sept.", "Okt.", "Nov.", "Dez."];
+function formatTooltipDate(iso: string): string {
+  const d = parseISO(iso);
+  return `${String(d.getUTCDate()).padStart(2, "0")}. ${MONTHS_DE[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }

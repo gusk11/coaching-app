@@ -599,3 +599,18 @@ export function formatPct(pct: number | null): string {
   const r = Math.round(pct * 100) / 100;
   return (r >= 0 ? "+" : "") + r.toFixed(2) + " %/W";
 }
+
+/** Rate as %/Woche relative to a reference weight (phase start weight). */
+export function ratePct(kgPerWeek: number | null, baseWeight: number | null | undefined): number | null {
+  if (kgPerWeek == null || isNaN(kgPerWeek)) return null;
+  if (!baseWeight || baseWeight <= 0) return null;
+  return round2((kgPerWeek / baseWeight) * 100);
+}
+
+/** Deviation (kg) expressed as % of reference weight — single-point percentage, no /W. */
+export function formatDeviationPct(deviationKg: number | null, baseWeight: number | null | undefined): string {
+  if (deviationKg == null || isNaN(deviationKg) || !baseWeight || baseWeight <= 0) return "–";
+  const pct = (deviationKg / baseWeight) * 100;
+  const r = Math.round(pct * 100) / 100;
+  return (r >= 0 ? "+" : "") + r.toFixed(2) + " %";
+}
