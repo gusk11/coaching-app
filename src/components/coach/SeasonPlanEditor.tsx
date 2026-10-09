@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { Athlete, SeasonPhase, SeasonPlan, PhaseType } from "@/types";
 import { saveSeasonPlan, deleteSeasonPlan } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
@@ -15,7 +15,8 @@ import { Plus, Trash2, Copy, ArrowUp, ArrowDown, AlertTriangle, Sparkles, X } fr
 
 interface Props {
   athlete: Athlete;
-  onChange?: (plan: SeasonPlan | undefined) => void;
+  /** Fires ONLY after a successful save or delete, never on in-flight edits. */
+  onSaved?: () => void;
 }
 
 const PHASE_TYPES: { value: PhaseType; label: string }[] = [
@@ -33,7 +34,10 @@ const TEMPLATES: { value: TemplateName; label: string; description: string }[] =
   { value: "aufbau", label: "Aufbau", description: "20 Wochen moderater Aufbau" },
 ];
 
-export function SeasonPlanEditor({ athlete, onChange }: Props) {
+export function SeasonPlanEditor({ athlete, onSaved }: Props) {
+  // Local-only state: the editor is fully uncontrolled with respect to the
+  // athlete prop. Prop changes do NOT reset in-flight edits — only switching
+  // to a different athlete does. Persistence happens on explicit Save.
   const [plan, setPlan] = useState<SeasonPlan | undefined>(athlete.seasonPlan);
   const [range, setRange] = useState<SeasonChartRange>("plan");
   const [saving, setSaving] = useState(false);
@@ -43,12 +47,26 @@ export function SeasonPlanEditor({ athlete, onChange }: Props) {
   const [shiftDays, setShiftDays] = useState<number>(0);
   const [expandedPhaseId, setExpandedPhaseId] = useState<string | null>(null);
 
-  const [lastSyncedPlan, setLastSyncedPlan] = useState(athlete.seasonPlan);
-  if (lastSyncedPlan !== athlete.seasonPlan) {
-    setLastSyncedPlan(athlete.seasonPlan);
+  // Only reset local state when the athlete identity changes (navigating to a
+  // different athlete), never on an unrelated field update of the same athlete.
+  const [syncedAthleteId, setSyncedAthleteId] = useState(athlete.id);
+  if (syncedAthleteId !== athlete.id) {
+    setSyncedAthleteId(athlete.id);
     setPlan(athlete.seasonPlan);
     setDirty(false);
+    setExpandedPhaseId(null);
   }
+
+  // Warn before closing the tab/window with unsaved edits.
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
 
   const entries = useMemo(() => athlete.dailyCheckIns ?? [], [athlete.dailyCheckIns]);
   const warnings = useMemo(() => plan ? planWarnings(plan) : [], [plan]);
@@ -74,11 +92,12 @@ export function SeasonPlanEditor({ athlete, onChange }: Props) {
 
   const ist = useMemo(() => actualRate(entries, rateRange.from, rateRange.to), [entries, rateRange]);
 
+  // Local-only edit: never calls the parent so an unrelated reload of the
+  // athlete cannot overwrite in-flight edits.
   const update = useCallback((next: SeasonPlan | undefined) => {
     setPlan(next);
     setDirty(true);
-    onChange?.(next);
-  }, [onChange]);
+  }, []);
 
   async function handleSave() {
     if (!plan) return;
@@ -87,6 +106,7 @@ export function SeasonPlanEditor({ athlete, onChange }: Props) {
       await saveSeasonPlan(plan);
       setDirty(false);
       showToast("Jahresplan gespeichert");
+      onSaved?.();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Speichern fehlgeschlagen", "error");
     } finally {
@@ -102,7 +122,7 @@ export function SeasonPlanEditor({ athlete, onChange }: Props) {
       await deleteSeasonPlan(athlete.id);
       setPlan(undefined);
       setDirty(false);
-      onChange?.(undefined);
+      onSaved?.();
       showToast("Jahresplan gelöscht");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Löschen fehlgeschlagen", "error");

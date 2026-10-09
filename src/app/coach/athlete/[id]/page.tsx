@@ -1391,7 +1391,7 @@ export default function CoachAthletePage() {
           <motion.div key="Jahresplan" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
             <SeasonPlanEditor
               athlete={athlete}
-              onChange={async () => {
+              onSaved={async () => {
                 const updated = await import("@/lib/store").then((s) => s.loadAthletes());
                 const found = updated.find((a) => a.id === athlete.id);
                 if (found) setAthlete(found);
