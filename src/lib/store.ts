@@ -6,7 +6,7 @@ import {
   WeeklyAdjustment, TrainingLog, TrainingExerciseLog, CalorieTrackerDay,
   FoodItem, SupplementDBItem, ExerciseDBItem, GoalType,
   DEFAULT_DAILY_CHECK_CONFIG, LoginHelpRequest, VideoFeedback,
-  PlanChangeRequest, TrainingPlan, MealPlan, SupplementPlan, MaintenanceMode,
+  PlanChangeRequest, TrainingPlan, MealPlan, SupplementPlan, SeasonPlan, MaintenanceMode,
   OnboardingCode, ExerciseVariant, AthleteDataExport, AthleteExportOptions, AthleteExportJson,
 } from "@/types";
 import { TrainingPlanSchema, MealPlanSchema, SupplementPlanSchema } from "@/lib/planSchemas";
@@ -78,6 +78,7 @@ function rowToAthlete(row: any): Athlete {
     trainingPlans: (row.training_plans?.length ? row.training_plans : null) ?? (row.training_plan ? [row.training_plan] : []),
     supplementPlan: row.supplement_plan ?? undefined,
     supplementPlans: (row.supplement_plans?.length ? row.supplement_plans : null) ?? (row.supplement_plan ? [row.supplement_plan] : []),
+    seasonPlan: row.season_plan ?? undefined,
     notes: row.notes ?? [],
     joinedAt: row.joined_at ?? new Date().toISOString().split("T")[0],
     weeklyTrendTargetPercent: row.weekly_trend_target_percent ?? undefined,
@@ -135,6 +136,7 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
     meal_plans: a.mealPlans ?? [],
     training_plan: a.trainingPlan ?? null,
     supplement_plan: a.supplementPlan ?? null,
+    season_plan: a.seasonPlan ?? null,
     notes: a.notes ?? [],
     joined_at: a.joinedAt ?? null,
     weekly_trend_target_percent: a.weeklyTrendTargetPercent ?? null,
@@ -333,6 +335,7 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   if ("trainingPlans" in updates) row.training_plans = updates.trainingPlans ?? [];
   if ("supplementPlan" in updates) row.supplement_plan = updates.supplementPlan ?? null;
   if ("supplementPlans" in updates) row.supplement_plans = updates.supplementPlans ?? [];
+  if ("seasonPlan" in updates) row.season_plan = updates.seasonPlan ?? null;
   if ("notes" in updates) row.notes = updates.notes ?? [];
   if ("joinedAt" in updates) row.joined_at = updates.joinedAt ?? null;
   if ("weeklyTrendTargetPercent" in updates) row.weekly_trend_target_percent = updates.weeklyTrendTargetPercent ?? null;
@@ -1235,6 +1238,31 @@ export async function toggleTrainingPlanActive(athleteId: string, planId: string
   const legacyPlan = plans.find((p) => p.isActive) ?? plans[0];
   if (legacyPlan) await writeTrainingPlans(athleteId, plans, legacyPlan);
   return loadAthletes();
+}
+
+// ─── Season Plan (Jahresplan) ─────────────────────────────────────────────────
+
+export async function getSeasonPlan(athleteId: string): Promise<SeasonPlan | undefined> {
+  const a = await getAthlete(athleteId);
+  return a.seasonPlan;
+}
+
+export async function saveSeasonPlan(plan: SeasonPlan): Promise<Athlete[]> {
+  const nowIso = new Date().toISOString();
+  const next: SeasonPlan = { ...plan, updatedAt: nowIso };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${plan.athleteId}`, jsonOpts("PATCH", {
+    row: { season_plan: next, updated_at: nowIso },
+  }));
+  return rows.map(rowToAthlete);
+}
+
+export async function deleteSeasonPlan(athleteId: string): Promise<Athlete[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { season_plan: null, updated_at: new Date().toISOString() },
+  }));
+  return rows.map(rowToAthlete);
 }
 
 export async function toggleSupplementPlanActive(athleteId: string, planId: string): Promise<Athlete[]> {

@@ -1,4 +1,4 @@
-import { Athlete, FoodItem, DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
+import { Athlete, FoodItem, SeasonPlan, DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 
 export const TEST_ATHLETE_ID = "test-athlete-001";
 const ID = TEST_ATHLETE_ID;
@@ -623,6 +623,66 @@ const notes = [
   },
 ];
 
+// ─── Season Plan (Jahresplan) ─────────────────────────────────────────────────
+
+const seasonPlan: SeasonPlan = {
+  id: "sp-test-001",
+  athleteId: ID,
+  title: "Saison 2026/27",
+  phases: [
+    {
+      id: "ph-aufbau",
+      name: "Aufbau",
+      type: "bulk",
+      startDate: "2026-10-01",
+      endDate: "2027-04-01",
+      inputMode: "target_and_date",
+      startWeight: 83.0,
+      targetWeight: 89.0,
+      targetRatePerWeek: 0.23,
+      toleranceGreenPct: 25,
+      toleranceYellowPct: 50,
+      coachNote: "Moderate Rate (~0.25 %/W). Fokus auf Krafttraining und Progressive Überladung.",
+      athleteNote: "Ziel: 6 kg sauber aufbauen über 6 Monate. Fokus Kraftaufbau.",
+    },
+    {
+      id: "ph-minicut",
+      name: "Mini-Cut",
+      type: "mini_cut",
+      startDate: "2027-04-01",
+      endDate: "2027-05-27",
+      inputMode: "target_and_date",
+      startWeight: 89.0,
+      targetWeight: 85.5,
+      targetRatePerWeek: -0.44,
+      toleranceGreenPct: 25,
+      toleranceYellowPct: 50,
+      coachNote: "Aggressivere Phase (-0.5 %/W). Protein hochhalten.",
+      athleteNote: "8 Wochen Mini-Cut, ~3.5 kg runter. Diszipliniert bleiben!",
+    },
+    {
+      id: "ph-peak",
+      name: "Peak",
+      type: "peak",
+      startDate: "2027-06-01",
+      endDate: "2027-08-24",
+      inputMode: "target_and_date",
+      startWeight: 85.5,
+      targetWeight: 85.5,
+      targetRatePerWeek: 0,
+      corridorKg: 0.6,
+      toleranceGreenPct: 25,
+      toleranceYellowPct: 50,
+      coachNote: "Peak-Phase. Gewicht halten, Form und Pumps optimieren.",
+      athleteNote: "Form halten. Gewicht ±0.6 kg um 85.5 kg schwanken lassen.",
+    },
+  ],
+  visibleToAthlete: true,
+  showStatusToAthlete: true,
+  createdAt: "2026-09-15T10:00:00.000Z",
+  updatedAt: "2026-09-15T10:00:00.000Z",
+};
+
 // ─── Main Athlete Export ──────────────────────────────────────────────────────
 
 export const testAthlete: Athlete = {
@@ -690,6 +750,7 @@ export const testAthlete: Athlete = {
   mealPlans: [mealPlan],
   trainingPlan,
   supplementPlan,
+  seasonPlan,
   notes,
   joinedAt: "2026-05-19",
   weeklyTrendTargetPercent: -0.5,

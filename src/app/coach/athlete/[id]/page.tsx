@@ -12,6 +12,7 @@ import { MealPlanView } from "@/components/athlete/MealPlanView";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { AthleteProfileEditor } from "@/components/coach/AthleteProfileEditor";
 import { GeneralPlansView } from "@/components/coach/GeneralPlansView";
+import { SeasonPlanEditor } from "@/components/coach/SeasonPlanEditor";
 import { AthleteDataExport } from "@/components/coach/AthleteDataExport";
 import { AthleteExportPanel } from "@/components/coach/AthleteExportPanel";
 import { CheckInConfigEditor } from "@/components/coach/CheckInConfigEditor";
@@ -34,7 +35,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition, listContainer, listItem } from "@/lib/motion";
 
 
-const TABS = ["Übersicht", "Check-ins", "Fortschritt", "Pläne"] as const;
+const TABS = ["Übersicht", "Check-ins", "Fortschritt", "Pläne", "Jahresplan"] as const;
 type Tab = (typeof TABS)[number];
 type CheckInSubTab = "daily" | "weekly";
 
@@ -1364,7 +1365,7 @@ export default function CoachAthletePage() {
         {/* ── FORTSCHRITT ── */}
         {tab === "Fortschritt" && (
           <motion.div key="Fortschritt" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
-            <ProgressAnalytics checkIns={athlete.dailyCheckIns} />
+            <ProgressAnalytics checkIns={athlete.dailyCheckIns} seasonPlan={athlete.seasonPlan} />
 
             <AthleteExportPanel
               athleteId={athlete.id}
@@ -1382,6 +1383,20 @@ export default function CoachAthletePage() {
                 mode="coach"
               />
             </div>
+          </motion.div>
+        )}
+
+        {/* ── JAHRESPLAN ── */}
+        {tab === "Jahresplan" && (
+          <motion.div key="Jahresplan" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
+            <SeasonPlanEditor
+              athlete={athlete}
+              onChange={async () => {
+                const updated = await import("@/lib/store").then((s) => s.loadAthletes());
+                const found = updated.find((a) => a.id === athlete.id);
+                if (found) setAthlete(found);
+              }}
+            />
           </motion.div>
         )}
 

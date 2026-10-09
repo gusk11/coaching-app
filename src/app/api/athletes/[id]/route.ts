@@ -14,6 +14,7 @@ const ATHLETE_WRITABLE = new Set([
   "tracking_device_custom", "street", "zip_code", "city", "updated_at",
   // Plan columns: athlete may write their own if planBearbeitungErlaubt is set
   "training_plan", "training_plans", "supplement_plan", "supplement_plans", "meal_plans",
+  "season_plan",
 ]);
 
 export async function GET(

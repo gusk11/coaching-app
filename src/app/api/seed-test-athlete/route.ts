@@ -42,6 +42,7 @@ function athleteToRow(a: Athlete): Record<string, unknown> {
     meal_plans: a.mealPlans ?? [],
     training_plan: a.trainingPlan ?? null,
     supplement_plan: a.supplementPlan ?? null,
+    season_plan: a.seasonPlan ?? null,
     notes: a.notes ?? [],
     joined_at: a.joinedAt ?? null,
     weekly_trend_target_percent: a.weeklyTrendTargetPercent ?? null,

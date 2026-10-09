@@ -489,6 +489,46 @@ export interface SupplementPlan {
   isActive?: boolean;
 }
 
+// ─── Season Plan (Jahresplan) ────────────────────────────────────────────────
+
+export type PhaseType = "bulk" | "cut" | "mini_cut" | "maintenance" | "peak" | "other";
+
+export interface SeasonPhase {
+  id: string;
+  /** Free-form label; for type 'other' usually set by the coach (e.g. "Sonstiges"). */
+  name: string;
+  type: PhaseType;
+  /** ISO yyyy-mm-dd */
+  startDate: string;
+  /** ISO yyyy-mm-dd */
+  endDate: string;
+  /** Which value is user-driven: fix the end date or fix the rate. */
+  inputMode: "target_and_date" | "target_and_rate";
+  startWeight: number;
+  targetWeight: number;
+  /** kg per week, signed (negative = diet, positive = bulk, ~0 = maintenance). */
+  targetRatePerWeek: number;
+  /** Only used for maintenance/peak phases. Default 0.5 kg. */
+  corridorKg?: number;
+  /** Green zone (± % of planned rate). Default 25. */
+  toleranceGreenPct?: number;
+  /** Yellow zone (± % of planned rate). Default 50. */
+  toleranceYellowPct?: number;
+  coachNote?: string;
+  athleteNote?: string;
+}
+
+export interface SeasonPlan {
+  id: string;
+  athleteId: string;
+  title: string;
+  phases: SeasonPhase[];
+  visibleToAthlete: boolean;
+  showStatusToAthlete: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Note {
   id: string;
   athleteId: string;
@@ -580,6 +620,7 @@ export interface Athlete {
   trainingPlans?: TrainingPlan[];
   supplementPlan?: SupplementPlan;
   supplementPlans?: SupplementPlan[];
+  seasonPlan?: SeasonPlan;
   notes: Note[];
   joinedAt: string;
   weeklyTrendTargetPercent?: number;

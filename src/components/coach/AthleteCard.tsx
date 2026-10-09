@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Check, GitPullRequest, CheckCircle2, XCircle } from "lucide-react";
+import { activePhase, ampelColor, formatSignedKg, phaseStatus, phaseTypeColor, phaseTypeLabel } from "@/lib/seasonUtils";
 
 const DAY_NAMES = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
@@ -219,6 +220,25 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
             {getTrendIcon(analysis.trend)} {analysis.changeKg > 0 ? "+" : ""}{analysis.changeKg} kg
           </Badge>
         </div>
+
+        {/* Season plan (Jahresplan) chip */}
+        {athlete.seasonPlan && (() => {
+          const phase = activePhase(athlete.seasonPlan);
+          if (!phase) return null;
+          const st = phaseStatus(phase, athlete.dailyCheckIns);
+          return (
+            <div className="flex items-center gap-2 mt-2 text-[11px]">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: phaseTypeColor(phase.type) }} />
+              <span className="text-[#8fa3c0] truncate">
+                {phase.name} <span className="text-[#5a7090]">· {phaseTypeLabel(phase.type)}</span>
+              </span>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ampelColor(st.ampel) }} title={st.reason} />
+              <span className="font-medium" style={{ color: ampelColor(st.ampel) }}>
+                {formatSignedKg(st.deviationKg)}
+              </span>
+            </div>
+          );
+        })()}
 
         {/* Weekly check-in status */}
         <div className="flex items-center gap-4 mt-2">

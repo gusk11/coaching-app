@@ -335,7 +335,11 @@ export default function AthleteDashboard() {
         </div>
 
         {/* Data analysis */}
-        <ProgressAnalytics checkIns={athlete.dailyCheckIns} />
+        <ProgressAnalytics
+          checkIns={athlete.dailyCheckIns}
+          seasonPlan={athlete.seasonPlan?.visibleToAthlete ? athlete.seasonPlan : undefined}
+          showPlanStatus={!!athlete.seasonPlan?.showStatusToAthlete}
+        />
 
         {/* Einführungsvideo – unten */}
         <ToolIntroVideo athleteId={athlete.id} toolKey="dashboard" title="Einführung: Dashboard" position="bottom" seenToolIntros={athlete.seenToolIntros} />

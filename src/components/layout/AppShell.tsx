@@ -7,7 +7,7 @@ import { ReactNode, useEffect, useState } from "react";
 import {
   LayoutDashboard, Dumbbell,
   ClipboardCheck, Users, Database, LogOut, ChevronRight, ChevronLeft,
-  Salad, User, Video, Wrench, KeyRound, Settings,
+  Salad, User, Video, Wrench, KeyRound, Settings, CalendarRange,
 } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { pageTransition } from "@/lib/motion";
@@ -31,6 +31,7 @@ const athleteNav: NavItem[] = [
   { label: "Check-ins", href: "/athlete/checkins", icon: <ClipboardCheck size={20} />, toolIntroKey: "checkins" },
   { label: "Trainingstracker", href: "/athlete/training", icon: <Dumbbell size={20} />, toolIntroKey: "trainingstracker" },
   { label: "Pläne", href: "/athlete/plans", icon: <Salad size={20} />, toolIntroKey: "plaene" },
+  { label: "Jahresplan", href: "/athlete/season", icon: <CalendarRange size={20} /> },
   { label: "Video-Feedbacks", href: "/athlete/video-feedbacks", icon: <Video size={20} />, toolIntroKey: "videoFeedbacks" },
   { label: "Stammdaten", href: "/athlete/stammdaten", icon: <User size={20} />, toolIntroKey: "stammdaten" },
 ];
@@ -202,7 +203,11 @@ interface AppShellProps {
 export function AppShell({ children, role, title }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const nav = role === "athlete" ? athleteNav : coachNav;
+  const [seasonPlanVisible, setSeasonPlanVisible] = useState(false);
+  const baseNav = role === "athlete" ? athleteNav : coachNav;
+  const nav = role === "athlete"
+    ? baseNav.filter((it) => it.href !== "/athlete/season" || seasonPlanVisible)
+    : baseNav;
   const [hasPendingCheckins, setHasPendingCheckins] = useState(false);
 
   // Clean up stale drafts once on mount
@@ -231,6 +236,7 @@ export function AppShell({ children, role, title }: AppShellProps) {
     loadAthletes().then((athletes) => {
       const athlete = athletes.find((a) => a.id === auth.athleteId);
       if (!athlete) return;
+      setSeasonPlanVisible(!!athlete.seasonPlan?.visibleToAthlete);
       const today = todayISO();
       const dailyDone = athlete.dailyCheckIns.some((c) => c.date === today);
       const weeklyDone = athlete.weeklyCheckIns.some((w) => w.weekStart === getCheckInWeekStart(today, athlete.checkInDay));

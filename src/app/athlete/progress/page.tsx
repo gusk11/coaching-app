@@ -60,6 +60,7 @@ export default function AthleteProgress() {
             targetWeight={athlete.targetWeight}
             startWeight={athlete.startWeight}
             height={240}
+            seasonPlan={athlete.seasonPlan}
           />
         </div>
 

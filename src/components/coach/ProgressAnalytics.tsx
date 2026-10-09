@@ -2,9 +2,9 @@
 import { useState, useMemo } from "react";
 import {
   ResponsiveContainer, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceArea,
 } from "recharts";
-import { DailyCheckIn } from "@/types";
+import { DailyCheckIn, SeasonPlan } from "@/types";
 import { formatDateShort, normalizeNutritionStatus } from "@/lib/utils";
 import {
   floorToStep,
@@ -14,6 +14,11 @@ import {
   dynamicTightSleep,
   scaleFixed,
 } from "@/lib/chartUtils";
+import {
+  actualRate, addDays, ampelColor, buildTargetCurve, findPhaseAt, formatPct,
+  formatRate, formatSignedKg, phaseStatus, phaseTypeColor,
+  phaseTypeLabel, todayISO, activePhase,
+} from "@/lib/seasonUtils";
 
 type MetricType = "line" | "bloodPressure" | "compliance";
 
@@ -163,12 +168,18 @@ const CustomTooltip = ({
 
 interface Props {
   checkIns: DailyCheckIn[];
+  /** Optional season plan. Enables the "Jahresplan einblenden" overlay on body-weight. */
+  seasonPlan?: SeasonPlan;
+  /** When true, show status (ampel / deviation). Coach view always true; athlete view
+   * only when plan.showStatusToAthlete. */
+  showPlanStatus?: boolean;
 }
 
-export function ProgressAnalytics({ checkIns }: Props) {
+export function ProgressAnalytics({ checkIns, seasonPlan, showPlanStatus = true }: Props) {
   const [metricKey, setMetricKey] = useState<string>("weight");
   const [rangeMode, setRangeMode] = useState<RangeMode>("30");
   const [monthCount, setMonthCount] = useState<number>(3);
+  const [showPlan, setShowPlan] = useState<boolean>(false);
 
   const sorted = useMemo(
     () => [...checkIns].sort((a, b) => a.date.localeCompare(b.date)),
@@ -199,12 +210,63 @@ export function ProgressAnalytics({ checkIns }: Props) {
       ? (filtered
           .map((ci) => {
             const val = selectedMetric.getValue!(ci);
-            return val !== null ? { date: formatDateShort(ci.date), value: val } : null;
+            return val !== null ? { date: formatDateShort(ci.date), isoDate: ci.date, value: val } : null;
           })
-          .filter(Boolean) as { date: string; value: number }[])
+          .filter(Boolean) as { date: string; isoDate: string; value: number }[])
       : [],
     [filtered, selectedMetric]
   );
+
+  const planActive = !!seasonPlan && selectedMetric.key === "weight" && showPlan;
+
+  const planLineData = useMemo(() => {
+    if (!planActive || !seasonPlan) return [] as { date: string; isoDate: string; value: number; target: number | null }[];
+    const curveByDate = new Map<string, number>();
+    for (const p of buildTargetCurve(seasonPlan)) curveByDate.set(p.date, p.target);
+    return lineData.map((d): { date: string; isoDate: string; value: number; target: number | null } => ({
+      ...d, target: curveByDate.get(d.isoDate) ?? null, value: d.value,
+    }));
+  }, [planActive, seasonPlan, lineData]);
+
+  const planBands = useMemo(() => {
+    if (!planActive || !seasonPlan) return [] as { x1: string; x2: string; color: string; name: string }[];
+    const dateByIso = new Map<string, string>(lineData.map((d) => [d.isoDate, d.date]));
+    const out: { x1: string; x2: string; color: string; name: string }[] = [];
+    for (const p of seasonPlan.phases) {
+      // Find first & last visible labels inside phase
+      const inside = lineData.filter((d) => d.isoDate >= p.startDate && d.isoDate <= p.endDate);
+      if (inside.length === 0) continue;
+      out.push({
+        x1: inside[0].date,
+        x2: inside[inside.length - 1].date,
+        color: phaseTypeColor(p.type),
+        name: `${p.name} (${phaseTypeLabel(p.type)})`,
+      });
+      void dateByIso;
+    }
+    return out;
+  }, [planActive, seasonPlan, lineData]);
+
+  const planStats = useMemo(() => {
+    if (!planActive || !seasonPlan) return null;
+    const today = todayISO();
+    const current = findPhaseAt(seasonPlan, today) ?? activePhase(seasonPlan);
+    if (!current) return null;
+    const st = phaseStatus(current, checkIns);
+    // Range used for ist-rate matches the current chart filter
+    let from: string = current.startDate;
+    const to: string = today;
+    if (rangeMode === "7") from = addDays(today, -7);
+    else if (rangeMode === "30") from = addDays(today, -30);
+    else if (rangeMode === "months") from = addDays(today, -monthCount * 30);
+    const ist = actualRate(checkIns, from, to);
+    return {
+      current,
+      status: st,
+      ist,
+      targetRate: current.targetRatePerWeek,
+    };
+  }, [planActive, seasonPlan, checkIns, rangeMode, monthCount]);
 
   const bpData = useMemo(
     () => selectedMetric.type === "bloodPressure"
@@ -343,6 +405,21 @@ export function ProgressAnalytics({ checkIns }: Props) {
             Gesamte Zeit
           </button>
         </div>
+
+        {/* Jahresplan toggle (only on weight) */}
+        {seasonPlan && selectedMetric.key === "weight" && (
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <button
+              type="button"
+              onClick={() => setShowPlan((v) => !v)}
+              className={`relative w-10 h-6 rounded-full transition-colors ${showPlan ? "bg-[#3b82f6]" : "bg-[#1e2d42]"}`}
+              aria-label="Jahresplan einblenden"
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${showPlan ? "translate-x-4" : ""}`} />
+            </button>
+            <span className="text-xs text-[#8fa3c0]">Jahresplan einblenden</span>
+          </label>
+        )}
       </div>
 
       {/* Chart area — hidden for compliance parameters */}
@@ -354,7 +431,7 @@ export function ProgressAnalytics({ checkIns }: Props) {
             </div>
           ) : selectedMetric.type === "line" ? (
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={lineData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <LineChart data={planActive ? planLineData : lineData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e2d42" vertical={false} />
                 <XAxis
                   dataKey="date"
@@ -371,6 +448,30 @@ export function ProgressAnalytics({ checkIns }: Props) {
                   domain={lineYDomain ?? ["auto", "auto"]}
                 />
                 <Tooltip content={<CustomTooltip unit={selectedMetric.unit} />} />
+                {planActive && planBands.map((b, i) => (
+                  <ReferenceArea
+                    key={i}
+                    x1={b.x1}
+                    x2={b.x2}
+                    y1={lineYDomain ? lineYDomain[0] : undefined}
+                    y2={lineYDomain ? lineYDomain[1] : undefined}
+                    fill={b.color}
+                    fillOpacity={0.08}
+                    stroke="none"
+                  />
+                ))}
+                {planActive && (
+                  <Line
+                    type="monotone"
+                    dataKey="target"
+                    name="Soll"
+                    stroke="#60a5fa"
+                    strokeWidth={2}
+                    strokeDasharray="5 4"
+                    dot={false}
+                    connectNulls
+                  />
+                )}
                 <Line
                   type="monotone"
                   dataKey="value"
@@ -428,6 +529,32 @@ export function ProgressAnalytics({ checkIns }: Props) {
         </div>
       )}
 
+      {/* Jahresplan stats row */}
+      {planActive && planStats && (
+        <div className="rounded-xl bg-[#0f1624] border border-[#1e2d42] p-3 flex flex-col gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="w-2 h-2 rounded-full" style={{ background: phaseTypeColor(planStats.current.type) }} />
+            <span className="text-xs font-semibold text-[#f0f4ff]">
+              {planStats.current.name} · {phaseTypeLabel(planStats.current.type)}
+            </span>
+            {showPlanStatus && (
+              <span className="w-2 h-2 rounded-full ml-auto" style={{ background: ampelColor(planStats.status.ampel) }} title={planStats.status.reason} />
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <MiniKpi label="Soll-Rate" value={formatRate(planStats.targetRate)} />
+            <MiniKpi label="Ist-Rate" value={formatRate(planStats.ist.kgPerWeek)} sub={formatPct(planStats.ist.percentPerWeek)} />
+            {showPlanStatus && (
+              <MiniKpi
+                label="Abweichung"
+                value={formatSignedKg(planStats.status.deviationKg)}
+                accent={ampelColor(planStats.status.ampel)}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Line chart stats: Ø, Min, Max */}
       {lineStats.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
@@ -440,6 +567,7 @@ export function ProgressAnalytics({ checkIns }: Props) {
         </div>
       )}
 
+      {/* placeholder kept — see MiniKpi helper below */}
       {/* Compliance stats: Rate, Tage gesamt, Tage absolviert */}
       {complianceStats.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
@@ -451,6 +579,16 @@ export function ProgressAnalytics({ checkIns }: Props) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function MiniKpi({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
+  return (
+    <div className="p-2 rounded-lg bg-[#141d2e] border border-[#1e2d42] flex flex-col gap-0.5">
+      <p className="text-[10px] text-[#5a7090]">{label}</p>
+      <p className="text-xs font-bold" style={{ color: accent ?? "#f0f4ff" }}>{value}</p>
+      {sub && <p className="text-[10px] text-[#8fa3c0]">{sub}</p>}
     </div>
   );
 }
