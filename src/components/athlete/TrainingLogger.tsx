@@ -156,6 +156,56 @@ function getPrevExerciseLog(
   return null;
 }
 
+function fmtNum(n: number | null | undefined): string {
+  return n == null ? "?" : String(n);
+}
+
+function formatPrevSetBilateral(prev: TrainingSetLog | undefined, fields: TrackedFields): string {
+  if (!prev) return "–";
+  const parts: string[] = [];
+  if (fields.weight && fields.reps) {
+    if (prev.weight != null || prev.reps != null) parts.push(`${fmtNum(prev.reps)} × ${fmtNum(prev.weight)} kg`);
+  } else if (fields.weight && prev.weight != null) {
+    parts.push(`${prev.weight} kg`);
+  } else if (fields.reps && prev.reps != null) {
+    parts.push(`${prev.reps} Wdh`);
+  }
+  if (fields.rir && prev.rir != null) parts.push(`RIR ${prev.rir}`);
+  if (fields.custom?.enabled && prev.customValue != null) {
+    parts.push(`${fields.custom.label || "Custom"} ${prev.customValue}`);
+  }
+  return parts.length ? parts.join(" · ") : "–";
+}
+
+function formatPrevSetUnilateral(prev: TrainingSetLog | undefined, fields: TrackedFields): string {
+  if (!prev) return "–";
+  const anySide = prev.weightLeft != null || prev.weightRight != null || prev.repsLeft != null || prev.repsRight != null;
+  if (!anySide && prev.rir == null && prev.customValue == null) return "–";
+  const parts: string[] = [];
+  if (anySide) {
+    const left = `${fmtNum(prev.repsLeft)}×${fmtNum(prev.weightLeft)}`;
+    const right = `${fmtNum(prev.repsRight)}×${fmtNum(prev.weightRight)}`;
+    parts.push(`L ${left} · R ${right} kg`);
+  }
+  if (fields.rir && prev.rir != null) parts.push(`RIR ${prev.rir}`);
+  if (fields.custom?.enabled && prev.customValue != null) {
+    parts.push(`${fields.custom.label || "Custom"} ${prev.customValue}`);
+  }
+  return parts.length ? parts.join(" · ") : "–";
+}
+
+function hasAnyPrevValue(prev: TrainingSetLog | undefined, isUnilateral: boolean, fields: TrackedFields): boolean {
+  if (!prev) return false;
+  if (isUnilateral) {
+    if (prev.weightLeft != null || prev.weightRight != null || prev.repsLeft != null || prev.repsRight != null) return true;
+  } else {
+    if (prev.weight != null || prev.reps != null) return true;
+  }
+  if (fields.rir && prev.rir != null) return true;
+  if (fields.custom?.enabled && prev.customValue != null) return true;
+  return false;
+}
+
 function getPersistentExerciseNote(logs: TrainingLog[], exerciseId: string, exerciseName: string, trackingKey?: string): string | null {
   const sorted = [...logs].sort((a, b) => b.date.localeCompare(a.date));
   for (const log of sorted) {
@@ -358,6 +408,37 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
     if (timerRef.current) clearInterval(timerRef.current);
     clearActiveSession(); setSession(null); setElapsedSeconds(0); setSaveStatus("idle");
     setShowCancelConfirm(false); setNoteMenuOpenId(null); setEditingNote(null);
+  }
+
+  function copyPrevSet(exIdx: number, setIdx: number, prev: TrainingSetLog, isUnilateral: boolean) {
+    updateExercises((prevEx) =>
+      prevEx.map((ex, i) =>
+        i !== exIdx ? ex : {
+          ...ex,
+          sets: ex.sets.map((s, j) => {
+            if (j !== setIdx) return s;
+            if (isUnilateral) {
+              return {
+                ...s,
+                weightLeft: prev.weightLeft ?? s.weightLeft,
+                repsLeft: prev.repsLeft ?? s.repsLeft,
+                weightRight: prev.weightRight ?? s.weightRight,
+                repsRight: prev.repsRight ?? s.repsRight,
+                rir: prev.rir ?? s.rir,
+                customValue: prev.customValue ?? s.customValue,
+              };
+            }
+            return {
+              ...s,
+              weight: prev.weight ?? s.weight,
+              reps: prev.reps ?? s.reps,
+              rir: prev.rir ?? s.rir,
+              customValue: prev.customValue ?? s.customValue,
+            };
+          }),
+        }
+      )
+    );
   }
 
   function updateSet(exIdx: number, setIdx: number, field: keyof TrainingSetLog, value: string) {
@@ -798,8 +879,25 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                       {ex.sets.map((set, setIdx) => {
                         const prev = prevEx?.sets[setIdx];
                         const complete = isSetComplete(set, true, fields);
+                        const prevHasValues = hasAnyPrevValue(prev, true, fields);
                         return (
                           <div key={setIdx} className={cn("rounded-lg px-1 py-0.5", complete && "bg-[#10b981]/10")}>
+                            <button
+                              type="button"
+                              onClick={() => prev && prevHasValues && copyPrevSet(exIdx, setIdx, prev, true)}
+                              disabled={!prevHasValues}
+                              title={prevHasValues ? "Werte der letzten Einheit übernehmen" : undefined}
+                              className={cn(
+                                "flex items-center gap-1.5 pl-5 pr-1 py-0.5 w-full text-left tabular-nums",
+                                prevHasValues
+                                  ? "text-[11px] text-[#8fa3c0] rounded-md hover:bg-[#1e2d42]/60 transition-colors cursor-pointer"
+                                  : "text-[10px] text-[#3d5269] cursor-default"
+                              )}
+                            >
+                              <span className="text-[#5a7090]">Letztes Mal</span>
+                              <span>·</span>
+                              <span>{formatPrevSetUnilateral(prev, fields)}</span>
+                            </button>
                             <div className="grid grid-cols-12 gap-1 items-center">
                               <span className="col-span-1 text-xs text-[#5a7090] text-center">{set.setNumber}</span>
                               <input type="number" min={0} step={0.5} value={set.weightLeft ?? ""}
@@ -827,14 +925,9 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                                 </button>
                               </Tooltip>
                             </div>
-                            {/* prev values + extra tracked fields for unilateral */}
-                            {(prev || fields.rir || fields.custom?.enabled) && (
+                            {/* Extra tracked fields for unilateral — RIR / custom go below */}
+                            {(fields.rir || fields.custom?.enabled) && (
                               <div className="pl-5 mt-1 flex flex-wrap items-center gap-2">
-                                {prev && (prev.weightLeft != null || prev.weightRight != null) && (
-                                  <span className="text-[9px] text-[#3a5070]">
-                                    L{prev.weightLeft ?? "?"}×{prev.repsLeft ?? "?"} · R{prev.weightRight ?? "?"}×{prev.repsRight ?? "?"}
-                                  </span>
-                                )}
                                 {fields.rir && (
                                   <div className="flex items-center gap-1">
                                     <span className="text-[9px] text-[#5a7090]">RIR</span>
@@ -876,61 +969,58 @@ export function TrainingLogger({ trainingPlan, existingLogs, today, athleteId, o
                       {ex.sets.map((set, setIdx) => {
                         const prev = prevEx?.sets[setIdx];
                         const complete = isSetComplete(set, false, fields);
+                        const prevHasValues = hasAnyPrevValue(prev, false, fields);
                         return (
                           <div key={setIdx} className={cn("rounded-lg px-1 py-0.5", complete && "bg-[#10b981]/10")}>
+                            <button
+                              type="button"
+                              onClick={() => prev && prevHasValues && copyPrevSet(exIdx, setIdx, prev, false)}
+                              disabled={!prevHasValues}
+                              title={prevHasValues ? "Werte der letzten Einheit übernehmen" : undefined}
+                              className={cn(
+                                "flex items-center gap-1.5 pl-7 pr-1 py-0.5 w-full text-left tabular-nums",
+                                prevHasValues
+                                  ? "text-[11px] text-[#8fa3c0] rounded-md hover:bg-[#1e2d42]/60 transition-colors cursor-pointer"
+                                  : "text-[10px] text-[#3d5269] cursor-default"
+                              )}
+                            >
+                              <span className="text-[#5a7090]">Letztes Mal</span>
+                              <span>·</span>
+                              <span>{formatPrevSetBilateral(prev, fields)}</span>
+                            </button>
                             <div className="flex items-start gap-1.5">
                               <span className="w-5 shrink-0 text-xs text-[#5a7090] text-center pt-2">{set.setNumber}</span>
 
                               {fields.weight && (
-                                <div className="flex flex-col gap-0.5 w-14 shrink-0">
-                                  <input type="number" min={0} step={0.5}
-                                    value={set.weight ?? ""}
-                                    onChange={(e) => updateSet(exIdx, setIdx, "weight", e.target.value)}
-                                    placeholder="–"
-                                    className="w-full bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center" />
-                                  {prev?.weight != null && (
-                                    <span className="text-[9px] text-[#3a5070] text-center tabular-nums leading-none">{prev.weight}</span>
-                                  )}
-                                </div>
+                                <input type="number" min={0} step={0.5}
+                                  value={set.weight ?? ""}
+                                  onChange={(e) => updateSet(exIdx, setIdx, "weight", e.target.value)}
+                                  placeholder="–"
+                                  className="w-14 shrink-0 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center" />
                               )}
 
                               {fields.reps && (
-                                <div className="flex flex-col gap-0.5 w-12 shrink-0">
-                                  <input type="number" min={0}
-                                    value={set.reps ?? ""}
-                                    onChange={(e) => updateSet(exIdx, setIdx, "reps", e.target.value)}
-                                    placeholder="–"
-                                    className="w-full bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center" />
-                                  {prev?.reps != null && (
-                                    <span className="text-[9px] text-[#3a5070] text-center tabular-nums leading-none">{prev.reps}</span>
-                                  )}
-                                </div>
+                                <input type="number" min={0}
+                                  value={set.reps ?? ""}
+                                  onChange={(e) => updateSet(exIdx, setIdx, "reps", e.target.value)}
+                                  placeholder="–"
+                                  className="w-12 shrink-0 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center" />
                               )}
 
                               {fields.rir && (
-                                <div className="flex flex-col gap-0.5 w-12 shrink-0">
-                                  <input type="number" min={0} max={10}
-                                    value={set.rir ?? ""}
-                                    onChange={(e) => updateSet(exIdx, setIdx, "rir", e.target.value)}
-                                    placeholder="–"
-                                    className="w-full bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center" />
-                                  {prev?.rir != null && (
-                                    <span className="text-[9px] text-[#3a5070] text-center tabular-nums leading-none">{prev.rir}</span>
-                                  )}
-                                </div>
+                                <input type="number" min={0} max={10}
+                                  value={set.rir ?? ""}
+                                  onChange={(e) => updateSet(exIdx, setIdx, "rir", e.target.value)}
+                                  placeholder="–"
+                                  className="w-12 shrink-0 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center" />
                               )}
 
                               {fields.custom?.enabled && (
-                                <div className="flex flex-col gap-0.5 w-12 shrink-0">
-                                  <input type="number" min={0}
-                                    value={set.customValue ?? ""}
-                                    onChange={(e) => updateSet(exIdx, setIdx, "customValue", e.target.value)}
-                                    placeholder="–"
-                                    className="w-full bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center" />
-                                  {prev?.customValue != null && (
-                                    <span className="text-[9px] text-[#3a5070] text-center tabular-nums leading-none">{prev.customValue}</span>
-                                  )}
-                                </div>
+                                <input type="number" min={0}
+                                  value={set.customValue ?? ""}
+                                  onChange={(e) => updateSet(exIdx, setIdx, "customValue", e.target.value)}
+                                  placeholder="–"
+                                  className="w-12 shrink-0 bg-[#0f1624] border border-[#1e2d42] rounded-lg px-1 py-1.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] text-center" />
                               )}
 
                               <Tooltip label="Satz entfernen">

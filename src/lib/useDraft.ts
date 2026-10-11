@@ -97,8 +97,10 @@ export function useDraft<T>(
   const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
-    setIsDirty(enabled && JSON.stringify(state) !== initialJsonRef.current);
-  }, [state, enabled]);
+    // isDirty tracks user edits regardless of whether draft persistence is on,
+    // so UIs can gate close-confirmation on real changes (edit mode too).
+    setIsDirty(JSON.stringify(state) !== initialJsonRef.current);
+  }, [state]);
 
   const immediateWrite = useCallback(() => {
     if (!enabled) return;

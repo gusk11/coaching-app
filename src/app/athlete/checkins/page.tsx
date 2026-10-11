@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Athlete, WeeklyCheckIn, VideoFeedback } from "@/types";
 import { loadAuth, loadAthletes, addDailyCheckIn, addWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, loadVideoFeedbacks } from "@/lib/store";
@@ -50,6 +50,34 @@ export default function CheckInsPage() {
   // Inline delete confirmation state
   const [confirmDailyDeleteId, setConfirmDailyDeleteId] = useState<string | null>(null);
   const [confirmWeeklyDeleteId, setConfirmWeeklyDeleteId] = useState<string | null>(null);
+
+  // Dirty tracking for modal forms — gates the "discard changes?" prompt
+  const [dayModalDirty, setDayModalDirty] = useState(false);
+  const [editWeeklyDirty, setEditWeeklyDirty] = useState(false);
+
+  const requestCloseDayModal = useCallback(() => {
+    if (dayModalDirty && !window.confirm("Eingaben verwerfen?")) return;
+    setDayModalDate(null);
+    setDayModalDirty(false);
+  }, [dayModalDirty]);
+
+  const requestCloseEditWeekly = useCallback(() => {
+    if (editWeeklyDirty && !window.confirm("Eingaben verwerfen?")) return;
+    setEditWeeklyCI(null);
+    setEditWeeklyDirty(false);
+  }, [editWeeklyDirty]);
+
+  // Escape key — route through the same guarded close path
+  useEffect(() => {
+    if (!dayModalDate && !editWeeklyCI) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (editWeeklyCI) { e.preventDefault(); requestCloseEditWeekly(); return; }
+      if (dayModalDate) { e.preventDefault(); requestCloseDayModal(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dayModalDate, editWeeklyCI, requestCloseDayModal, requestCloseEditWeekly]);
 
   useEffect(() => {
     const auth = loadAuth();
@@ -116,6 +144,7 @@ export default function CheckInsPage() {
       const updated = await addDailyCheckIn(athlete!.id, data);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setDayModalDate(null);
+      setDayModalDirty(false);
       showToast("Daily Check-in gespeichert.", "success");
     } catch {
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
@@ -154,6 +183,7 @@ export default function CheckInsPage() {
       const updated = await addWeeklyCheckIn(athlete!.id, data);
       setAthlete(updated.find((a) => a.id === athlete!.id)!);
       setEditWeeklyCI(null);
+      setEditWeeklyDirty(false);
       showToast("Weekly Check-in aktualisiert.", "success");
     } catch {
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
@@ -576,10 +606,7 @@ export default function CheckInsPage() {
 
       {/* ── DAY MODAL — opens for any tile click (new or edit) ── */}
       {dayModalDate && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) setDayModalDate(null); }}
-        >
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full sm:max-w-lg bg-[#0d1526] border-t sm:border border-[#1e2d42] rounded-t-2xl sm:rounded-2xl flex flex-col max-h-[92vh]">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e2d42] shrink-0">
               <div>
@@ -591,7 +618,7 @@ export default function CheckInsPage() {
                 </p>
               </div>
               <button
-                onClick={() => setDayModalDate(null)}
+                onClick={requestCloseDayModal}
                 className="w-8 h-8 rounded-xl flex items-center justify-center text-[#5a7090] hover:text-[#f0f4ff] hover:bg-[#1e2d42] transition-colors"
               >
                 <X size={16} />
@@ -604,6 +631,7 @@ export default function CheckInsPage() {
                 existingToday={dayModalExisting}
                 date={dayModalDate}
                 onSubmit={handleDayModalSubmit}
+                onDirtyChange={setDayModalDirty}
                 checkConfig={{ ...DEFAULT_DAILY_CHECK_CONFIG, ...athlete.dailyCheckConfig }}
                 mealPlans={athlete.mealPlans ?? []}
               />
@@ -614,10 +642,7 @@ export default function CheckInsPage() {
 
       {/* ── EDIT WEEKLY MODAL ── */}
       {editWeeklyCI && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) setEditWeeklyCI(null); }}
-        >
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full sm:max-w-lg bg-[#0d1526] border-t sm:border border-[#1e2d42] rounded-t-2xl sm:rounded-2xl flex flex-col max-h-[92vh]">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e2d42] shrink-0">
               <div>
@@ -625,7 +650,7 @@ export default function CheckInsPage() {
                 <p className="text-xs text-[#5a7090]">{fmtWeekLabel(editWeeklyCI.weekStart)}</p>
               </div>
               <button
-                onClick={() => setEditWeeklyCI(null)}
+                onClick={requestCloseEditWeekly}
                 className="w-8 h-8 rounded-xl flex items-center justify-center text-[#5a7090] hover:text-[#f0f4ff] hover:bg-[#1e2d42] transition-colors"
               >
                 <X size={16} />
@@ -639,6 +664,7 @@ export default function CheckInsPage() {
                 initialValues={editWeeklyCI}
                 isEdit={true}
                 weekStartOverride={editWeeklyCI.weekStart}
+                onDirtyChange={setEditWeeklyDirty}
               />
             </div>
           </div>

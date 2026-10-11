@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { WeeklyCheckIn, Athlete, DEFAULT_WEEKLY_CHECK_CONFIG } from "@/types";
 import { SliderInput } from "@/components/ui/SliderInput";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
@@ -14,9 +14,10 @@ interface WeeklyCheckInFormProps {
   initialValues?: Partial<WeeklyCheckIn>;
   isEdit?: boolean;
   weekStartOverride?: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, weekStartOverride }: WeeklyCheckInFormProps) {
+export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, weekStartOverride, onDirtyChange }: WeeklyCheckInFormProps) {
   const cfg = { ...DEFAULT_WEEKLY_CHECK_CONFIG, ...athlete.weeklyCheckConfig };
   const today = todayISO();
   const weekStart = getCheckInWeekStart(today, athlete.checkInDay);
@@ -42,11 +43,13 @@ export function WeeklyCheckInForm({ athlete, onSubmit, initialValues, isEdit, we
     trainingRating, stressAvg, energyAvg,
     specialEvents, freeNote,
   };
-  const { hasDraft, draftMeta, restoreDraft, discardDraft, clearDraft } = useDraft(
+  const { hasDraft, draftMeta, restoreDraft, discardDraft, clearDraft, isDirty } = useDraft(
     draftKey,
     draftState,
     { enabled: !isEdit }
   );
+
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   function handleRestore() {
     const d = restoreDraft();

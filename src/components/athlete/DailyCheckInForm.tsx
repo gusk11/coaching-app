@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { DailyCheckIn, MealPlan, NutritionStatusType, DailyCheckConfig, DEFAULT_DAILY_CHECK_CONFIG } from "@/types";
 import { SliderInput } from "@/components/ui/SliderInput";
 import { NumberSliderInput } from "@/components/ui/NumberSliderInput";
@@ -15,6 +15,7 @@ interface DailyCheckInFormProps {
   date?: string; // defaults to todayISO()
   mealPlans?: MealPlan[];
   onSubmit: (data: Omit<DailyCheckIn, "id" | "athleteId">) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const nutritionOptions: { value: NutritionStatusType; label: string; desc: string }[] = [
@@ -24,7 +25,7 @@ const nutritionOptions: { value: NutritionStatusType; label: string; desc: strin
   { value: "no_exact_info",           label: "Keine genaue Angabe möglich",          desc: "Mengen unklar oder Plan nicht eingehalten" },
 ];
 
-export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, mealPlans, onSubmit }: DailyCheckInFormProps) {
+export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, mealPlans, onSubmit, onDirtyChange }: DailyCheckInFormProps) {
   const cfg: DailyCheckConfig = { ...DEFAULT_DAILY_CHECK_CONFIG, ...checkConfig };
   const init = existingToday;
 
@@ -102,11 +103,13 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
     customValues,
   };
 
-  const { hasDraft, draftMeta, restoreDraft, discardDraft, clearDraft } = useDraft(
+  const { hasDraft, draftMeta, restoreDraft, discardDraft, clearDraft, isDirty } = useDraft(
     draftKey,
     draftState,
     { enabled: !init }
   );
+
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   function handleRestore() {
     const d = restoreDraft();
