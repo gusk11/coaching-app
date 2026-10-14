@@ -3,6 +3,24 @@ import { useState, useEffect, Fragment } from "react";
 import { TrainingPlan, TrainingDay, Exercise, TrainingPlanMode, ExerciseDBItem, ExerciseVariant } from "@/types";
 import { loadExerciseDB, getAthleteExerciseVariants, addExerciseVariant } from "@/lib/store";
 import { Trash2, Plus, ChevronDown, ChevronUp, GripVertical, ExternalLink, Database, X, ArrowUp, ArrowDown, Check } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DraggableAttributes,
+  type DraggableSyntheticListeners,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { CadenceInput } from "@/components/ui/CadenceInput";
 import { FloatingSaveButton } from "@/components/ui/FloatingSaveButton";
@@ -284,20 +302,22 @@ function VariantSelector({ variants, selectedLabel, onSelect, onAddVariant }: Va
 
 // ─── Exercise Row ─────────────────────────────────────────────────────────────
 
+interface DragHandleProps {
+  setActivatorNodeRef: (el: HTMLElement | null) => void;
+  attributes: DraggableAttributes;
+  listeners: DraggableSyntheticListeners;
+}
+
 interface ExerciseRowProps {
   exercise: Exercise;
   onChange: (updated: Exercise) => void;
   onDelete: () => void;
   trackedFields: TrackedFields;
-  onDragStart: () => void;
-  onDragOver: () => void;
-  onDrop: () => void;
-  onDragEnd: () => void;
-  isDragOver: boolean;
   isDragging: boolean;
   exerciseVariantsForEx: ExerciseVariant[];
   onAddVariant: (label: string) => Promise<void>;
   hasError?: boolean;
+  handleProps: DragHandleProps;
 }
 
 function ExerciseRow({
@@ -305,43 +325,34 @@ function ExerciseRow({
   onChange,
   onDelete,
   trackedFields,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
-  isDragOver,
   isDragging,
   exerciseVariantsForEx,
   onAddVariant,
   hasError,
+  handleProps,
 }: ExerciseRowProps) {
   const isFromDB = !!exercise.exerciseDbId;
   const effectiveLaterality = exercise.laterality ?? "bilateral";
+  const { setActivatorNodeRef, attributes: handleAttributes, listeners: handleListeners } = handleProps;
 
   return (
     <div
       data-exercise-id={exercise.id}
-      onDragOver={(e) => { e.preventDefault(); onDragOver(); }}
-      onDrop={onDrop}
       className={cn(
         "flex items-start gap-2 py-2 rounded-lg transition-all",
         isDragging && "opacity-40",
-        isDragOver && "ring-1 ring-[#3b82f6]/50 bg-[#3b82f6]/5",
         hasError && "ring-1 ring-[#ef4444]/60 bg-[#ef4444]/5 rounded-lg"
       )}
     >
       {/* Drag handle */}
       <div
-        draggable={true}
-        onDragStart={(e) => {
-          e.dataTransfer.effectAllowed = "move";
-          onDragStart();
-        }}
-        onDragEnd={onDragEnd}
-        className="mt-1.5 shrink-0 cursor-grab active:cursor-grabbing"
+        ref={setActivatorNodeRef}
+        {...handleAttributes}
+        {...(handleListeners ?? {})}
+        className="shrink-0 cursor-grab active:cursor-grabbing touch-none select-none flex items-center justify-center -m-1 p-2 min-w-[36px] min-h-[36px] text-[#2a3d54] hover:text-[#5a7090] transition-colors"
         aria-label="Übung verschieben"
       >
-        <GripVertical size={14} className="text-[#2a3d54] hover:text-[#5a7090] transition-colors" />
+        <GripVertical size={14} />
       </div>
 
       <div className="flex-1 flex flex-col gap-1.5">
@@ -549,6 +560,39 @@ function ExerciseRow({
   );
 }
 
+// ─── Sortable wrapper ─────────────────────────────────────────────────────────
+
+type SortableExerciseRowProps = Omit<ExerciseRowProps, "handleProps" | "isDragging"> & { id: string };
+
+function SortableExerciseRow(props: SortableExerciseRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 20 : undefined,
+    position: "relative",
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <ExerciseRow
+        {...props}
+        isDragging={isDragging}
+        handleProps={{ setActivatorNodeRef, attributes, listeners }}
+      />
+    </div>
+  );
+}
+
 // ─── Training Editor ──────────────────────────────────────────────────────────
 
 export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: Props) {
@@ -590,9 +634,11 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
   const [pickerOpenDayId, setPickerOpenDayId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ dayId: string; exId: string } | null>(null);
 
-  // Drag & drop state (exercise reordering within a day)
-  const [dragSrc, setDragSrc] = useState<{ dayId: string; idx: number } | null>(null);
-  const [dragOverTarget, setDragOverTarget] = useState<{ dayId: string; idx: number } | null>(null);
+  // Drag & drop sensors (exercise reordering within a day)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 5 } }),
+  );
 
   const draftState = { title, coachNote, mode, schritteProTag, cardioMinuten, cardioFrequenz, cardioIntensity, trackedFields, days };
   const { hasDraft, draftMeta, restoreDraft, discardDraft, clearDraft } = useDraft(
@@ -704,38 +750,18 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
     setPickerOpenDayId(null);
   }
 
-  function reorderExercises(dayId: string, srcIdx: number, destIdx: number) {
+  function handleExerciseDragEnd(dayId: string, event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
     setDays((prev) =>
       prev.map((d) => {
         if (d.id !== dayId) return d;
-        const arr = [...d.exercises];
-        const [moved] = arr.splice(srcIdx, 1);
-        arr.splice(destIdx, 0, moved);
-        return { ...d, exercises: arr };
+        const oldIdx = d.exercises.findIndex((e) => e.id === active.id);
+        const newIdx = d.exercises.findIndex((e) => e.id === over.id);
+        if (oldIdx < 0 || newIdx < 0) return d;
+        return { ...d, exercises: arrayMove(d.exercises, oldIdx, newIdx) };
       })
     );
-  }
-
-  function handleExerciseDragStart(dayId: string, idx: number) {
-    setDragSrc({ dayId, idx });
-  }
-
-  function handleExerciseDragOver(dayId: string, idx: number) {
-    if (!dragSrc || dragSrc.dayId !== dayId) return;
-    setDragOverTarget({ dayId, idx });
-  }
-
-  function handleExerciseDrop(dayId: string, targetIdx: number) {
-    if (dragSrc && dragSrc.dayId === dayId && dragSrc.idx !== targetIdx) {
-      reorderExercises(dayId, dragSrc.idx, targetIdx);
-    }
-    setDragSrc(null);
-    setDragOverTarget(null);
-  }
-
-  function handleExerciseDragEnd() {
-    setDragSrc(null);
-    setDragOverTarget(null);
   }
 
   function updateExercise(dayId: string, exId: string, updated: Exercise) {
@@ -1065,28 +1091,34 @@ export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: P
               {expanded && (
                 <div className="p-4 flex flex-col gap-1">
                   {/* Exercises with insert buttons between them */}
-                  {(Array.isArray(day.exercises) ? day.exercises : []).map((ex, exIdx) => (
-                    <Fragment key={ex.id}>
-                      {exIdx > 0 && (
-                        <InsertButton onClick={() => addExerciseAt(day.id, exIdx)} />
-                      )}
-                      <ExerciseRow
-                        exercise={ex}
-                        onChange={(updated) => updateExercise(day.id, ex.id, updated)}
-                        onDelete={() => setDeleteConfirm({ dayId: day.id, exId: ex.id })}
-                        trackedFields={trackedFields}
-                        onDragStart={() => handleExerciseDragStart(day.id, exIdx)}
-                        onDragOver={() => handleExerciseDragOver(day.id, exIdx)}
-                        onDrop={() => handleExerciseDrop(day.id, exIdx)}
-                        onDragEnd={handleExerciseDragEnd}
-                        isDragOver={dragOverTarget?.dayId === day.id && dragOverTarget?.idx === exIdx}
-                        isDragging={dragSrc?.dayId === day.id && dragSrc?.idx === exIdx}
-                        exerciseVariantsForEx={(Array.isArray(exerciseVariants) ? exerciseVariants : []).filter((v) => v.exerciseDbId === ex.exerciseDbId)}
-                        onAddVariant={(label) => handleAddVariant(ex.exerciseDbId!, label)}
-                        hasError={errorExIds.has(ex.id)}
-                      />
-                    </Fragment>
-                  ))}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(event) => handleExerciseDragEnd(day.id, event)}
+                  >
+                    <SortableContext
+                      items={(Array.isArray(day.exercises) ? day.exercises : []).map((e) => e.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {(Array.isArray(day.exercises) ? day.exercises : []).map((ex, exIdx) => (
+                        <Fragment key={ex.id}>
+                          {exIdx > 0 && (
+                            <InsertButton onClick={() => addExerciseAt(day.id, exIdx)} />
+                          )}
+                          <SortableExerciseRow
+                            id={ex.id}
+                            exercise={ex}
+                            onChange={(updated) => updateExercise(day.id, ex.id, updated)}
+                            onDelete={() => setDeleteConfirm({ dayId: day.id, exId: ex.id })}
+                            trackedFields={trackedFields}
+                            exerciseVariantsForEx={(Array.isArray(exerciseVariants) ? exerciseVariants : []).filter((v) => v.exerciseDbId === ex.exerciseDbId)}
+                            onAddVariant={(label) => handleAddVariant(ex.exerciseDbId!, label)}
+                            hasError={errorExIds.has(ex.id)}
+                          />
+                        </Fragment>
+                      ))}
+                    </SortableContext>
+                  </DndContext>
 
                   {/* DB Picker */}
                   {pickerOpenDayId === day.id && (
