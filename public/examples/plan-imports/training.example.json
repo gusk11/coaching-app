@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "planType": "training",
+  "title": "Push Pull Legs x Torso/Limbs",
+  "mode": "flexible",
+  "coachNote": "5er-Split mit zusätzlichem Torso/Limbs-Block. Progressionsfokus: Klimmzüge und Preacher Curls.",
+  "schritteProTag": 10000,
+  "cardioMinuten": 90,
+  "cardioFrequenz": "woche",
+  "cardioIntensity": "Zone 2",
+  "trackedFields": {
+    "weight": true,
+    "reps": true,
+    "rir": true,
+    "cadence": false
+  },
+  "days": [
+    {
+      "dayName": "Training A",
+      "label": "Push",
+      "exercises": [
+        { "name": "Seitheben",          "sets": 3, "reps": "10-15", "equipmentType": "Kurzhantel" },
+        { "name": "Schräge Brustpresse","sets": 3, "reps": "8-12",  "equipmentType": "Maschine" },
+        { "name": "Butterfly",          "sets": 3, "reps": "10-15", "equipmentType": "Maschine" },
+        { "name": "Trizepsdrücken",     "sets": 3, "reps": "10-12", "equipmentType": "Kabelzug" },
+        { "name": "Flache Brustpresse", "sets": 3, "reps": "8-12",  "equipmentType": "Maschine" },
+        { "name": "Trizeps über Kopf",  "sets": 3, "reps": "10-12", "equipmentType": "Kabelzug" }
+      ]
+    },
+    {
+      "dayName": "Training B",
+      "label": "Pull",
+      "note": "Reverse Flies optional für hintere Schulter (geplante Ergänzung).",
+      "exercises": [
+        { "name": "Breite Klimmzüge",       "sets": 3, "reps": "6-10", "note": "Progressionsfokus – Steigerung in Wdh. priorisieren." },
+        { "name": "Brustgestütztes Rudern", "sets": 3, "reps": "8-12",  "equipmentType": "Maschine" },
+        { "name": "Enger Latzug",           "sets": 3, "reps": "10-12", "equipmentType": "Kabelzug" },
+        { "name": "Preacher Curls",         "sets": 3, "reps": "8-12",  "equipmentType": "Maschine", "note": "Progressionsfokus." },
+        { "name": "Rope Curls",             "sets": 3, "reps": "10-15", "equipmentType": "Kabelzug" }
+      ]
+    },
+    {
+      "dayName": "Training C",
+      "label": "Legs",
+      "cardioNote": "Abs an der Maschine zum Abschluss (3×15).",
+      "exercises": [
+        { "name": "Beinstrecker", "sets": 4, "reps": "10-15", "equipmentType": "Maschine" },
+        { "name": "Adduktoren",   "sets": 3, "reps": "12-15", "equipmentType": "Maschine" },
+        { "name": "Beinbeuger",   "sets": 4, "reps": "10-15", "equipmentType": "Maschine" }
+      ]
+    },
+    {
+      "dayName": "Training D",
+      "label": "Torso",
+      "exercises": [
+        { "name": "Seitheben",              "sets": 3, "reps": "10-15", "equipmentType": "Kurzhantel" },
+        { "name": "Schräge Brustpresse",    "sets": 3, "reps": "8-12",  "equipmentType": "Maschine" },
+        { "name": "Brustgestütztes Rudern", "sets": 3, "reps": "8-12",  "equipmentType": "Maschine" },
+        { "name": "Butterfly",              "sets": 3, "reps": "10-15", "equipmentType": "Maschine" },
+        { "name": "Enger Latzug",           "sets": 3, "reps": "10-12", "equipmentType": "Kabelzug" },
+        { "name": "Flache Brustpresse",     "sets": 3, "reps": "8-12",  "equipmentType": "Maschine" }
+      ]
+    },
+    {
+      "dayName": "Training E",
+      "label": "Limbs",
+      "exercises": [
+        { "name": "Trizepsdrücken",    "sets": 3, "reps": "10-12", "equipmentType": "Kabelzug" },
+        { "name": "Preacher Curls",    "sets": 3, "reps": "8-12",  "equipmentType": "Maschine" },
+        { "name": "Beinstrecker",      "sets": 3, "reps": "10-15", "equipmentType": "Maschine" },
+        { "name": "Trizeps über Kopf", "sets": 3, "reps": "10-12", "equipmentType": "Kabelzug" },
+        { "name": "Rope Curls",        "sets": 3, "reps": "10-15", "equipmentType": "Kabelzug" },
+        { "name": "Beinbeuger",        "sets": 3, "reps": "10-15", "equipmentType": "Maschine" },
+        { "name": "Adduktoren",        "sets": 3, "reps": "12-15", "equipmentType": "Maschine" }
+      ]
+    }
+  ]
+}

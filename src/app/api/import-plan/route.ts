@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { TrainingPlanSchema, MealPlanSchema, SupplementPlanSchema } from "@/lib/planSchemas";
+import {
+  normalizeTrainingPlan,
+  normalizeMealPlan,
+  normalizeSupplementPlan,
+} from "@/lib/planImport";
 import { createSupabaseAdmin } from "@/lib/supabase-server";
 
 export async function POST(request: NextRequest) {
@@ -24,7 +28,6 @@ export async function POST(request: NextRequest) {
   const supabase = createSupabaseAdmin();
 
   try {
-    // Fetch current athlete row directly from DB
     const { data: rows, error: fetchError } = await supabase
       .from("athletes")
       .select("training_plan, training_plans, meal_plans, supplement_plan, supplement_plans")
@@ -36,24 +39,28 @@ export async function POST(request: NextRequest) {
     const row = rows[0];
     const now = new Date().toISOString();
     let update: Record<string, unknown>;
+    let warnings: Array<{ path: string; message: string }> = [];
 
     if (planType === "training") {
-      const validated = TrainingPlanSchema.parse(plan);
+      const result = await normalizeTrainingPlan(plan, athleteId, supabase);
+      warnings = result.warnings;
       const existing: unknown[] = row.training_plans ?? (row.training_plan ? [row.training_plan] : []);
-      const merged = [...existing.filter((p: unknown) => (p as { id: string }).id !== validated.id), validated];
-      update = { training_plan: validated, training_plans: merged, updated_at: now };
+      const merged = [...existing.filter((p: unknown) => (p as { id: string }).id !== result.plan.id), result.plan];
+      update = { training_plan: result.plan, training_plans: merged, updated_at: now };
 
     } else if (planType === "meal") {
-      const validated = MealPlanSchema.parse(plan);
+      const result = await normalizeMealPlan(plan, athleteId, supabase);
+      warnings = result.warnings;
       const existing: unknown[] = row.meal_plans ?? [];
-      const merged = [...existing.filter((p: unknown) => (p as { id: string }).id !== validated.id), validated];
+      const merged = [...existing.filter((p: unknown) => (p as { id: string }).id !== result.plan.id), result.plan];
       update = { meal_plans: merged, updated_at: now };
 
     } else if (planType === "supplement") {
-      const validated = SupplementPlanSchema.parse(plan);
+      const result = await normalizeSupplementPlan(plan, athleteId, supabase);
+      warnings = result.warnings;
       const existing: unknown[] = row.supplement_plans ?? (row.supplement_plan ? [row.supplement_plan] : []);
-      const merged = [...existing.filter((p: unknown) => (p as { id: string }).id !== validated.id), validated];
-      update = { supplement_plan: validated, supplement_plans: merged, updated_at: now };
+      const merged = [...existing.filter((p: unknown) => (p as { id: string }).id !== result.plan.id), result.plan];
+      update = { supplement_plan: result.plan, supplement_plans: merged, updated_at: now };
 
     } else {
       return NextResponse.json({ error: `Unknown planType: ${planType}` }, { status: 400 });
@@ -62,7 +69,7 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase.from("athletes").update(update).eq("id", athleteId);
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
-    return NextResponse.json({ ok: true, planType, athleteId });
+    return NextResponse.json({ ok: true, planType, athleteId, warnings });
 
   } catch (err) {
     if (err instanceof ZodError) {

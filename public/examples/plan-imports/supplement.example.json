@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "planType": "supplement",
+  "title": "Basis-Supplementierung",
+  "coachNote": "Daily-Stack. Kreatin ganzjährig durchziehen, D3 nur in Monaten mit wenig Sonnenlicht höher dosieren.",
+  "supplements": [
+    {
+      "name": "Kreatin Monohydrat",
+      "dosage": "7 g täglich",
+      "timing": "Jederzeit täglich",
+      "instructions": "Mit ausreichend Wasser einnehmen. Bei Verdauungsbeschwerden Dosis auf morgens und abends aufteilen.",
+      "note": "Standarddosierung: 3–5 g täglich. Höhere Dosis hier aufgrund individueller Zielsetzung."
+    },
+    {
+      "name": "Vitamin D3 + K2",
+      "dosage": "1 Kapsel daily",
+      "timing": "Zu einer fetthaltigen Mahlzeit",
+      "instructions": "Mit einer fetthaltigen Mahlzeit einnehmen.",
+      "note": "Standarddosierung: 1000–4000 I.E. Vitamin D3 täglich."
+    },
+    {
+      "name": "Magnesiumbisglycinat",
+      "dosage": "300 mg daily",
+      "timing": "Über den Tag verteilt oder vor dem Schlafengehen",
+      "instructions": "Bei höherer Dosierung auf 2 Einnahmen verteilen.",
+      "note": "Standarddosierung: 200–400 mg elementares Magnesium täglich."
+    },
+    {
+      "name": "Omega-3",
+      "dosage": "4 Caps daily",
+      "timing": "Zu einer fetthaltigen Mahlzeit",
+      "instructions": "Mit einer Mahlzeit einnehmen, idealerweise mit Fettanteil.",
+      "note": "Standarddosierung: 1–3 g EPA/DHA täglich."
+    },
+    {
+      "name": "Multivitaminpräparat",
+      "dosage": "1 Cap daily",
+      "timing": "Zu einer fetthaltigen Mahlzeit",
+      "instructions": "Mit einer Mahlzeit einnehmen, idealerweise mit Fettanteil.",
+      "note": "Standarddosierung: 1 Portion täglich nach Herstellerangabe."
+    }
+  ]
+}

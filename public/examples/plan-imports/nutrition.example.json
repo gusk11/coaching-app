@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "planType": "meal",
+  "title": "Tag 1 – 2.300 kcal / 172 g Protein",
+  "mealPlanType": "fixed",
+  "coachNote": "Gesamt: 2.300 kcal · 172 g Protein · ~248 g Carbs · ~63 g Fett. Protein-Kaffee am Nachmittag ist Pflicht.",
+  "macroTargets": {
+    "kcal": 2300,
+    "protein": 172,
+    "carbs": 248,
+    "fat": 63
+  },
+  "meals": [
+    {
+      "name": "Frühstück: Skyr + Müsli",
+      "time": "08:00",
+      "entries": [
+        {
+          "name": "Skyr + Müsli",
+          "amountG": 400,
+          "kcal": 320,
+          "protein": 47,
+          "carbs": 28,
+          "fat": 3,
+          "fiber": 4,
+          "category": "Frühstück"
+        }
+      ]
+    },
+    {
+      "name": "Mittag: Skyr + Obst, Müsli, Kerne",
+      "time": "13:00",
+      "entries": [
+        {
+          "name": "Skyr + Obst + Müsli + Kerne",
+          "amountG": 500,
+          "kcal": 650,
+          "protein": 55,
+          "carbs": 70,
+          "fat": 18,
+          "fiber": 8,
+          "category": "Mittag"
+        }
+      ]
+    },
+    {
+      "name": "Nachmittag: Protein-Kaffee",
+      "time": "16:00",
+      "entries": [
+        {
+          "name": "Protein-Kaffee",
+          "amount": 1,
+          "unit": "stück",
+          "kcal": 150,
+          "protein": 25,
+          "carbs": 5,
+          "fat": 3,
+          "category": "Snack"
+        }
+      ]
+    },
+    {
+      "name": "Abend: Nudeln mit Bolognese",
+      "time": "19:30",
+      "entries": [
+        {
+          "name": "Nudeln mit Bolognese",
+          "amountG": 600,
+          "kcal": 1180,
+          "protein": 45,
+          "carbs": 145,
+          "fat": 39,
+          "fiber": 7,
+          "salt": 2.1,
+          "category": "Abend"
+        }
+      ]
+    }
+  ]
+}

@@ -10,7 +10,7 @@ import { SupplementList } from "@/components/athlete/SupplementList";
 import { showToast } from "@/components/ui/Toast";
 import { cn, resolveAthleteWeight } from "@/lib/utils";
 import { copyMealPlan, copyTrainingPlan, copySupplementPlan } from "@/lib/planClipboard";
-import { Upload, Loader2, Pencil, X, Check, Copy, ClipboardPaste, Trash2, Download } from "lucide-react";
+import { Upload, Loader2, Pencil, X, Check, Copy, ClipboardPaste, Trash2, Download, HelpCircle } from "lucide-react";
 
 type PlanSubTab = "Ernährung" | "Training" | "Supplements";
 
@@ -18,7 +18,7 @@ async function uploadPlan(
   athleteId: string,
   planType: "training" | "meal" | "supplement",
   file: File,
-): Promise<void> {
+): Promise<{ warnings: Array<{ path: string; message: string }> }> {
   const text = await file.text();
   let plan: unknown;
   try {
@@ -26,13 +26,10 @@ async function uploadPlan(
   } catch {
     throw new Error("Ungültiges JSON-Format");
   }
-  const planWithId = (plan as Record<string, unknown>).athleteId
-    ? plan
-    : { ...(plan as Record<string, unknown>), athleteId };
   const res = await fetch("/api/import-plan", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ planType, athleteId, plan: planWithId }),
+    body: JSON.stringify({ planType, athleteId, plan }),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -41,7 +38,15 @@ async function uploadPlan(
     }
     throw new Error(data.error ?? "Import fehlgeschlagen");
   }
+  const data = await res.json().catch(() => ({ warnings: [] }));
+  return { warnings: data.warnings ?? [] };
 }
+
+const EXAMPLE_PATHS: Record<"training" | "meal" | "supplement", string> = {
+  training: "/examples/plan-imports/training.example.json",
+  meal: "/examples/plan-imports/nutrition.example.json",
+  supplement: "/examples/plan-imports/supplement.example.json",
+};
 
 function PlanUploadButton({
   planType,
@@ -54,14 +59,22 @@ function PlanUploadButton({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setLoading(true);
     try {
-      await uploadPlan(athleteId, planType, file);
-      showToast("Plan erfolgreich hinzugefügt", "success");
+      const { warnings } = await uploadPlan(athleteId, planType, file);
+      if (warnings.length > 0) {
+        showToast(
+          `Importiert mit ${warnings.length} Hinweis${warnings.length === 1 ? "" : "en"}: ${warnings[0].message}`,
+          "success",
+        );
+      } else {
+        showToast("Plan erfolgreich hinzugefügt", "success");
+      }
       onSuccess?.();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Unbekannter Fehler", "error");
@@ -72,7 +85,7 @@ function PlanUploadButton({
   }
 
   return (
-    <>
+    <div className="relative flex items-center gap-1">
       <input ref={inputRef} type="file" accept=".json" className="hidden" onChange={handleFile} />
       <button
         type="button"
@@ -81,9 +94,50 @@ function PlanUploadButton({
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa] transition-colors disabled:opacity-50"
       >
         {loading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-        Hinzufügen
+        JSON hochladen
       </button>
-    </>
+      <button
+        type="button"
+        onClick={() => setHelpOpen((v) => !v)}
+        aria-label="Format-Hilfe"
+        className="p-1.5 rounded-lg border text-xs bg-[#141d2e] border-[#1e2d42] text-[#5a7090] hover:text-[#60a5fa] hover:border-[#3b82f6]/40 transition-colors"
+      >
+        <HelpCircle size={12} />
+      </button>
+      {helpOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Hilfe schließen"
+            onClick={() => setHelpOpen(false)}
+            className="fixed inset-0 z-40 cursor-default"
+          />
+          <div className="absolute right-0 top-full mt-1 z-50 w-72 rounded-xl bg-[#1a2436] border border-[#243650] shadow-xl p-3 text-xs text-[#8fa3c0] space-y-2">
+            <p className="font-medium text-[#f0f4ff]">JSON-Import-Format</p>
+            <p>
+              Lade eine JSON-Datei mit <code className="text-[#60a5fa]">planType: &quot;{planType}&quot;</code> hoch.
+              Namen von Übungen, Lebensmitteln und Supplements werden gegen die Datenbank gematcht
+              (unbekannte Einträge werden als Freitext übernommen und als Warnung angezeigt).
+            </p>
+            <a
+              href={EXAMPLE_PATHS[planType]}
+              download
+              className="flex items-center gap-1.5 text-[#60a5fa] hover:underline"
+            >
+              <Download size={11} /> Beispiel-Datei herunterladen
+            </a>
+            <a
+              href="/examples/plan-imports/README.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-[#60a5fa] hover:underline"
+            >
+              <HelpCircle size={11} /> Vollständige Format-Spezifikation
+            </a>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
