@@ -154,6 +154,10 @@ export interface TargetPoint {
   corridor?: number; // only when the current phase is maintenance/peak
 }
 
+/** Hard cap per phase (~15 years) to protect against runaway loops caused by
+ *  intermediate garbage dates (e.g. a 5-digit year typed into a date input). */
+const MAX_PHASE_DAYS = 365 * 15;
+
 /**
  * Daily target points across all phases of the plan. Linear per phase.
  * Phases are sorted by start date.
@@ -163,7 +167,9 @@ export function buildTargetCurve(plan: SeasonPlan): TargetPoint[] {
   if (phases.length === 0) return [];
   const out: TargetPoint[] = [];
   for (const p of phases) {
-    const totalDays = Math.max(1, daysBetween(p.startDate, p.endDate));
+    const raw = daysBetween(p.startDate, p.endDate);
+    if (!isFinite(raw)) continue;
+    const totalDays = Math.min(MAX_PHASE_DAYS, Math.max(1, raw));
     const steps = totalDays + 1;
     for (let i = 0; i < steps; i++) {
       const date = addDays(p.startDate, i);
@@ -209,19 +215,48 @@ export function activePhase(plan: SeasonPlan): SeasonPhase | undefined {
 
 /**
  * Computes rate from the 7-day trend at range start vs. range end.
- * Returns null when either anchor doesn't have enough data.
+ * If either anchor has no 7-day window, falls back to the nearest date
+ * within the range that does. Returns null only when the entire range
+ * has fewer than two usable trend anchors.
  */
 export function actualRate(
   entries: DailyCheckIn[],
   rangeStart: string,
   rangeEnd: string
 ): ActualRate {
-  const startAvg = weightTrend7(entries, rangeStart);
-  const endAvg = weightTrend7(entries, rangeEnd);
+  let effStart = rangeStart;
+  let effEnd = rangeEnd;
+  let startAvg = weightTrend7(entries, effStart);
+  let endAvg = weightTrend7(entries, effEnd);
+
   if (startAvg == null || endAvg == null) {
+    const dates = Array.from(
+      new Set(
+        entries
+          .filter((e) => typeof e.weight === "number" && !isNaN(e.weight) && e.weight > 0)
+          .map((e) => e.date)
+          .filter((d) => d >= rangeStart && d <= rangeEnd)
+      )
+    ).sort();
+    if (startAvg == null) {
+      for (const d of dates) {
+        const t = weightTrend7(entries, d);
+        if (t != null) { startAvg = t; effStart = d; break; }
+      }
+    }
+    if (endAvg == null) {
+      for (let i = dates.length - 1; i >= 0; i--) {
+        const d = dates[i];
+        const t = weightTrend7(entries, d);
+        if (t != null) { endAvg = t; effEnd = d; break; }
+      }
+    }
+  }
+
+  if (startAvg == null || endAvg == null || effEnd <= effStart) {
     return { kgPerWeek: null, percentPerWeek: null, startAvg, endAvg };
   }
-  const weeks = Math.max(1 / 7, weeksBetween(rangeStart, rangeEnd));
+  const weeks = Math.max(1 / 7, weeksBetween(effStart, effEnd));
   const kgPerWeek = (endAvg - startAvg) / weeks;
   const percentPerWeek = startAvg > 0 ? (kgPerWeek / startAvg) * 100 : 0;
   return {

@@ -141,7 +141,7 @@ const METRICS: MetricDef[] = [
   },
 ];
 
-type RangeMode = "7" | "30" | "months" | "all";
+type RangeMode = "7" | "30" | "months" | "phase" | "all";
 
 const CustomTooltip = ({
   active, payload, label, unit,
@@ -186,8 +186,18 @@ export function ProgressAnalytics({ checkIns, seasonPlan, showPlanStatus = true 
     [checkIns]
   );
 
+  const currentPhase = useMemo(
+    () => (seasonPlan ? (findPhaseAt(seasonPlan, todayISO()) ?? activePhase(seasonPlan)) : undefined),
+    [seasonPlan]
+  );
+
   const filtered = useMemo((): DailyCheckIn[] => {
     if (rangeMode === "all") return sorted;
+    if (rangeMode === "phase") {
+      const from = currentPhase?.startDate;
+      if (!from) return sorted;
+      return sorted.filter((ci) => ci.date >= from);
+    }
     if (rangeMode === "months") {
       const cutoff = new Date();
       cutoff.setMonth(cutoff.getMonth() - monthCount);
@@ -198,7 +208,7 @@ export function ProgressAnalytics({ checkIns, seasonPlan, showPlanStatus = true 
     cutoff.setDate(cutoff.getDate() - Number(rangeMode));
     const cutoffStr = cutoff.toISOString().split("T")[0];
     return sorted.filter((ci) => ci.date >= cutoffStr);
-  }, [sorted, rangeMode, monthCount]);
+  }, [sorted, rangeMode, monthCount, currentPhase]);
 
   const selectedMetric = useMemo(
     () => METRICS.find((m) => m.key === metricKey) ?? METRICS[0],
@@ -250,7 +260,7 @@ export function ProgressAnalytics({ checkIns, seasonPlan, showPlanStatus = true 
   const planStats = useMemo(() => {
     if (!planActive || !seasonPlan) return null;
     const today = todayISO();
-    const current = findPhaseAt(seasonPlan, today) ?? activePhase(seasonPlan);
+    const current = currentPhase;
     if (!current) return null;
     const st = phaseStatus(current, checkIns);
     // Range used for ist-rate matches the current chart filter
@@ -259,6 +269,7 @@ export function ProgressAnalytics({ checkIns, seasonPlan, showPlanStatus = true 
     if (rangeMode === "7") from = addDays(today, -7);
     else if (rangeMode === "30") from = addDays(today, -30);
     else if (rangeMode === "months") from = addDays(today, -monthCount * 30);
+    else if (rangeMode === "phase") from = current.startDate;
     const ist = actualRate(checkIns, from, to);
     return {
       current,
@@ -266,7 +277,7 @@ export function ProgressAnalytics({ checkIns, seasonPlan, showPlanStatus = true 
       ist,
       targetRate: current.targetRatePerWeek,
     };
-  }, [planActive, seasonPlan, checkIns, rangeMode, monthCount]);
+  }, [planActive, seasonPlan, checkIns, rangeMode, monthCount, currentPhase]);
 
   const bpData = useMemo(
     () => selectedMetric.type === "bloodPressure"
@@ -400,6 +411,12 @@ export function ProgressAnalytics({ checkIns, seasonPlan, showPlanStatus = true 
               +
             </button>
           </div>
+
+          {seasonPlan && currentPhase && selectedMetric.key === "weight" && (
+            <button onClick={() => setRangeMode("phase")} className={btnClass(rangeMode === "phase")}>
+              Seit Phasenbeginn
+            </button>
+          )}
 
           <button onClick={() => setRangeMode("all")} className={btnClass(rangeMode === "all")}>
             Gesamte Zeit

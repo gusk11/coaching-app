@@ -550,6 +550,17 @@ function IconBtn({ children, onClick, title, disabled }: { children: React.React
   );
 }
 
+/** Guards against intermediate garbage emitted by browser date inputs while
+ *  typing (e.g. "20270-10-21" when the year field accepts 5 digits), which
+ *  can otherwise explode the target-curve loop into a renderer crash. */
+function isSanePhaseDate(iso: string): boolean {
+  if (!iso) return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return false;
+  const y = Number(m[1]);
+  return y >= 2000 && y <= 2100;
+}
+
 function PhaseForm({ phase, onChange, onShiftLater }: {
   phase: SeasonPhase;
   onChange: (patch: Partial<SeasonPhase>) => void;
@@ -579,16 +590,20 @@ function PhaseForm({ phase, onChange, onShiftLater }: {
         <Field label="Startdatum">
           <input
             type="date"
+            min="2000-01-01"
+            max="2100-12-31"
             value={phase.startDate}
-            onChange={(e) => onChange({ startDate: e.target.value })}
+            onChange={(e) => { if (isSanePhaseDate(e.target.value)) onChange({ startDate: e.target.value }); }}
             className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-3 py-2 text-sm text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6]"
           />
         </Field>
         <Field label="Enddatum">
           <input
             type="date"
+            min="2000-01-01"
+            max="2100-12-31"
             value={phase.endDate}
-            onChange={(e) => onChange({ endDate: e.target.value, inputMode: "target_and_date" })}
+            onChange={(e) => { if (isSanePhaseDate(e.target.value)) onChange({ endDate: e.target.value, inputMode: "target_and_date" }); }}
             className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-3 py-2 text-sm text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6]"
           />
         </Field>
