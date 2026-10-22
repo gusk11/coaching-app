@@ -148,6 +148,7 @@ interface Props {
   onSaveTrainingPlan: (plan: TrainingPlan) => Promise<void>;
   onDeleteTrainingPlan: (planId: string) => Promise<void>;
   onSaveSupplementPlan: (plan: SupplementPlan) => Promise<void>;
+  onDeleteSupplementPlan: (planId: string) => Promise<void>;
   onToggleMealPlanActive: (planId: string) => Promise<void>;
   onToggleTrainingPlanActive: (planId: string) => Promise<void>;
   onToggleSupplementPlanActive: (planId: string) => Promise<void>;
@@ -238,6 +239,7 @@ export function GeneralPlansView({
   onSaveTrainingPlan,
   onDeleteTrainingPlan,
   onSaveSupplementPlan,
+  onDeleteSupplementPlan,
   onToggleMealPlanActive,
   onToggleTrainingPlanActive,
   onToggleSupplementPlanActive,
@@ -251,6 +253,8 @@ export function GeneralPlansView({
   const [clipboardTraining, setClipboardTraining] = useState<TrainingPlan | null>(null);
   const [clipboardSupplement, setClipboardSupplement] = useState<SupplementPlan | null>(null);
   const [deleteConfirmTrainingId, setDeleteConfirmTrainingId] = useState<string | null>(null);
+  const [deleteConfirmMealId, setDeleteConfirmMealId] = useState<string | null>(null);
+  const [deleteConfirmSupplementId, setDeleteConfirmSupplementId] = useState<string | null>(null);
 
   const mealPlans = athlete.mealPlans ?? [];
   const trainingPlans = athlete.trainingPlans?.length
@@ -301,19 +305,42 @@ export function GeneralPlansView({
     await onSaveSupplementPlan({ ...clipboardSupplement, id: crypto.randomUUID(), athleteId: athlete.id });
   }
 
-  function handleExportTrainingPlan(plan: TrainingPlan) {
+  function downloadPlanJson(plan: { title?: string }, prefix: string) {
     const blob = new Blob([JSON.stringify(plan, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `trainingsplan_${plan.title.replace(/\s+/g, "_")}.json`;
+    const safeTitle = (plan.title ?? prefix).replace(/\s+/g, "_");
+    a.download = `${prefix}_${safeTitle}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function handleExportTrainingPlan(plan: TrainingPlan) {
+    downloadPlanJson(plan, "trainingsplan");
+  }
+
+  function handleExportMealPlan(plan: MealPlan) {
+    downloadPlanJson(plan, "ernaehrungsplan");
+  }
+
+  function handleExportSupplementPlan(plan: SupplementPlan) {
+    downloadPlanJson(plan, "supplementplan");
   }
 
   async function handleDeleteTrainingPlan(planId: string) {
     await onDeleteTrainingPlan(planId);
     setDeleteConfirmTrainingId(null);
+  }
+
+  async function handleDeleteMealPlan(planId: string) {
+    await onDeleteMealPlan(planId);
+    setDeleteConfirmMealId(null);
+  }
+
+  async function handleDeleteSupplementPlan(planId: string) {
+    await onDeleteSupplementPlan(planId);
+    setDeleteConfirmSupplementId(null);
   }
 
   async function handleSaveTrainingPlan(plan: TrainingPlan) {
@@ -412,6 +439,8 @@ export function GeneralPlansView({
                     isActive={plan.isActive !== false}
                     onToggle={() => onToggleMealPlanActive(plan.id)}
                     onCopy={() => handleCopyMealPlan(plan)}
+                    onExport={() => handleExportMealPlan(plan)}
+                    onDelete={() => setDeleteConfirmMealId(plan.id)}
                   />
                 ))}
               </div>
@@ -529,6 +558,68 @@ export function GeneralPlansView({
         );
       })()}
 
+      {/* Delete meal plan confirmation */}
+      {deleteConfirmMealId && (() => {
+        const plan = mealPlans.find((p) => p.id === deleteConfirmMealId);
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[#141d2e] border border-[#1e2d42] rounded-2xl p-6 max-w-sm w-full shadow-xl">
+              <h3 className="text-sm font-semibold text-[#f0f4ff] mb-1.5">Ernährungsplan löschen</h3>
+              <p className="text-xs text-[#8fa3c0] mb-5">
+                „{plan?.title}" unwiderruflich löschen?
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmMealId(null)}
+                  className="px-4 py-2 text-xs rounded-lg border border-[#1e2d42] text-[#8fa3c0] hover:bg-[#1e2d42] transition-colors"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteMealPlan(deleteConfirmMealId)}
+                  className="px-4 py-2 text-xs rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] hover:bg-[#ef4444]/20 transition-colors font-medium"
+                >
+                  Löschen
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Delete supplement plan confirmation */}
+      {deleteConfirmSupplementId && (() => {
+        const plan = suppPlans.find((p) => p.id === deleteConfirmSupplementId);
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[#141d2e] border border-[#1e2d42] rounded-2xl p-6 max-w-sm w-full shadow-xl">
+              <h3 className="text-sm font-semibold text-[#f0f4ff] mb-1.5">Supplementplan löschen</h3>
+              <p className="text-xs text-[#8fa3c0] mb-5">
+                „{plan?.title ?? "Supplementplan"}" unwiderruflich löschen?
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmSupplementId(null)}
+                  className="px-4 py-2 text-xs rounded-lg border border-[#1e2d42] text-[#8fa3c0] hover:bg-[#1e2d42] transition-colors"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteSupplementPlan(deleteConfirmSupplementId)}
+                  className="px-4 py-2 text-xs rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] hover:bg-[#ef4444]/20 transition-colors font-medium"
+                >
+                  Löschen
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Supplements ── */}
       {subTab === "Supplements" && (
         <div className="flex flex-col gap-4">
@@ -567,6 +658,8 @@ export function GeneralPlansView({
                     isActive={plan.isActive !== false}
                     onToggle={() => onToggleSupplementPlanActive(plan.id)}
                     onCopy={() => handleCopySupplementPlan(plan)}
+                    onExport={() => handleExportSupplementPlan(plan)}
+                    onDelete={() => setDeleteConfirmSupplementId(plan.id)}
                   />
                 ))}
               </div>
