@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { loadAuth, loadAthletes, loadCheckInDone, setCheckInDone, loadLoginHelpRequests, resolveLoginHelpRequest, deleteLoginHelpRequest, approvePlanChangeRequest, rejectPlanChangeRequest, markAthleteSignupSeen } from "@/lib/store";
+import { loadAuth, loadAthletes, loadCheckInDone, setCheckInDone, withCheckInDone, loadLoginHelpRequests, resolveLoginHelpRequest, deleteLoginHelpRequest, approvePlanChangeRequest, rejectPlanChangeRequest, markAthleteSignupSeen } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
 import { Athlete, LoginHelpRequest, PlanChangeRequest } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
@@ -9,7 +9,7 @@ import { AthleteCard } from "@/components/coach/AthleteCard";
 import { PlanChangeReviewModal } from "@/components/coach/PlanChangeReviewModal";
 import { analyzeWeek, getCheckInWeekStart, cn } from "@/lib/utils";
 import { StatCard } from "@/components/ui/StatCard";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { X, Check, Trash2, ChevronDown, Plus, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { listContainer, listItem, modalOverlay, modalContent } from "@/lib/motion";
@@ -60,7 +60,7 @@ export default function CoachDashboard() {
   const router = useRouter();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [checkInDone, setCheckInDoneState] = useState<Record<string, string>>({});
+  const [legacyCheckInDone, setLegacyCheckInDone] = useState<Record<string, string>>({});
   const [loginHelpRequests, setLoginHelpRequests] = useState<LoginHelpRequest[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [quickSelectId, setQuickSelectId] = useState("");
@@ -92,7 +92,7 @@ export default function CoachDashboard() {
   useEffect(() => {
     const auth = loadAuth();
     if (auth.role !== "coach") { router.replace("/login"); return; }
-    setCheckInDoneState(loadCheckInDone());
+    setLegacyCheckInDone(loadCheckInDone());
     Promise.all([loadAthletes(), loadLoginHelpRequests()]).then(([athletes, helpRequests]) => {
       setAthletes(athletes);
       setLoginHelpRequests(helpRequests);
@@ -105,6 +105,12 @@ export default function CoachDashboard() {
 
   const visibleAthletes = useMemo(() => athletes.filter((a) => !a.isHidden), [athletes]);
   const hiddenAthletes = useMemo(() => athletes.filter((a) => a.isHidden), [athletes]);
+
+  const checkInDone = useMemo(() => {
+    const m: Record<string, string> = { ...legacyCheckInDone };
+    for (const a of athletes) for (const [date, at] of Object.entries(a.checkInDone ?? {})) m[`${a.id}_${date}`] = at;
+    return m;
+  }, [athletes, legacyCheckInDone]);
 
   const athletesWithStatus = useMemo(() => visibleAthletes.map((a) => {
     const mostRecentCheckInDate = getMostRecentCheckInDate(a.checkInDay, todayDayOfWeek, todayStr);
@@ -146,25 +152,21 @@ export default function CoachDashboard() {
     return [...newSignups, ...pending, ...todayDone, ...others];
   }, [athletesWithStatus]);
 
-  const handleToggleDone = useCallback((athleteId: string, date: string) => {
+  const handleToggleDone = useCallback(async (athleteId: string, date: string) => {
+    const athlete = athletes.find((a) => a.id === athleteId);
+    if (!athlete) return;
     const key = `${athleteId}_${date}`;
     const isDoneNow = !!checkInDone[key];
-    const today = new Date().toISOString().slice(0, 10);
-    const optimistic = { ...checkInDone };
-    if (isDoneNow) {
-      delete optimistic[key];
-    } else {
-      optimistic[key] = today;
-    }
-    setCheckInDoneState(optimistic);
+    const previous = athletes;
+    setAthletes((prev) => prev.map((a) => a.id === athleteId ? { ...a, checkInDone: withCheckInDone(a, date, !isDoneNow) } : a));
+    if (isDoneNow) setLegacyCheckInDone((prev) => { const n = { ...prev }; delete n[key]; return n; });
     try {
-      const persisted = setCheckInDone(athleteId, date, !isDoneNow);
-      setCheckInDoneState(persisted);
+      setAthletes(await setCheckInDone(athlete, date, !isDoneNow));
     } catch {
-      setCheckInDoneState(checkInDone);
+      setAthletes(previous);
       showToast("Check-in konnte nicht aktualisiert werden.", "error");
     }
-  }, [checkInDone]);
+  }, [athletes, checkInDone]);
 
   const handleSignupSeen = useCallback(async (athleteId: string) => {
     setAthletes((prev) => prev.map((a) => a.id === athleteId ? { ...a, isNewSignup: undefined } : a));
@@ -331,9 +333,7 @@ export default function CoachDashboard() {
 
         {/* Athlete cards */}
         {!isLoaded ? (
-          <div className="flex flex-col gap-3">
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
-          </div>
+          <LoadingScreen className="min-h-[40vh]" />
         ) : (
         <motion.div
           className="flex flex-col gap-3"

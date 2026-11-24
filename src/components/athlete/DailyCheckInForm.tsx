@@ -269,7 +269,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
         {cfg.sleepDuration && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-[#8fa3c0]">Schlafdauer (h)</label>
-            <input type="number" step="any" value={sleepHours} onChange={(e) => setSleepHours(Number(e.target.value))} className={inputCls} />
+            <input type="number" step="any" value={sleepHours || ""} onChange={(e) => setSleepHours(Number(e.target.value))} className={inputCls} />
           </div>
         )}
         {cfg.sleepQuality && (
@@ -280,7 +280,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
         {cfg.sleepScore && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-[#8fa3c0]">Schlafscore (0–100)</label>
-            <input type="number" value={sleepScore} onChange={(e) => setSleepScore(Number(e.target.value))} className={inputCls} />
+            <input type="number" value={sleepScore || ""} onChange={(e) => setSleepScore(Number(e.target.value))} className={inputCls} />
           </div>
         )}
       </div>
@@ -302,7 +302,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
             label="Koffein"
             value={caffeine}
             min={0}
-            max={600}
+            max={1000}
             sliderStep={10}
             unit="mg"
             onChange={setCaffeine}
@@ -316,28 +316,28 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
           {cfg.restingHeartRate && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-[#8fa3c0]">Ruheherzfrequenz (bpm)</label>
-              <input type="number" value={restingHeartRate} onChange={(e) => setRestingHeartRate(Number(e.target.value))} className={inputCls} />
+              <input type="number" value={restingHeartRate || ""} onChange={(e) => setRestingHeartRate(Number(e.target.value))} className={inputCls} />
             </div>
           )}
           {cfg.hrv && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-[#8fa3c0]">HRV (ms)</label>
-              <input type="number" value={hrv} onChange={(e) => setHrv(Number(e.target.value))} className={inputCls} />
+              <input type="number" value={hrv || ""} onChange={(e) => setHrv(Number(e.target.value))} className={inputCls} />
             </div>
           )}
           {cfg.spO2 && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-[#8fa3c0]">Sauerstoffsättigung SpO₂ (%)</label>
-              <input type="number" step={0.1} value={spO2} onChange={(e) => setSpO2(Number(e.target.value))} className={inputCls} />
+              <input type="number" step={0.1} value={spO2 || ""} onChange={(e) => setSpO2(Number(e.target.value))} className={inputCls} />
             </div>
           )}
           {cfg.bloodPressure && (
             <div className="flex flex-col gap-1.5 col-span-2">
               <label className="text-sm font-medium text-[#8fa3c0]">Blutdruck (mmHg)</label>
               <div className="flex gap-2 items-center">
-                <input type="number" value={bpSystolic} onChange={(e) => setBpSystolic(Number(e.target.value))} placeholder="Syst." className={`${inputCls} flex-1`} />
+                <input type="number" value={bpSystolic || ""} onChange={(e) => setBpSystolic(Number(e.target.value))} placeholder="Syst." className={`${inputCls} flex-1`} />
                 <span className="text-[#5a7090] font-bold">/</span>
-                <input type="number" value={bpDiastolic} onChange={(e) => setBpDiastolic(Number(e.target.value))} placeholder="Diast." className={`${inputCls} flex-1`} />
+                <input type="number" value={bpDiastolic || ""} onChange={(e) => setBpDiastolic(Number(e.target.value))} placeholder="Diast." className={`${inputCls} flex-1`} />
               </div>
             </div>
           )}
@@ -359,7 +359,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
               {cardio && (
                 <div className="flex flex-col gap-1.5 pl-1">
                   <label className="text-sm font-medium text-[#8fa3c0]">Dauer Cardio (min)</label>
-                  <input type="number" value={cardioDuration} onChange={(e) => setCardioDuration(Number(e.target.value))}
+                  <input type="number" value={cardioDuration || ""} onChange={(e) => setCardioDuration(Number(e.target.value))}
                     className={`${inputCls} w-40`} />
                 </div>
               )}
@@ -470,7 +470,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
                       <input
                         type="number"
                         min={0}
-                        value={value}
+                        value={value || ""}
                         onChange={(e) => set(Number(e.target.value))}
                         className={inputCls}
                       />
@@ -504,27 +504,27 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-[#8fa3c0]">Kilokalorien (kcal)</label>
-                  <input type="number" min={0} value={macroKcal} onChange={(e) => setMacroKcal(Number(e.target.value))} className={inputCls} />
+                  <input type="number" min={0} value={macroKcal || ""} onChange={(e) => setMacroKcal(Number(e.target.value))} className={inputCls} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-[#8fa3c0]">Protein (g)</label>
-                  <input type="number" min={0} value={macroProtein} onChange={(e) => setMacroProtein(Number(e.target.value))} className={inputCls} />
+                  <input type="number" min={0} value={macroProtein || ""} onChange={(e) => setMacroProtein(Number(e.target.value))} className={inputCls} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-[#8fa3c0]">Fett (g)</label>
-                  <input type="number" min={0} value={macroFat} onChange={(e) => setMacroFat(Number(e.target.value))} className={inputCls} />
+                  <input type="number" min={0} value={macroFat || ""} onChange={(e) => setMacroFat(Number(e.target.value))} className={inputCls} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-[#8fa3c0]">Kohlenhydrate (g)</label>
-                  <input type="number" min={0} value={macroCarbs} onChange={(e) => setMacroCarbs(Number(e.target.value))} className={inputCls} />
+                  <input type="number" min={0} value={macroCarbs || ""} onChange={(e) => setMacroCarbs(Number(e.target.value))} className={inputCls} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-[#8fa3c0]">Ballaststoffe (g)</label>
-                  <input type="number" min={0} step={0.1} value={macroFiber} onChange={(e) => setMacroFiber(Number(e.target.value))} className={inputCls} />
+                  <input type="number" min={0} step={0.1} value={macroFiber || ""} onChange={(e) => setMacroFiber(Number(e.target.value))} className={inputCls} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-[#8fa3c0]">Salz (g)</label>
-                  <input type="number" min={0} step={0.1} value={macroSalt} onChange={(e) => setMacroSalt(Number(e.target.value))} className={inputCls} />
+                  <input type="number" min={0} step={0.1} value={macroSalt || ""} onChange={(e) => setMacroSalt(Number(e.target.value))} className={inputCls} />
                 </div>
               </div>
               <SliderInput
@@ -592,7 +592,7 @@ export function DailyCheckInForm({ athleteId, existingToday, checkConfig, date, 
                   </label>
                   <input
                     type="number"
-                    value={typeof val === "number" ? val : ""}
+                    value={typeof val === "number" && val !== 0 ? val : ""}
                     onChange={(e) => setCustomValue(field.id, parseFloat(e.target.value) || 0)}
                     placeholder="0"
                     className="bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2.5 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"

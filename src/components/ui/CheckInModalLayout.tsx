@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const _positiveColors = [
@@ -59,14 +60,37 @@ export function ReadOnlySlider({
   );
 }
 
-export function CheckInSection({ title, children }: { title: string; children: React.ReactNode }) {
+/** When true, sections render as closed, clickable accordions (check-in workspace). */
+export const CollapsibleSections = React.createContext(false);
+
+/** A titled check-in section; collapsible inside <CollapsibleSections.Provider value>. */
+export function SectionFrame({ title, children }: { title: string; children: React.ReactNode }) {
+  if (React.useContext(CollapsibleSections)) {
+    return (
+      <details className="group rounded-xl border border-[#1e2d42] bg-[#0f1624]">
+        <summary className="cursor-pointer list-none flex items-center justify-between px-3 py-2.5 text-xs text-[#8fa3c0] uppercase tracking-widest hover:text-[#f0f4ff]">
+          {title}
+          <ChevronDown size={14} className="transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="px-3 pb-3">{children}</div>
+      </details>
+    );
+  }
   return (
     <section>
       <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">{title}</p>
+      {children}
+    </section>
+  );
+}
+
+export function CheckInSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <SectionFrame title={title}>
       <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] px-4 py-1">
         {children}
       </div>
-    </section>
+    </SectionFrame>
   );
 }
 

@@ -5,7 +5,7 @@ import { Athlete } from "@/types";
 import { loadAuth, loadAthletes } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { SupplementList } from "@/components/athlete/SupplementList";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
 export default function AthleteSupplements() {
   const router = useRouter();
@@ -24,9 +24,7 @@ export default function AthleteSupplements() {
   if (!athlete) {
     return (
       <AppShell role="athlete" title="Supplementplan">
-        <div className="max-w-lg mx-auto flex flex-col gap-3">
-          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}
-        </div>
+        <LoadingScreen />
       </AppShell>
     );
   }

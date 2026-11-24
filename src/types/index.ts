@@ -602,6 +602,8 @@ export interface Athlete {
   weeklyCheckConfig?: WeeklyCheckConfig;
 
   isHidden?: boolean;
+  /** Coach marked the check-in of this check-in date as done: { [checkInDate]: completedAt ISO date }. */
+  checkInDone?: Record<string, string>;
 
   /** Athlete-specific exercise variants, created by the coach. */
   exerciseVariants?: ExerciseVariant[];

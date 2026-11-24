@@ -9,7 +9,7 @@ import {
   activePhase, actualRate, ampelColor, createTemplate, daysBetween,
   defaultStartWeight, forecastEndDate, formatDeviationPct, formatPct, formatRate, formatSignedKg,
   phaseStatus, phaseTypeColor, phaseTypeLabel, planWarnings, progress, ratePct,
-  recomputePhase, shiftPhasesAfter, todayISO, TemplateName, addDays,
+  recomputePhase, shiftPhasesAfter, todayISO, TemplateName, addDays, chainPhaseUpdate,
 } from "@/lib/seasonUtils";
 import { Plus, Trash2, Copy, ArrowUp, ArrowDown, AlertTriangle, Sparkles, X } from "lucide-react";
 
@@ -163,12 +163,7 @@ export function SeasonPlanEditor({ athlete, onSaved }: Props) {
 
   function updatePhase(id: string, patch: Partial<SeasonPhase>) {
     if (!plan) return;
-    const next = plan.phases.map((p) => {
-      if (p.id !== id) return p;
-      const merged = { ...p, ...patch };
-      return recomputePhase(merged);
-    });
-    update({ ...plan, phases: next, updatedAt: new Date().toISOString() });
+    update({ ...plan, phases: chainPhaseUpdate(plan.phases, id, patch), updatedAt: new Date().toISOString() });
   }
 
   function removePhase(id: string) {
@@ -318,8 +313,6 @@ export function SeasonPlanEditor({ athlete, onSaved }: Props) {
         <SeasonChart
           plan={plan}
           entries={entries}
-          editable
-          onChange={update}
           range={range}
           onRangeChange={setRange}
         />
@@ -610,8 +603,8 @@ function PhaseForm({ phase, onChange, onShiftLater }: {
 
         <Field label="Eingabemodus">
           <div className="flex gap-1">
-            <ModeBtn active={phase.inputMode === "target_and_date"} onClick={() => onChange({ inputMode: "target_and_date" })}>Ziel &amp; Datum</ModeBtn>
-            <ModeBtn active={phase.inputMode === "target_and_rate"} onClick={() => onChange({ inputMode: "target_and_rate" })}>Ziel &amp; Rate</ModeBtn>
+            <ModeBtn active={phase.inputMode === "target_and_date"} onClick={() => onChange({ inputMode: "target_and_date" })}>Enddatum → Rate</ModeBtn>
+            <ModeBtn active={phase.inputMode === "target_and_rate"} onClick={() => onChange({ inputMode: "target_and_rate" })}>Rate → Enddatum</ModeBtn>
           </div>
         </Field>
         <Field label="Startgewicht (kg)">
@@ -630,7 +623,7 @@ function PhaseForm({ phase, onChange, onShiftLater }: {
             className="bg-[#0f1624] border border-[#1e2d42] rounded-lg px-3 py-2 text-sm text-[#f0f4ff] focus:outline-none focus:border-[#3b82f6]"
           />
         </Field>
-        <Field label="Rate (kg/Woche)">
+        <Field label={`Rate (kg/Woche)${phase.startWeight > 0 ? ` · ${formatPct(ratePct(phase.targetRatePerWeek, phase.startWeight))}` : ""}`}>
           <input
             type="number" step="0.01"
             value={phase.targetRatePerWeek}

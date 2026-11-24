@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface NumberSliderInputProps {
@@ -22,7 +23,16 @@ export function NumberSliderInput({
   onChange,
   className,
 }: NumberSliderInputProps) {
-  const clampedSliderValue = Math.min(Math.max(value, min), max);
+  // The slider grows with typed values, so the text field has no upper limit.
+  const sliderMax = Math.max(max, value);
+  const clampedSliderValue = Math.max(value, min);
+  // Local text so the field can be emptied (no stuck digit / forced 0 while typing).
+  const [text, setText] = useState(String(value));
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    if (Number(text || 0) !== value) setText(String(value));
+  }
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
@@ -32,9 +42,10 @@ export function NumberSliderInput({
           <input
             type="number"
             step="any"
-            value={value}
+            value={text}
             onChange={(e) => {
-              const v = e.target.valueAsNumber;
+              setText(e.target.value);
+              const v = e.target.value === "" ? 0 : e.target.valueAsNumber;
               if (!isNaN(v)) onChange(v);
             }}
             className="w-20 text-right bg-[#0f1624] border border-[#1e2d42] rounded-lg px-2 py-1 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors"
@@ -45,7 +56,7 @@ export function NumberSliderInput({
       <input
         type="range"
         min={min}
-        max={max}
+        max={sliderMax}
         step={sliderStep}
         value={clampedSliderValue}
         onChange={(e) => onChange(Number(e.target.value))}

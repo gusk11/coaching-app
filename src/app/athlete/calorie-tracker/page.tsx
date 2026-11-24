@@ -7,7 +7,7 @@ import { showToast } from "@/components/ui/Toast";
 import { AppShell } from "@/components/layout/AppShell";
 import { CalorieTracker } from "@/components/athlete/CalorieTracker";
 import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { todayISO } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -29,14 +29,7 @@ export default function CalorieTrackerPage() {
   if (!athlete) {
     return (
       <AppShell role="athlete" title="Kalorientracker">
-        <div className="max-w-lg mx-auto flex flex-col gap-4">
-          <Skeleton className="h-14 rounded-2xl" />
-          <Skeleton className="h-10 rounded-xl" />
-          <Skeleton className="h-36 rounded-2xl" />
-          <div className="flex flex-col gap-3">
-            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
-          </div>
-        </div>
+        <LoadingScreen />
       </AppShell>
     );
   }

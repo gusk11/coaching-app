@@ -782,7 +782,8 @@ export function MealPlanEditor({ plans, athleteId, onSavePlan, onDeletePlan, ath
 
   function handleSave(plan: MealPlan) {
     onSavePlan(plan);
-    setEditingId(null);
+    // Stay in the editor; a new plan switches to editing its saved id.
+    if (isCreatingNew) setEditingId(plan.id);
     setNewPlanDraft(null);
   }
 

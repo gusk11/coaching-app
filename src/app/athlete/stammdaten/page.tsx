@@ -7,7 +7,7 @@ import { showToast } from "@/components/ui/Toast";
 import { AppShell } from "@/components/layout/AppShell";
 import { AthleteStammdatenForm } from "@/components/athlete/AthleteStammdatenForm";
 import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
 export default function AthleteStammdatenPage() {
   const router = useRouter();
@@ -26,18 +26,7 @@ export default function AthleteStammdatenPage() {
   if (!athlete) {
     return (
       <AppShell role="athlete" title="Stammdaten">
-        <div className="max-w-lg mx-auto flex flex-col gap-4">
-          <Skeleton className="h-6 w-40" />
-          <div className="flex flex-col gap-3">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="flex flex-col gap-1.5">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-11 rounded-xl" />
-              </div>
-            ))}
-          </div>
-          <Skeleton className="h-12 rounded-xl" />
-        </div>
+        <LoadingScreen />
       </AppShell>
     );
   }

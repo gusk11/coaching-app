@@ -425,6 +425,31 @@ export function progress(phase: SeasonPhase, plan: SeasonPlan): Progress {
 
 // ─── Shift subsequent phases ──────────────────────────────────────────────────
 
+/**
+ * Applies a patch to one phase and keeps the plan contiguous:
+ * - a new start date moves the previous phase's end date to it (its rate is recomputed),
+ * - a changed end date (typed or derived from the rate) shifts all later phases by the same days.
+ */
+export function chainPhaseUpdate(phases: SeasonPhase[], id: string, patch: Partial<SeasonPhase>): SeasonPhase[] {
+  const sorted = [...phases].sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const idx = sorted.findIndex((p) => p.id === id);
+  if (idx === -1) return phases;
+  const old = sorted[idx];
+  const updated = recomputePhase({ ...old, ...patch });
+  sorted[idx] = updated;
+  const prev = sorted[idx - 1];
+  if (prev && updated.startDate !== old.startDate && updated.startDate > prev.startDate) {
+    sorted[idx - 1] = recomputePhase({ ...prev, endDate: updated.startDate, inputMode: "target_and_date" });
+  }
+  const shift = daysBetween(old.endDate, updated.endDate);
+  if (shift !== 0) {
+    for (let i = idx + 1; i < sorted.length; i++) {
+      sorted[i] = { ...sorted[i], startDate: addDays(sorted[i].startDate, shift), endDate: addDays(sorted[i].endDate, shift) };
+    }
+  }
+  return sorted;
+}
+
 export function shiftPhasesAfter(plan: SeasonPlan, phaseId: string, days: number): SeasonPlan {
   const sorted = [...plan.phases].sort((a, b) => a.startDate.localeCompare(b.startDate));
   const idx = sorted.findIndex((p) => p.id === phaseId);

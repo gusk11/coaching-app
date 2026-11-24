@@ -54,10 +54,8 @@ export function SeasonPlanView({ athlete }: Props) {
         <SeasonChart
           plan={plan}
           entries={entries}
-          editable={false}
           range={range}
           onRangeChange={setRange}
-          showStatus={showStatus}
         />
       </div>
 

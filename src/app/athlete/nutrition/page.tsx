@@ -6,7 +6,7 @@ import { loadAuth, loadAthletes } from "@/lib/store";
 import { resolveAthleteWeight } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { MealPlanView } from "@/components/athlete/MealPlanView";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
 export default function AthleteNutrition() {
   const router = useRouter();
@@ -25,11 +25,7 @@ export default function AthleteNutrition() {
   if (!athlete) {
     return (
       <AppShell role="athlete" title="Ernährungsplan">
-        <div className="max-w-lg mx-auto flex flex-col gap-3">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-3 w-32" />
-          {[0, 1, 2].map((i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
-        </div>
+        <LoadingScreen />
       </AppShell>
     );
   }

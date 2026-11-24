@@ -8,11 +8,12 @@ import {
   LayoutDashboard, Dumbbell,
   ClipboardCheck, Users, Database, LogOut, ChevronRight, ChevronLeft,
   Salad, User, Video, Wrench, KeyRound, Settings, CalendarRange,
+  PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { pageTransition } from "@/lib/motion";
 import { isCheckInDay, getCheckInWeekStart, todayISO } from "@/lib/utils";
-import { isToolIntroSeen } from "@/lib/toolIntros";
+import { isToolIntroSeen, markToolIntroSeen } from "@/lib/toolIntros";
 import { MaintenanceEditor } from "@/components/coach/MaintenanceEditor";
 import { OnboardingCodeManager } from "@/components/coach/OnboardingCodeManager";
 
@@ -216,6 +217,20 @@ export function AppShell({ children, role, title }: AppShellProps) {
   const [openLoginHelpCount, setOpenLoginHelpCount] = useState(0);
   const [unseenToolIntros, setUnseenToolIntros] = useState<Set<string>>(new Set());
   const [systemView, setSystemView] = useState<SystemView | null>(null);
+  const [sidebarHidden, setSidebarHidden] = useState(false);
+
+  useEffect(() => {
+    // localStorage is unavailable during SSR, so read it after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    try { setSidebarHidden(localStorage.getItem("sidebarHidden") === "1"); } catch {}
+  }, []);
+
+  function toggleSidebar() {
+    setSidebarHidden((v) => {
+      try { localStorage.setItem("sidebarHidden", v ? "0" : "1"); } catch {}
+      return !v;
+    });
+  }
 
   useEffect(() => { setSystemView(null); }, [pathname]);
 
@@ -247,6 +262,11 @@ export function AppShell({ children, role, title }: AppShellProps) {
 
       // Refine nav indicators using Supabase seenToolIntros
       const seenInSupabase = new Set(athlete.seenToolIntros ?? []);
+      // Mirror into localStorage so the instant check on the next page has no orange flash.
+      for (const key of seenInSupabase) {
+        if (!isToolIntroSeen(auth.athleteId!, key)) markToolIntroSeen(auth.athleteId!, key);
+      }
+      if (athlete.introVideoSeen) localStorage.setItem(`processLab_introVideoSeen_${auth.athleteId}`, "1");
       setUnseenToolIntros((prev) => {
         const next = new Set(prev);
         for (const key of seenInSupabase) next.delete(key);
@@ -295,8 +315,30 @@ export function AppShell({ children, role, title }: AppShellProps) {
     <MotionConfig reducedMotion="user">
       <div className="flex h-screen bg-[#0a0f1a] overflow-hidden">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:flex flex-col w-60 bg-[#0f1624] border-r border-[#1e2d42] shrink-0">
-          <div className="p-6 pb-4 border-b border-[#1e2d42]">
+        {sidebarHidden && (
+          <div className="hidden md:flex flex-col items-center w-10 py-3 bg-[#0f1624] border-r border-[#1e2d42] shrink-0">
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label="Seitenleiste einblenden"
+              title="Seitenleiste einblenden"
+              className="p-1.5 rounded-lg text-[#5a7090] hover:text-[#f0f4ff] hover:bg-[#141d2e] transition-colors"
+            >
+              <PanelLeftOpen size={18} />
+            </button>
+          </div>
+        )}
+        <aside className={cn("hidden flex-col w-60 bg-[#0f1624] border-r border-[#1e2d42] shrink-0", !sidebarHidden && "md:flex")}>
+          <div className="p-6 pb-4 border-b border-[#1e2d42] relative">
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label="Seitenleiste ausblenden"
+              title="Vollbild: Seitenleiste ausblenden"
+              className="absolute top-3 right-3 p-1.5 rounded-lg text-[#5a7090] hover:text-[#f0f4ff] hover:bg-[#141d2e] transition-colors"
+            >
+              <PanelLeftClose size={18} />
+            </button>
             <img src="/logo.png" alt="Logo" className="h-12 w-auto" />
             <p className="text-xs text-[#5a7090] mt-1 capitalize">{role === "coach" ? "Coach-Bereich" : "Athleten-Bereich"}</p>
           </div>

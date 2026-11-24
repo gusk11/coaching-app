@@ -13,7 +13,7 @@ import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
 import { isCheckInDay, getCheckInWeekStart, todayISO } from "@/lib/utils";
 import { ChevronRight, Pencil, Trash2, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { VideoFeedbackCategoryBadge } from "@/components/ui/VideoFeedbackCategoryBadge";
 
 function fmtWeekLabel(weekStart: string): string {
@@ -113,13 +113,7 @@ export default function CheckInsPage() {
   if (!athlete) {
     return (
       <AppShell role="athlete" title="Check-ins">
-        <div className="max-w-lg mx-auto flex flex-col gap-5">
-          <Skeleton className="h-10 rounded-xl" />
-          <Skeleton className="h-[56px] rounded-2xl" />
-          <div className="flex flex-col gap-3">
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
-          </div>
-        </div>
+        <LoadingScreen />
       </AppShell>
     );
   }

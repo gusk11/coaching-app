@@ -1,7 +1,7 @@
 "use client";
 import { Athlete, DailyCheckIn, MealPlan } from "@/types";
 import { calculateCalorieTrackerDayMacros, calculateDayMacros, calculateMealMacros, normalizeNutritionStatus, roundMacro, roundSalt } from "@/lib/utils";
-import { CheckInSection, CheckInRow, MacroChip, ReadOnlySlider } from "@/components/ui/CheckInModalLayout";
+import { CheckInSection, CheckInRow, CollapsibleSections, MacroChip, ReadOnlySlider, SectionFrame } from "@/components/ui/CheckInModalLayout";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
 import { modalOverlay, modalContent } from "@/lib/motion";
@@ -142,8 +142,7 @@ function MealDetails({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
     const ctDay = (athlete.calorieTrackerDays ?? []).find(d => d.date === ci.date);
     if (!ctDay || ctDay.meals.length === 0) return null;
     return (
-      <section>
-        <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Mahlzeiten (Kalorientracker)</p>
+      <SectionFrame title="Mahlzeiten (Kalorientracker)">
         <div className="flex flex-col gap-3">
           {ctDay.meals.map(meal => (
             <div key={meal.id} className="rounded-xl bg-[#141d2e] border border-[#1e2d42] overflow-hidden">
@@ -180,7 +179,7 @@ function MealDetails({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
             </div>
           ))}
         </div>
-      </section>
+      </SectionFrame>
     );
   }
 
@@ -193,8 +192,7 @@ function MealDetails({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
     const visibleMeals = status === "plan_followed_freemeal" ? plan.meals.filter(m => !m.isFreeMeal) : plan.meals;
     const sectionLabel = status === "plan_followed_freemeal" ? `Feste Mahlzeiten (${plan.title})` : `Mahlzeiten (${plan.title})`;
     return (
-      <section>
-        <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">{sectionLabel}</p>
+      <SectionFrame title={sectionLabel}>
         <div className="flex flex-col gap-3">
           {status === "plan_followed_freemeal" && ci.freemealKcal != null && (
             <div className="rounded-xl bg-[#141d2e] border border-[#10b981]/30 overflow-hidden">
@@ -247,7 +245,7 @@ function MealDetails({ ci, athlete }: { ci: DailyCheckIn; athlete: Athlete }) {
             );
           })}
         </div>
-      </section>
+      </SectionFrame>
     );
   }
 
@@ -258,9 +256,6 @@ export function DailyCheckDetailModal({ ci, athlete, onClose }: Props) {
   const dateLabel = new Date(ci.date + "T12:00:00").toLocaleDateString("de-DE", {
     weekday: "long", day: "2-digit", month: "long", year: "numeric",
   });
-
-  const status = normalizeNutritionStatus(ci);
-  const noInfoReason = ci.noExactNutritionReason ?? ci.deviationReason;
 
   return (
     <motion.div
@@ -289,83 +284,97 @@ export function DailyCheckDetailModal({ ci, athlete, onClose }: Props) {
           </button>
         </div>
 
-        <div className="overflow-y-auto p-5 flex flex-col gap-5">
-          <CheckInSection title="Körpermessung">
-            <CheckInRow label="Körpergewicht" value={`${ci.weight} kg`} />
-            <CheckInRow label="Messzeitpunkt" value={ci.measurementTime || "–"} />
-          </CheckInSection>
-
-          <CheckInSection title="Schlaf">
-            <CheckInRow label="Schlafdauer" value={`${ci.sleepHours} h`} />
-            <ReadOnlySlider label="Schlafqualität" value={ci.sleepQuality} />
-            <CheckInRow label="Schlafscore" value={ci.sleepScore != null ? `${ci.sleepScore} / 100` : "–"} />
-          </CheckInSection>
-
-          <CheckInSection title="Vitalwerte">
-            <CheckInRow label="Ruheherzfrequenz" value={ci.restingHeartRate != null ? `${ci.restingHeartRate} bpm` : "–"} />
-            <CheckInRow label="HRV" value={ci.hrv != null ? `${ci.hrv} ms` : "–"} />
-            <CheckInRow label="SpO₂" value={ci.spO2 != null ? `${ci.spO2} %` : "–"} />
-            <CheckInRow
-              label="Blutdruck"
-              value={ci.bloodPressure ? `${ci.bloodPressure.systolic} / ${ci.bloodPressure.diastolic} mmHg` : "–"}
-            />
-          </CheckInSection>
-
-          <CheckInSection title="Wohlbefinden">
-            <ReadOnlySlider label="Energielevel" value={ci.energyLevel} />
-            <ReadOnlySlider label="Stresslevel" value={ci.stressLevel} colorMode="negative_high" />
-            <ReadOnlySlider label="Stimmung" value={ci.mood} />
-            <ReadOnlySlider label="Appetit" value={ci.appetite} noValueColor />
-            <ReadOnlySlider label="Verdauung" value={ci.digestion} />
-          </CheckInSection>
-
-          <CheckInSection title="Bewegung">
-            <CheckInRow label="Schritte" value={ci.steps.toLocaleString("de-DE")} />
-            <CheckInRow label="Training absolviert" value={ci.training ? "Ja" : "Nein"} />
-            <ReadOnlySlider
-              label="Trainingsqualität"
-              value={ci.training ? ci.trainingQuality : undefined}
-            />
-            <CheckInRow label="Cardio absolviert" value={ci.cardio ? "Ja" : "Nein"} />
-            <CheckInRow
-              label="Cardio-Dauer"
-              value={ci.cardioDuration != null ? `${ci.cardioDuration} min` : "–"}
-            />
-          </CheckInSection>
-
-          {/* ── Ernährung ── */}
-          <CheckInSection title="Ernährung">
-            {status === "calorie_tracker_used" && (
-              <NutritionCalorieTracker ci={ci} athlete={athlete} />
-            )}
-            {status === "meal_plan_followed" && (
-              <NutritionMealPlan ci={ci} athlete={athlete} />
-            )}
-            {status === "plan_followed_freemeal" && (
-              <NutritionFreemeal ci={ci} athlete={athlete} />
-            )}
-            {status === "no_exact_info" && (
-              <>
-                <CheckInRow label="Quelle" value="Keine genaue Angabe" />
-                <CheckInRow label="Begründung" value={noInfoReason || "–"} />
-              </>
-            )}
-            <CheckInRow label="Koffein" value={ci.caffeine ? `${ci.caffeine} mg` : "–"} />
-          </CheckInSection>
-
-          {/* Mahlzeit-Details */}
-          <MealDetails ci={ci} athlete={athlete} />
-
-          {ci.note && (
-            <section>
-              <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Tagesanmerkung</p>
-              <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] p-4">
-                <p className="text-sm text-[#8fa3c0] leading-relaxed whitespace-pre-wrap">{ci.note}</p>
-              </div>
-            </section>
-          )}
+        <div className="overflow-y-auto p-5">
+          <DailyCheckDetailBody ci={ci} athlete={athlete} />
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+
+/** Check-in content without the modal frame (also used in the check-in workspace). */
+export function DailyCheckDetailBody({ ci, athlete, collapsible = false }: { ci: DailyCheckIn; athlete: Athlete; collapsible?: boolean }) {
+  const status = normalizeNutritionStatus(ci);
+  const noInfoReason = ci.noExactNutritionReason ?? ci.deviationReason;
+
+  return (
+    <CollapsibleSections.Provider value={collapsible}>
+    <div className={collapsible ? "flex flex-col gap-2" : "flex flex-col gap-5"}>
+        <CheckInSection title="Körpermessung">
+          <CheckInRow label="Körpergewicht" value={`${ci.weight} kg`} />
+          <CheckInRow label="Messzeitpunkt" value={ci.measurementTime || "–"} />
+        </CheckInSection>
+
+        <CheckInSection title="Schlaf">
+          <CheckInRow label="Schlafdauer" value={`${ci.sleepHours} h`} />
+          <ReadOnlySlider label="Schlafqualität" value={ci.sleepQuality} />
+          <CheckInRow label="Schlafscore" value={ci.sleepScore != null ? `${ci.sleepScore} / 100` : "–"} />
+        </CheckInSection>
+
+        <CheckInSection title="Vitalwerte">
+          <CheckInRow label="Ruheherzfrequenz" value={ci.restingHeartRate != null ? `${ci.restingHeartRate} bpm` : "–"} />
+          <CheckInRow label="HRV" value={ci.hrv != null ? `${ci.hrv} ms` : "–"} />
+          <CheckInRow label="SpO₂" value={ci.spO2 != null ? `${ci.spO2} %` : "–"} />
+          <CheckInRow
+            label="Blutdruck"
+            value={ci.bloodPressure ? `${ci.bloodPressure.systolic} / ${ci.bloodPressure.diastolic} mmHg` : "–"}
+          />
+        </CheckInSection>
+
+        <CheckInSection title="Wohlbefinden">
+          <ReadOnlySlider label="Energielevel" value={ci.energyLevel} />
+          <ReadOnlySlider label="Stresslevel" value={ci.stressLevel} colorMode="negative_high" />
+          <ReadOnlySlider label="Stimmung" value={ci.mood} />
+          <ReadOnlySlider label="Appetit" value={ci.appetite} noValueColor />
+          <ReadOnlySlider label="Verdauung" value={ci.digestion} />
+        </CheckInSection>
+
+        <CheckInSection title="Bewegung">
+          <CheckInRow label="Schritte" value={ci.steps.toLocaleString("de-DE")} />
+          <CheckInRow label="Training absolviert" value={ci.training ? "Ja" : "Nein"} />
+          <ReadOnlySlider
+            label="Trainingsqualität"
+            value={ci.training ? ci.trainingQuality : undefined}
+          />
+          <CheckInRow label="Cardio absolviert" value={ci.cardio ? "Ja" : "Nein"} />
+          <CheckInRow
+            label="Cardio-Dauer"
+            value={ci.cardioDuration != null ? `${ci.cardioDuration} min` : "–"}
+          />
+        </CheckInSection>
+
+        {/* ── Ernährung ── */}
+        <CheckInSection title="Ernährung">
+          {status === "calorie_tracker_used" && (
+            <NutritionCalorieTracker ci={ci} athlete={athlete} />
+          )}
+          {status === "meal_plan_followed" && (
+            <NutritionMealPlan ci={ci} athlete={athlete} />
+          )}
+          {status === "plan_followed_freemeal" && (
+            <NutritionFreemeal ci={ci} athlete={athlete} />
+          )}
+          {status === "no_exact_info" && (
+            <>
+              <CheckInRow label="Quelle" value="Keine genaue Angabe" />
+              <CheckInRow label="Begründung" value={noInfoReason || "–"} />
+            </>
+          )}
+          <CheckInRow label="Koffein" value={ci.caffeine ? `${ci.caffeine} mg` : "–"} />
+        </CheckInSection>
+
+        {/* Mahlzeit-Details */}
+        <MealDetails ci={ci} athlete={athlete} />
+
+        {ci.note && (
+          <SectionFrame title="Tagesanmerkung">
+            <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] p-4">
+              <p className="text-sm text-[#8fa3c0] leading-relaxed whitespace-pre-wrap">{ci.note}</p>
+            </div>
+          </SectionFrame>
+        )}
+    </div>
+    </CollapsibleSections.Provider>
   );
 }

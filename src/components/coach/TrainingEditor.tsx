@@ -596,8 +596,9 @@ function SortableExerciseRow(props: SortableExerciseRowProps) {
 // ─── Training Editor ──────────────────────────────────────────────────────────
 
 export function TrainingEditor({ plan, athleteId, onSave, onVariantsChanged }: Props) {
+  const [newPlanId] = useState(() => `tp-${Date.now()}`);
   const initPlan = plan ?? {
-    id: `tp-${Date.now()}`,
+    id: newPlanId,
     athleteId,
     title: "Trainingsplan",
     days: [],

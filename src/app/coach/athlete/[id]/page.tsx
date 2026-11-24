@@ -1,17 +1,18 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, setAthleteHidden, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile, approvePlanChangeRequest, rejectPlanChangeRequest, saveTrainingPlanEntry, saveSupplementPlanEntry, toggleMealPlanActive, toggleTrainingPlanActive, toggleSupplementPlanActive, exportAthleteQuestionnaireData } from "@/lib/store";
+import { loadAuth, loadAthletes, updateAthlete, updateAthleteCredentials, deleteAthlete, setAthleteHidden, updateDailyCheckIn, updateWeeklyCheckIn, deleteDailyCheckIn, deleteWeeklyCheckIn, updateAthleteProfile, approvePlanChangeRequest, rejectPlanChangeRequest, exportAthleteQuestionnaireData } from "@/lib/store";
 import { showToast } from "@/components/ui/Toast";
-import { Athlete, AthleteProfile, GoalType, MealPlan, TrainingPlan, SupplementPlan, PlanChangeRequest } from "@/types";
+import { Athlete, AthleteProfile, GoalType, MealPlan, TrainingPlan, PlanChangeRequest } from "@/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/ui/StatCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { MealPlanView } from "@/components/athlete/MealPlanView";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { AthleteProfileEditor } from "@/components/coach/AthleteProfileEditor";
 import { GeneralPlansView } from "@/components/coach/GeneralPlansView";
+import { usePlanHandlers } from "@/lib/usePlanHandlers";
 import { SeasonPlanEditor } from "@/components/coach/SeasonPlanEditor";
 import { activePhase, phaseTypeLabel, ratePct } from "@/lib/seasonUtils";
 import { AthleteDataExport } from "@/components/coach/AthleteDataExport";
@@ -110,6 +111,7 @@ export default function CoachAthletePage() {
     });
   }, [router, id]);
 
+  const planHandlers = usePlanHandlers(athlete, setAthlete);
   const analysis = useMemo(() => athlete ? analyzeWeek(athlete) : null, [athlete]);
   const currentPhase = useMemo(
     () => athlete?.seasonPlan ? activePhase(athlete.seasonPlan) : undefined,
@@ -143,32 +145,7 @@ export default function CoachAthletePage() {
   if (!athlete) {
     return (
       <AppShell role="coach">
-        <div className="max-w-2xl mx-auto flex flex-col gap-4">
-          {/* Back + Header skeleton */}
-          <div className="flex items-center gap-3">
-            <Skeleton className="w-9 h-9 rounded-xl shrink-0" />
-            <div className="flex items-center gap-3">
-              <Skeleton className="w-10 h-10 rounded-full shrink-0" />
-              <div className="flex flex-col gap-1.5">
-                <Skeleton className="h-5 w-36" />
-                <Skeleton className="h-3 w-28" />
-              </div>
-            </div>
-          </div>
-          {/* Tab bar skeleton */}
-          <div className="flex gap-1">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-7 w-20 rounded-lg" />
-            ))}
-          </div>
-          {/* Stats grid skeleton */}
-          <div className="grid grid-cols-2 gap-3">
-            {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
-          </div>
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-28 rounded-2xl" />
-          <Skeleton className="h-28 rounded-2xl" />
-        </div>
+        <LoadingScreen />
       </AppShell>
     );
   }
@@ -273,128 +250,6 @@ export default function CoachAthletePage() {
     } catch {
       setAthlete(previous);
       showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
-    }
-  }
-
-  async function saveMealPlan(plan: MealPlan) {
-    const previous = athlete;
-    try {
-      const currentPlans = athlete!.mealPlans ?? [];
-      const exists = currentPlans.some(p => p.id === plan.id);
-      const newPlans = exists
-        ? currentPlans.map(p => p.id === plan.id ? plan : p)
-        : [...currentPlans, plan];
-      const updated = await updateAthlete(athlete!.id, { mealPlans: newPlans });
-      setAthlete(updated.find((a) => a.id === athlete!.id)!);
-      showToast("Ernährungsplan gespeichert.", "success");
-    } catch {
-      setAthlete(previous);
-      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
-    }
-  }
-
-  async function deleteMealPlan(planId: string) {
-    const previous = athlete;
-    const optimisticPlans = (athlete!.mealPlans ?? []).filter(p => p.id !== planId);
-    setAthlete((prev) => prev ? { ...prev, mealPlans: optimisticPlans } : prev);
-    try {
-      const updated = await updateAthlete(athlete!.id, { mealPlans: optimisticPlans });
-      setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    } catch {
-      setAthlete(previous);
-      showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");
-    }
-  }
-
-  async function saveTrainingPlan(plan: TrainingPlan) {
-    const previous = athlete;
-    try {
-      const updated = await saveTrainingPlanEntry(athlete!.id, plan);
-      setAthlete(updated.find((a) => a.id === athlete!.id)!);
-      showToast("Trainingsplan gespeichert.", "success");
-    } catch {
-      setAthlete(previous);
-      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
-    }
-  }
-
-  async function deleteTrainingPlan(planId: string) {
-    const previous = athlete;
-    const optimisticPlans = (athlete!.trainingPlans ?? []).filter((p) => p.id !== planId);
-    const activeWasDeleted = athlete!.trainingPlan?.id === planId;
-    const newActivePlan = activeWasDeleted ? (optimisticPlans.find((p) => p.isActive) ?? optimisticPlans[0] ?? null) : athlete!.trainingPlan;
-    setAthlete((prev) => prev ? { ...prev, trainingPlans: optimisticPlans, trainingPlan: newActivePlan ?? undefined } : prev);
-    try {
-      const updated = await updateAthlete(athlete!.id, { trainingPlans: optimisticPlans, trainingPlan: newActivePlan ?? undefined });
-      setAthlete(updated.find((a) => a.id === athlete!.id)!);
-      showToast("Trainingsplan gelöscht.", "success");
-    } catch {
-      setAthlete(previous);
-      showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");
-    }
-  }
-
-  async function saveSupplementPlan(plan: SupplementPlan) {
-    const previous = athlete;
-    try {
-      const updated = await saveSupplementPlanEntry(athlete!.id, plan);
-      setAthlete(updated.find((a) => a.id === athlete!.id)!);
-      showToast("Supplement-Plan gespeichert.", "success");
-    } catch {
-      setAthlete(previous);
-      showToast("Fehler beim Speichern. Bitte erneut versuchen.", "error");
-    }
-  }
-
-  async function deleteSupplementPlan(planId: string) {
-    const previous = athlete;
-    const existing = athlete!.supplementPlans ?? (athlete!.supplementPlan ? [athlete!.supplementPlan] : []);
-    const optimisticPlans = existing.filter((p) => p.id !== planId);
-    const activeWasDeleted = athlete!.supplementPlan?.id === planId;
-    const newActivePlan = activeWasDeleted
-      ? (optimisticPlans.find((p) => p.isActive) ?? optimisticPlans[0] ?? null)
-      : athlete!.supplementPlan;
-    setAthlete((prev) => prev ? { ...prev, supplementPlans: optimisticPlans, supplementPlan: newActivePlan ?? undefined } : prev);
-    try {
-      const updated = await updateAthlete(athlete!.id, { supplementPlans: optimisticPlans, supplementPlan: newActivePlan ?? undefined });
-      setAthlete(updated.find((a) => a.id === athlete!.id)!);
-      showToast("Supplementplan gelöscht.", "success");
-    } catch {
-      setAthlete(previous);
-      showToast("Fehler beim Löschen. Bitte erneut versuchen.", "error");
-    }
-  }
-
-  async function handleToggleMealPlanActive(planId: string) {
-    const previous = athlete;
-    try {
-      const updated = await toggleMealPlanActive(athlete!.id, planId);
-      setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    } catch {
-      setAthlete(previous);
-      showToast("Fehler beim Umschalten des Plans.", "error");
-    }
-  }
-
-  async function handleToggleTrainingPlanActive(planId: string) {
-    const previous = athlete;
-    try {
-      const updated = await toggleTrainingPlanActive(athlete!.id, planId);
-      setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    } catch {
-      setAthlete(previous);
-      showToast("Fehler beim Umschalten des Plans.", "error");
-    }
-  }
-
-  async function handleToggleSupplementPlanActive(planId: string) {
-    const previous = athlete;
-    try {
-      const updated = await toggleSupplementPlanActive(athlete!.id, planId);
-      setAthlete(updated.find((a) => a.id === athlete!.id)!);
-    } catch {
-      setAthlete(previous);
-      showToast("Fehler beim Umschalten des Plans.", "error");
     }
   }
 
@@ -1446,23 +1301,7 @@ export default function CoachAthletePage() {
         {/* ── PLÄNE ── */}
         {tab === "Pläne" && (
           <motion.div key="Pläne" variants={tabContentTransition} initial="hidden" animate="visible" exit="exit" className="flex flex-col gap-4">
-            <GeneralPlansView
-              athlete={athlete}
-              onSaveMealPlan={saveMealPlan}
-              onDeleteMealPlan={deleteMealPlan}
-              onSaveTrainingPlan={saveTrainingPlan}
-              onDeleteTrainingPlan={deleteTrainingPlan}
-              onSaveSupplementPlan={saveSupplementPlan}
-              onDeleteSupplementPlan={deleteSupplementPlan}
-              onToggleMealPlanActive={handleToggleMealPlanActive}
-              onToggleTrainingPlanActive={handleToggleTrainingPlanActive}
-              onToggleSupplementPlanActive={handleToggleSupplementPlanActive}
-              onPlansImported={async () => {
-                const updated = await import("@/lib/store").then((s) => s.loadAthletes());
-                const found = updated.find((a) => a.id === athlete!.id);
-                if (found) setAthlete(found);
-              }}
-            />
+            <GeneralPlansView athlete={athlete} {...planHandlers} />
           </motion.div>
         )}
 

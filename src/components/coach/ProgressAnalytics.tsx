@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import {
   ResponsiveContainer, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceArea,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceArea, ReferenceLine,
 } from "recharts";
 import { DailyCheckIn, SeasonPlan } from "@/types";
 import { formatDateShort, normalizeNutritionStatus } from "@/lib/utils";
@@ -173,9 +173,12 @@ interface Props {
   /** When true, show status (ampel / deviation). Coach view always true; athlete view
    * only when plan.showStatusToAthlete. */
   showPlanStatus?: boolean;
+  /** Dates of comparison photos, marked in the chart (check-in workspace). */
+  markerDates?: string[];
 }
 
-export function ProgressAnalytics({ checkIns, seasonPlan, showPlanStatus = true }: Props) {
+export function ProgressAnalytics({ checkIns, seasonPlan, showPlanStatus = true, markerDates }: Props) {
+  const photoDates = useMemo(() => markerDates ?? [], [markerDates]);
   const [metricKey, setMetricKey] = useState<string>("weight");
   const [rangeMode, setRangeMode] = useState<RangeMode>("30");
   const [monthCount, setMonthCount] = useState<number>(3);
@@ -226,6 +229,22 @@ export function ProgressAnalytics({ checkIns, seasonPlan, showPlanStatus = true 
       : [],
     [filtered, selectedMetric]
   );
+
+  // Category x-axis: snap each photo date to the nearest plotted day inside the visible range.
+  const photoMarkers = useMemo(() => {
+    if (lineData.length === 0) return [] as string[];
+    const first = lineData[0].isoDate;
+    const last = lineData[lineData.length - 1].isoDate;
+    const dayMs = (iso: string) => new Date(iso).getTime();
+    const out = new Set<string>();
+    for (const d of photoDates) {
+      if (d < first || d > last) continue;
+      let best = lineData[0];
+      for (const p of lineData) if (Math.abs(dayMs(p.isoDate) - dayMs(d)) < Math.abs(dayMs(best.isoDate) - dayMs(d))) best = p;
+      out.add(best.date);
+    }
+    return [...out];
+  }, [photoDates, lineData]);
 
   const planActive = !!seasonPlan && selectedMetric.key === "weight" && showPlan;
 
@@ -489,6 +508,15 @@ export function ProgressAnalytics({ checkIns, seasonPlan, showPlanStatus = true 
                     connectNulls
                   />
                 )}
+                {photoMarkers.map((x) => (
+                  <ReferenceLine
+                    key={x}
+                    x={x}
+                    stroke="#f59e0b"
+                    strokeDasharray="3 3"
+                    label={{ value: "📷", position: "insideTop", fontSize: 12 }}
+                  />
+                ))}
                 <Line
                   type="monotone"
                   dataKey="value"

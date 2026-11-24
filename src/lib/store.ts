@@ -64,6 +64,7 @@ function rowToAthlete(row: any): Athlete {
     zipCode: row.zip_code ?? undefined,
     city: row.city ?? undefined,
     isHidden: row.is_hidden ?? undefined,
+    checkInDone: row.check_in_done ?? {},
     exerciseVariants: Array.isArray(row.exercise_variants) ? row.exercise_variants : [],
     dailyCheckConfig: row.daily_check_config ?? { ...DEFAULT_DAILY_CHECK_CONFIG },
     coachNote: row.coach_note ?? "",
@@ -294,14 +295,20 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   if ("avatarInitials" in updates) row.avatar_initials = updates.avatarInitials ?? null;
   if ("onboardingCompleted" in updates) row.onboarding_completed = updates.onboardingCompleted;
   if ("legalConsent" in updates || "profile" in updates || "isNewSignup" in updates) {
-    const p = updates.profile ?? undefined;
-    const lc = updates.legalConsent ?? undefined;
-    const ns = updates.isNewSignup;
-    const merged = {
-      ...(p ?? {}),
-      ...(lc ? { __lc: lc } : {}),
-      ...(ns ? { __ns: true } : {}),
+    // Start from the raw column so hidden flags (__ivs, __sti, …) survive.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const current = (await api<any[]>(`/api/athletes/${id}`))[0]?.profile ?? {};
+    const entries = Object.entries(current as Record<string, unknown>);
+    const merged: Record<string, unknown> = {
+      ...("profile" in updates ? (updates.profile ?? {}) : Object.fromEntries(entries.filter(([k]) => !k.startsWith("__")))),
+      ...Object.fromEntries(entries.filter(([k]) => k.startsWith("__"))),
     };
+    if ("legalConsent" in updates) {
+      if (updates.legalConsent) merged.__lc = updates.legalConsent; else delete merged.__lc;
+    }
+    if ("isNewSignup" in updates) {
+      if (updates.isNewSignup) merged.__ns = true; else delete merged.__ns;
+    }
     row.profile = Object.keys(merged).length ? merged : null;
   }
   if ("profileImage" in updates) row.profile_image = updates.profileImage ?? null;
@@ -343,37 +350,48 @@ export async function updateAthlete(id: string, updates: Partial<Athlete>): Prom
   if ("planChangeRequests" in updates) row.plan_change_requests = updates.planChangeRequests ?? [];
   if ("exerciseVariants" in updates) row.exercise_variants = updates.exerciseVariants ?? [];
   if ("isHidden" in updates) row.is_hidden = updates.isHidden ?? null;
+  if ("checkInDone" in updates) row.check_in_done = updates.checkInDone ?? {};
   row.updated_at = new Date().toISOString();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = await api<any[]>(`/api/athletes/${id}`, jsonOpts("PATCH", { row }));
   return rows.map(rowToAthlete);
 }
 
+/**
+ * The profile column also stores hidden flags (__lc, __ivs, __ns, __sti) that rowToAthlete strips.
+ * Every profile write must start from the raw column, or it silently erases those flags.
+ */
+async function patchRawProfile(
+  athleteId: string,
+  change: (raw: Record<string, unknown>) => Record<string, unknown>,
+): Promise<Athlete[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await api<any[]>(`/api/athletes/${athleteId}`);
+  if (!rows.length) throw new Error(`Athlete ${athleteId} not found`);
+  const next = change({ ...(rows[0].profile ?? {}) });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updated = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
+    row: { profile: Object.keys(next).length ? next : null, updated_at: new Date().toISOString() },
+  }));
+  return updated.map(rowToAthlete);
+}
+
 export async function saveLegalConsent(
   athleteId: string,
   consent: NonNullable<Athlete["legalConsent"]>
 ): Promise<void> {
-  const a = await getAthlete(athleteId);
-  const merged = { ...(a.profile ?? {}), __lc: consent };
-  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
-    row: { profile: merged, updated_at: new Date().toISOString() },
-  }));
+  await patchRawProfile(athleteId, (raw) => ({ ...raw, __lc: consent }));
 }
 
 export async function markAthleteToolIntroSeen(athleteId: string, toolKey: string): Promise<void> {
-  const a = await getAthlete(athleteId);
-  const sti: string[] = a.seenToolIntros ?? [];
-  if (sti.includes(toolKey)) return;
-  const merged = { ...(a.profile ?? {}), __sti: [...sti, toolKey] };
-  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
-    row: { profile: merged, updated_at: new Date().toISOString() },
-  }));
+  await patchRawProfile(athleteId, (raw) => {
+    const sti = Array.isArray(raw.__sti) ? (raw.__sti as string[]) : [];
+    return sti.includes(toolKey) ? raw : { ...raw, __sti: [...sti, toolKey] };
+  });
 }
 
 export async function markIntroVideoSeen(athleteId: string): Promise<void> {
-  const a = await getAthlete(athleteId);
-  const merged = { ...(a.profile ?? {}), __ivs: true };
-  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", { row: { profile: merged } }));
+  await patchRawProfile(athleteId, (raw) => ({ ...raw, __ivs: true }));
 }
 
 export async function deleteAthlete(id: string): Promise<void> {
@@ -1097,14 +1115,7 @@ export async function updateAthleteProfile(
   athleteId: string,
   profile: import("@/types").AthleteProfile
 ): Promise<Athlete[]> {
-  const a = await getAthlete(athleteId);
-  const currentRaw = a.profile ?? {};
-  const merged = { ...currentRaw, ...profile };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows = await api<any[]>(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
-    row: { profile: merged, updated_at: new Date().toISOString() },
-  }));
-  return rows.map(rowToAthlete);
+  return patchRawProfile(athleteId, (raw) => ({ ...raw, ...profile }));
 }
 
 // ─── Multi-plan helpers ───────────────────────────────────────────────────────
@@ -1470,7 +1481,9 @@ export function getLastTrainingLogPerExercise(logs: TrainingLog[]): Map<string, 
   return result;
 }
 
-// ─── Check-In Done Status (sync / localStorage) ───────────────────────────────
+// ─── Check-In Done Status ─────────────────────────────────────────────────────
+// Stored per athlete in athletes.check_in_done. Older marks may still live in
+// localStorage (legacy); they are shown until the coach toggles them once.
 
 export function loadCheckInDone(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -1493,20 +1506,24 @@ export function loadCheckInDone(): Record<string, string> {
   }
 }
 
-export function setCheckInDone(athleteId: string, date: string, done: boolean): Record<string, string> {
-  const current = loadCheckInDone();
-  const key = `${athleteId}_${date}`;
-  const today = new Date().toISOString().slice(0, 10);
-  const updated = { ...current };
-  if (done) {
-    updated[key] = today;
-  } else {
-    delete updated[key];
-  }
+export function withCheckInDone(athlete: Athlete, date: string, done: boolean): Record<string, string> {
+  const next = { ...(athlete.checkInDone ?? {}) };
+  if (done) next[date] = new Date().toISOString().slice(0, 10);
+  else delete next[date];
+  return next;
+}
+
+export async function setCheckInDone(athlete: Athlete, date: string, done: boolean): Promise<Athlete[]> {
+  const rows = await updateAthlete(athlete.id, { checkInDone: withCheckInDone(athlete, date, done) });
+  // Drop any legacy local mark so the database is the only source from now on.
   if (typeof window !== "undefined") {
-    localStorage.setItem(CHECK_IN_DONE_KEY, JSON.stringify(updated));
+    const legacy = loadCheckInDone();
+    if (`${athlete.id}_${date}` in legacy) {
+      delete legacy[`${athlete.id}_${date}`];
+      localStorage.setItem(CHECK_IN_DONE_KEY, JSON.stringify(legacy));
+    }
   }
-  return updated;
+  return rows;
 }
 
 // ─── Athlete Card Status ───────────────────────────────────────────────────────
@@ -1603,13 +1620,11 @@ export async function saveOnboardingDraft(
 }
 
 export async function markAthleteSignupSeen(athleteId: string): Promise<void> {
-  const a = await getAthlete(athleteId);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { __ns, ...rest } = (a.profile ?? {}) as Record<string, unknown>;
-  const merged = Object.keys(rest).length ? rest : null;
-  await api(`/api/athletes/${athleteId}`, jsonOpts("PATCH", {
-    row: { profile: merged, updated_at: new Date().toISOString() },
-  }));
+  await patchRawProfile(athleteId, (raw) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { __ns, ...rest } = raw;
+    return rest;
+  });
 }
 
 export async function exportAthleteData(

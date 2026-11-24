@@ -13,7 +13,7 @@ import { todayISO } from "@/lib/utils";
 import { VideoFeedback } from "@/types";
 import { ExternalLink, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition } from "@/lib/motion";
 
@@ -39,13 +39,7 @@ export default function AthleteTraining() {
   if (!athlete) {
     return (
       <AppShell role="athlete" title="Trainingstracker">
-        <div className="max-w-2xl mx-auto flex flex-col gap-4">
-          <Skeleton className="h-11 rounded-xl" />
-          <Skeleton className="h-40 rounded-2xl" />
-          <div className="flex flex-col gap-3">
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}
-          </div>
-        </div>
+        <LoadingScreen />
       </AppShell>
     );
   }

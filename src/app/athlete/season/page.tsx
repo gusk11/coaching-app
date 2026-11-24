@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Athlete } from "@/types";
 import { loadAuth, loadAthletes } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { SeasonPlanView } from "@/components/athlete/SeasonPlanView";
 
 export default function AthleteSeasonPage() {
@@ -24,10 +24,7 @@ export default function AthleteSeasonPage() {
   if (!athlete) {
     return (
       <AppShell role="athlete" title="Jahresplan">
-        <div className="max-w-lg mx-auto flex flex-col gap-5">
-          <Skeleton className="h-72 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
-        </div>
+        <LoadingScreen />
       </AppShell>
     );
   }

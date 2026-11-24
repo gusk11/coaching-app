@@ -11,7 +11,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { Check, GitPullRequest, CheckCircle2, XCircle } from "lucide-react";
+import { Check, GitPullRequest, CheckCircle2, XCircle, ClipboardEdit } from "lucide-react";
 import { activePhase, ampelColor, formatSignedKg, phaseStatus, phaseTypeColor, phaseTypeLabel } from "@/lib/seasonUtils";
 
 const DAY_NAMES = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -312,9 +312,17 @@ export function AthleteCard({ athlete, checkInDate, isCheckInToday, hasPendingCh
       {/* Coach check-in done toggle */}
       {onToggleDone && (
         <div className={cn(
-          "mt-3 pt-3 border-t flex items-center justify-end",
+          "mt-3 pt-3 border-t flex items-center justify-end gap-2",
           accentBorderColor
         )}>
+          {!isDone && (
+            <button
+              onClick={(e) => { e.stopPropagation(); router.push(`/coach/athlete/${athlete.id}/checkin?date=${checkInDate}`); }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all bg-[#3b82f6]/10 border-[#3b82f6]/30 text-[#60a5fa] hover:bg-[#3b82f6]/20"
+            >
+              <ClipboardEdit size={12} /> Check-in bearbeiten
+            </button>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); onToggleDone(); }}
             className={cn(

@@ -12,7 +12,7 @@ import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
 import { TrainingAccordion } from "@/components/athlete/TrainingAccordion";
 import { SupplementList } from "@/components/athlete/SupplementList";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { showToast } from "@/components/ui/Toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { tabContentTransition } from "@/lib/motion";
@@ -99,15 +99,7 @@ export default function AthletePlans() {
   if (!athlete) {
     return (
       <AppShell role="athlete" title="Pläne">
-        <div className="max-w-lg mx-auto flex flex-col gap-4">
-          <div className="flex gap-1.5">
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-8 w-28 rounded-lg" />)}
-          </div>
-          <Skeleton className="h-48 rounded-2xl" />
-          <div className="flex flex-col gap-3">
-            {[0, 1].map((i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
-          </div>
-        </div>
+        <LoadingScreen />
       </AppShell>
     );
   }

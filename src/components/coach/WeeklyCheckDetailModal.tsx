@@ -52,88 +52,98 @@ export function WeeklyCheckDetailModal({ ci, onClose }: Props) {
           </button>
         </div>
 
-        <div className="overflow-y-auto p-5 flex flex-col gap-5">
-          <CheckInSection title="Gesamtbewertung">
-            <ReadOnlySlider label="Gesamte Woche" value={ci.overallWeekRating} />
-            <ReadOnlySlider label="Wochenzufriedenheit" value={ci.weekSatisfaction} />
-            <ReadOnlySlider label="Selbstzufriedenheit" value={ci.selfSatisfaction} />
-          </CheckInSection>
-
-          <CheckInSection title="Training">
-            <ReadOnlySlider label="Trainingseinschätzung" value={ci.trainingRating} />
-            <ReadOnlySlider label="Erholung" value={ci.recoveryRating} />
-          </CheckInSection>
-
-          <CheckInSection title="Ernährung">
-            <ReadOnlySlider label="Plan-Umsetzung" value={ci.nutritionAdherence} />
-            <CheckInRow label="Hunger & Cravings" value={ci.hungerCravings || "–"} labelWidth="w-44" />
-          </CheckInSection>
-
-          <CheckInSection title="Wohlbefinden (Wochendurchschnitt)">
-            <ReadOnlySlider label="Energielevel Ø" value={ci.energyAvg} />
-            <ReadOnlySlider label="Stresslevel Ø" value={ci.stressAvg} colorMode="negative_high" />
-            <CheckInRow
-              label="Schlafdauer Ø"
-              value={ci.sleepAvg != null ? `${ci.sleepAvg} h` : "–"}
-              labelWidth="w-44"
-            />
-          </CheckInSection>
-
-          {ci.specialEvents && (
-            <section>
-              <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Besondere Ereignisse</p>
-              <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] p-4">
-                <p className="text-sm text-[#8fa3c0] leading-relaxed whitespace-pre-wrap">{ci.specialEvents}</p>
-              </div>
-            </section>
-          )}
-
-          {ci.freeNote && (
-            <section>
-              <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Freie Anmerkung</p>
-              <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] p-4">
-                <p className="text-sm text-[#8fa3c0] leading-relaxed whitespace-pre-wrap">{ci.freeNote}</p>
-              </div>
-            </section>
-          )}
-
-          {ci.coachNote && (
-            <section>
-              <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Coach-Notiz</p>
-              <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] p-4">
-                <p className="text-sm text-[#8fa3c0] leading-relaxed whitespace-pre-wrap">{ci.coachNote}</p>
-              </div>
-            </section>
-          )}
-
-          {(() => {
-            const images = ci.progressImages && ci.progressImages.length > 0
-              ? ci.progressImages.map((img) => ({ src: img.url, label: img.fileName }))
-              : ci.photos && ci.photos.length > 0
-              ? ci.photos.map((url, i) => ({ src: url, label: `Foto ${i + 1}` }))
-              : [];
-            if (images.length === 0) return null;
-            return (
-              <section>
-                <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">
-                  Fortschrittsbilder ({images.length})
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {images.map((img, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={i}
-                      src={img.src}
-                      alt={img.label}
-                      className="rounded-xl w-full object-cover aspect-square"
-                    />
-                  ))}
-                </div>
-              </section>
-            );
-          })()}
+        <div className="overflow-y-auto p-5">
+          <WeeklyCheckDetailBody ci={ci} />
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+
+/** Check-in content without the modal frame (also used in the check-in workspace). */
+export function WeeklyCheckDetailBody({ ci }: { ci: WeeklyCheckIn }) {
+  return (
+    <div className="flex flex-col gap-5">
+        <CheckInSection title="Gesamtbewertung">
+          <ReadOnlySlider label="Gesamte Woche" value={ci.overallWeekRating} />
+          <ReadOnlySlider label="Wochenzufriedenheit" value={ci.weekSatisfaction} />
+          <ReadOnlySlider label="Selbstzufriedenheit" value={ci.selfSatisfaction} />
+        </CheckInSection>
+
+        <CheckInSection title="Training">
+          <ReadOnlySlider label="Trainingseinschätzung" value={ci.trainingRating} />
+          <ReadOnlySlider label="Erholung" value={ci.recoveryRating} />
+        </CheckInSection>
+
+        <CheckInSection title="Ernährung">
+          <ReadOnlySlider label="Plan-Umsetzung" value={ci.nutritionAdherence} />
+          <CheckInRow label="Hunger & Cravings" value={ci.hungerCravings || "–"} labelWidth="w-44" />
+        </CheckInSection>
+
+        <CheckInSection title="Wohlbefinden (Wochendurchschnitt)">
+          <ReadOnlySlider label="Energielevel Ø" value={ci.energyAvg} />
+          <ReadOnlySlider label="Stresslevel Ø" value={ci.stressAvg} colorMode="negative_high" />
+          <CheckInRow
+            label="Schlafdauer Ø"
+            value={ci.sleepAvg != null ? `${ci.sleepAvg} h` : "–"}
+            labelWidth="w-44"
+          />
+        </CheckInSection>
+
+        {ci.specialEvents && (
+          <section>
+            <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Besondere Ereignisse</p>
+            <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] p-4">
+              <p className="text-sm text-[#8fa3c0] leading-relaxed whitespace-pre-wrap">{ci.specialEvents}</p>
+            </div>
+          </section>
+        )}
+
+        {ci.freeNote && (
+          <section>
+            <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Freie Anmerkung</p>
+            <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] p-4">
+              <p className="text-sm text-[#8fa3c0] leading-relaxed whitespace-pre-wrap">{ci.freeNote}</p>
+            </div>
+          </section>
+        )}
+
+        {ci.coachNote && (
+          <section>
+            <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">Coach-Notiz</p>
+            <div className="rounded-xl bg-[#141d2e] border border-[#1e2d42] p-4">
+              <p className="text-sm text-[#8fa3c0] leading-relaxed whitespace-pre-wrap">{ci.coachNote}</p>
+            </div>
+          </section>
+        )}
+
+        {(() => {
+          const images = ci.progressImages && ci.progressImages.length > 0
+            ? ci.progressImages.map((img) => ({ src: img.url, label: img.fileName }))
+            : ci.photos && ci.photos.length > 0
+            ? ci.photos.map((url, i) => ({ src: url, label: `Foto ${i + 1}` }))
+            : [];
+          if (images.length === 0) return null;
+          return (
+            <section>
+              <p className="text-xs text-[#5a7090] uppercase tracking-widest mb-2">
+                Fortschrittsbilder ({images.length})
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {images.map((img, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={i}
+                    src={img.src}
+                    alt={img.label}
+                    className="rounded-xl w-full object-cover aspect-square"
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })()}
+    </div>
   );
 }

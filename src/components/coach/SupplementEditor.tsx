@@ -30,8 +30,9 @@ const INPUT =
   "bg-[#0f1624] border border-[#1e2d42] rounded-xl px-3 py-2 text-[#f0f4ff] text-sm focus:outline-none focus:border-[#3b82f6] transition-colors w-full";
 
 export function SupplementEditor({ plan, athleteId, onSave }: Props) {
+  const [newPlanId] = useState(() => `sp-${Date.now()}`);
   const initPlan = plan ?? {
-    id: `sp-${Date.now()}`,
+    id: newPlanId,
     athleteId,
     supplements: [],
     coachNote: "",

@@ -343,15 +343,6 @@ export function GeneralPlansView({
     setDeleteConfirmSupplementId(null);
   }
 
-  async function handleSaveTrainingPlan(plan: TrainingPlan) {
-    await onSaveTrainingPlan(plan);
-    setEditingTraining(false);
-  }
-
-  async function handleSaveSupplementPlan(plan: SupplementPlan) {
-    await onSaveSupplementPlan(plan);
-    setEditingSupplements(false);
-  }
 
   const subTabs: PlanSubTab[] = ["Ernährung", "Training", "Supplements"];
 
@@ -469,6 +460,15 @@ export function GeneralPlansView({
                   <ClipboardPaste size={12} /> Einfügen
                 </button>
               )}
+              {trainingPlans.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleExportTrainingPlan(activeTrainingPlans[0] ?? trainingPlans[0])}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium bg-[#141d2e] border-[#1e2d42] text-[#8fa3c0] hover:border-[#3b82f6]/40 hover:text-[#60a5fa] transition-colors"
+                >
+                  <Download size={12} /> JSON exportieren
+                </button>
+              )}
               {!editingTraining && (
                 <PlanUploadButton planType="training" athleteId={athlete.id} onSuccess={onPlansImported} />
               )}
@@ -480,7 +480,7 @@ export function GeneralPlansView({
             <TrainingEditor
               plan={trainingPlans.find((p) => p.isActive !== false) ?? trainingPlans[0]}
               athleteId={athlete.id}
-              onSave={handleSaveTrainingPlan}
+              onSave={onSaveTrainingPlan}
             />
           ) : trainingPlans.length > 0 ? (
             <>
@@ -646,7 +646,7 @@ export function GeneralPlansView({
             <SupplementEditor
               plan={athlete.supplementPlan}
               athleteId={athlete.id}
-              onSave={handleSaveSupplementPlan}
+              onSave={onSaveSupplementPlan}
             />
           ) : suppPlans.length > 0 ? (
             <>

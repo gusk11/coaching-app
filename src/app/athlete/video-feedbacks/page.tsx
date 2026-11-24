@@ -6,7 +6,7 @@ import { loadAuth, loadAthletes } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
 import { VideoFeedbackOverview } from "@/components/athlete/VideoFeedbackOverview";
 import { ToolIntroVideo } from "@/components/athlete/ToolIntroVideo";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { LoadingScreen } from "@/components/ui/LoadingScreen";
 
 export default function AthleteVideoFeedbacksPage() {
   const router = useRouter();
@@ -25,12 +25,7 @@ export default function AthleteVideoFeedbacksPage() {
   if (!athlete) {
     return (
       <AppShell role="athlete" title="Video-Feedbacks">
-        <div className="max-w-lg mx-auto flex flex-col gap-4">
-          <Skeleton className="h-10 rounded-xl" />
-          <div className="flex flex-col gap-2">
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
-          </div>
-        </div>
+        <LoadingScreen />
       </AppShell>
     );
   }
